@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>ControleSala.Agente</RootNamespace>
+    <ApplicationIcon>..\..\instalador\controlesala.ico</ApplicationIcon>
+    <AssemblyName>ControleSala.Agente</AssemblyName>
+    <UseWindowsForms>true</UseWindowsForms>
+  </PropertyGroup>
+
+  <!-- WinForms só para o ícone da bandeja; evita nomes repetidos (Timer, Size...) com o resto do código. -->
+  <ItemGroup>
+    <Using Remove="System.Windows.Forms" />
+    <Using Remove="System.Drawing" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Vortice.Direct3D11" Version="3.8.3" />
+    <PackageReference Include="System.ServiceProcess.ServiceController" Version="10.0.10" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ControleSala.Comum\ControleSala.Comum.csproj" />
+  </ItemGroup>
+
+</Project>

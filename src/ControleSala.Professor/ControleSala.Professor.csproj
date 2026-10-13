@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <UseWPF>true</UseWPF>
+    <RootNamespace>ControleSala.Professor</RootNamespace>
+    <ApplicationIcon>..\..\instalador\controlesala.ico</ApplicationIcon>
+    <AssemblyName>ControleSala.Professor</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ControleSala.Comum\ControleSala.Comum.csproj" />
+  </ItemGroup>
+
+</Project>

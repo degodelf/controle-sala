@@ -1,0 +1,29 @@
+<Window x:Class="ControleSala.Professor.JanelaProfessores"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Professores" Width="460" Height="360" MinWidth="400" MinHeight="300"
+        WindowStartupLocation="CenterOwner" Background="{DynamicResource PincelFundo}" Foreground="{DynamicResource PincelTexto}">
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <TextBlock Grid.Row="0" Text="Professores desta sala" FontSize="19" FontWeight="SemiBold" Margin="0,0,0,12"/>
+
+        <ListBox Grid.Row="1" x:Name="Lista" DisplayMemberPath="Texto" Padding="4" FontSize="14"/>
+
+        <WrapPanel Grid.Row="2" Margin="0,12,0,0">
+            <Button Content="Adicionar..." Padding="14,6" Margin="0,0,8,0" Click="Adicionar_Click"/>
+            <Button Content="Trocar PIN..." Padding="14,6" Margin="0,0,8,0" Click="TrocarPin_Click"/>
+            <Button Content="Remover" Padding="14,6" Click="Remover_Click"/>
+        </WrapPanel>
+
+        <DockPanel Grid.Row="3" Margin="0,14,0,0">
+            <Button DockPanel.Dock="Right" Content="Fechar" IsCancel="True" Padding="18,6"/>
+            <TextBlock x:Name="TextoMensagem" Foreground="{DynamicResource PincelAviso}" TextWrapping="Wrap" VerticalAlignment="Center"/>
+        </DockPanel>
+    </Grid>
+</Window>

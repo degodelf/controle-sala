@@ -1,0 +1,64 @@
+name: Gerar instalador
+
+# Dispara ao empurrar uma tag de versão (ex.: v0.3.1). Gera o ControleSala-Setup e cria a Release.
+# O instalador sai SEM assinatura (a chave do autor não fica no GitHub, por segurança). Para a atualização
+# dos alunos pela rede, baixe o Setup da Release e assine no seu PC:
+#   ControleSala.Assinador assinar ControleSala-Setup-<versão>.exe <versão>
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:   # permite rodar manualmente pelo site do GitHub
+
+permissions:
+  contents: write      # necessário para criar a Release
+
+jobs:
+  instalador:
+    runs-on: windows-latest
+    steps:
+      - name: Baixar o código
+        uses: actions/checkout@v4
+
+      - name: Instalar o .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Definir a versão a partir da tag
+        id: versao
+        shell: pwsh
+        run: |
+          $v = "${{ github.ref_name }}" -replace '^v',''
+          if ($v -notmatch '^\d+\.\d+\.\d+$') { $v = '0.0.0' }   # workflow_dispatch sem tag: usa a do projeto
+          if ($v -ne '0.0.0') {
+            $props = 'Directory.Build.props'
+            (Get-Content $props -Raw) -replace '<Version>[^<]*</Version>', "<Version>$v</Version>" | Set-Content $props -NoNewline
+          }
+          "versao=$v" >> $env:GITHUB_OUTPUT
+          Write-Host "Versão: $v"
+
+      - name: Baixar o FFmpeg
+        shell: pwsh
+        run: ./terceiros/baixar-ffmpeg.ps1
+
+      - name: Instalar o Inno Setup
+        shell: pwsh
+        run: choco install innosetup --no-progress -y
+
+      - name: Gerar o instalador
+        shell: pwsh
+        run: ./instalador/gerar-instalador.ps1
+
+      - name: Publicar a Release
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          name: ControleSala ${{ steps.versao.outputs.versao }}
+          files: instalador/saida/ControleSala-Setup-*.exe
+          body: |
+            Instalador do ControleSala ${{ steps.versao.outputs.versao }}.
+
+            **Este instalador não está assinado.** Para instalar num PC novo (pendrive), use-o direto.
+            Para atualizar os alunos pela rede, baixe-o e assine no seu PC do professor:
+            `ControleSala.Assinador assinar ControleSala-Setup-${{ steps.versao.outputs.versao }}.exe ${{ steps.versao.outputs.versao }}`

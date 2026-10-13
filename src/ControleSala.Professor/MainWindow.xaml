@@ -1,0 +1,233 @@
+<Window x:Class="ControleSala.Professor.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:ControleSala.Professor"
+        Title="ControleSala — Professor"
+        Width="1180" Height="720" WindowStartupLocation="CenterScreen"
+        Background="{DynamicResource PincelFundo}" Closed="Window_Closed">
+    <DockPanel>
+
+        <!-- Barra de menus -->
+        <Menu DockPanel.Dock="Top" Padding="4,2" Background="{DynamicResource PincelSuperficie2}">
+            <MenuItem Header="_Sala">
+                <MenuItem Header="Sala..." Click="BotaoSala_Click">
+                    <MenuItem.Icon><Path Style="{StaticResource Icone}" Data="{StaticResource IconeSala}"/></MenuItem.Icon>
+                </MenuItem>
+                <MenuItem Header="Papel de parede..." Click="BotaoPapelDeParede_Click">
+                    <MenuItem.Icon><Path Style="{StaticResource Icone}" Data="{StaticResource IconePapel}"/></MenuItem.Icon>
+                </MenuItem>
+                <Separator/>
+                <MenuItem Header="Sair" Click="MenuSair_Click"/>
+            </MenuItem>
+            <MenuItem Header="_Computadores">
+                <MenuItem Header="Computadores..." Click="BotaoComputadores_Click">
+                    <MenuItem.Icon><Path Style="{StaticResource Icone}" Data="{StaticResource IconeComputadores}"/></MenuItem.Icon>
+                </MenuItem>
+                <MenuItem Header="Procurar na rede..." Click="MenuProcurar_Click">
+                    <MenuItem.Icon><Path Style="{StaticResource Icone}" Data="{StaticResource IconeProcurar}"/></MenuItem.Icon>
+                </MenuItem>
+                <MenuItem Header="Enviar arquivos..." Click="BotaoEnviarArquivos_Click">
+                    <MenuItem.Icon><Path Style="{StaticResource Icone}" Data="{StaticResource IconeEnviar}"/></MenuItem.Icon>
+                </MenuItem>
+                <Separator/>
+                <MenuItem Header="Atualizar o ControleSala dos alunos..." Click="AtualizarAlunos_Click">
+                    <MenuItem.Icon><Path Style="{StaticResource Icone}" Data="{StaticResource IconeAtualizar}"/></MenuItem.Icon>
+                </MenuItem>
+            </MenuItem>
+            <MenuItem Header="Co_mandos">
+                <MenuItem Header="Abrir link nos computadores..." Click="ComandoLink_Click">
+                    <MenuItem.Icon><Path Style="{StaticResource Icone}" Data="{StaticResource IconeLink}"/></MenuItem.Icon>
+                </MenuItem>
+                <MenuItem Header="Enviar mensagem..." Click="ComandoMensagem_Click">
+                    <MenuItem.Icon><Path Style="{StaticResource Icone}" Data="{StaticResource IconeMensagem}"/></MenuItem.Icon>
+                </MenuItem>
+                <Separator/>
+                <MenuItem Header="Bloquear a tela..." Click="ComandoBloquear_Click">
+                    <MenuItem.Icon><Path Style="{StaticResource Icone}" Data="{StaticResource IconeBloquear}"/></MenuItem.Icon>
+                </MenuItem>
+                <MenuItem Header="Desbloquear a tela..." Click="ComandoDesbloquear_Click"/>
+                <Separator/>
+                <MenuItem Header="Abrir programa..." Click="ComandoAbrirPrograma_Click">
+                    <MenuItem.Icon><Path Style="{StaticResource Icone}" Data="{StaticResource IconePrograma}"/></MenuItem.Icon>
+                </MenuItem>
+                <MenuItem Header="Fechar programa..." Click="ComandoFecharPrograma_Click"/>
+                <MenuItem Header="Programas permitidos..." Click="GerenciarProgramas_Click"/>
+                <Separator/>
+                <MenuItem Header="Silenciar o som..." Click="ComandoSilenciar_Click">
+                    <MenuItem.Icon><Path Style="{StaticResource Icone}" Data="{StaticResource IconeSom}"/></MenuItem.Icon>
+                </MenuItem>
+                <MenuItem Header="Reativar o som..." Click="ComandoReativarSom_Click"/>
+                <Separator/>
+                <MenuItem Header="Bloquear TODA a internet..." Click="BloquearInternet_Click">
+                    <MenuItem.Icon><Path Style="{StaticResource Icone}" Data="{StaticResource IconeInternet}"/></MenuItem.Icon>
+                </MenuItem>
+                <MenuItem Header="Bloquear sites da lista..." Click="BloquearSites_Click"/>
+                <MenuItem Header="Liberar a internet..." Click="LiberarInternet_Click"/>
+                <MenuItem Header="Sites bloqueados (lista)..." Click="GerenciarSites_Click"/>
+                <Separator/>
+                <MenuItem Header="Ligar os computadores (Wake-on-LAN)..." Click="WakeOnLan_Click">
+                    <MenuItem.Icon><Path Style="{StaticResource Icone}" Data="{StaticResource IconeEnergia}"/></MenuItem.Icon>
+                </MenuItem>
+                <MenuItem Header="Desligar os computadores..." Click="ComandoDesligar_Click"/>
+                <MenuItem Header="Reiniciar os computadores..." Click="ComandoReiniciar_Click"/>
+                <MenuItem Header="Encerrar a sessão (logoff)..." Click="ComandoLogoff_Click"/>
+                <Separator/>
+                <MenuItem Header="Limpeza automática (configurar)..." Click="Limpeza_Click">
+                    <MenuItem.Icon><Path Style="{StaticResource Icone}" Data="{StaticResource IconeLimpeza}"/></MenuItem.Icon>
+                </MenuItem>
+                <MenuItem Header="Limpar agora..." Click="LimparAgora_Click"/>
+            </MenuItem>
+            <MenuItem Header="_Professores">
+                <MenuItem Header="Trocar de professor..." Click="BotaoTrocar_Click"/>
+                <MenuItem Header="Gerenciar professores..." Click="BotaoProfessores_Click">
+                    <MenuItem.Icon><Path Style="{StaticResource Icone}" Data="{StaticResource IconeProfessor}"/></MenuItem.Icon>
+                </MenuItem>
+            </MenuItem>
+            <MenuItem Header="E_xibir">
+                <MenuItem Header="Tema claro ou escuro" Click="BotaoTema_Click">
+                    <MenuItem.Icon><Path Style="{StaticResource Icone}" Data="{StaticResource IconeTema}"/></MenuItem.Icon>
+                </MenuItem>
+            </MenuItem>
+            <MenuItem Header="_Ajuda">
+                <MenuItem Header="Sobre o ControleSala" Click="BotaoSobre_Click">
+                    <MenuItem.Icon><Path Style="{StaticResource Icone}" Data="{StaticResource IconeSobre}"/></MenuItem.Icon>
+                </MenuItem>
+            </MenuItem>
+        </Menu>
+
+        <!-- Barra de ferramentas -->
+        <Border DockPanel.Dock="Top" Background="{DynamicResource PincelSuperficie2}" Padding="6,4"
+                BorderBrush="{DynamicResource PincelBorda}" BorderThickness="0,0,0,1">
+            <DockPanel>
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="Telas" Foreground="{DynamicResource PincelTextoFraco}" FontSize="11"
+                               VerticalAlignment="Center" Margin="8,0,6,0"/>
+                    <Slider x:Name="DeslizeTamanho" Width="130" Minimum="160" Maximum="520" Value="300"
+                            VerticalAlignment="Center" ValueChanged="Tamanho_Alterado"/>
+                    <Button Style="{StaticResource BotaoFerramenta}" Click="BotaoTema_Click" Margin="10,0,0,0"
+                            ToolTip="Alternar entre tema claro e escuro">
+                        <Path Style="{StaticResource Icone}" Data="{StaticResource IconeTema}"/>
+                    </Button>
+                </StackPanel>
+                <StackPanel Orientation="Horizontal">
+                    <Button Style="{StaticResource BotaoFerramenta}" Click="BotaoEnviarArquivos_Click">
+                        <StackPanel>
+                            <Path Style="{StaticResource Icone}" Data="{StaticResource IconeEnviar}" HorizontalAlignment="Center"/>
+                            <TextBlock Text="Enviar arquivos" FontSize="11" Margin="0,3,0,0"/>
+                        </StackPanel>
+                    </Button>
+                    <Button Style="{StaticResource BotaoFerramenta}" Click="ComandoLink_Click">
+                        <StackPanel>
+                            <Path Style="{StaticResource Icone}" Data="{StaticResource IconeLink}" HorizontalAlignment="Center"/>
+                            <TextBlock Text="Abrir link" FontSize="11" Margin="0,3,0,0"/>
+                        </StackPanel>
+                    </Button>
+                    <Button Style="{StaticResource BotaoFerramenta}" Click="BotaoComputadores_Click">
+                        <StackPanel>
+                            <Path Style="{StaticResource Icone}" Data="{StaticResource IconeComputadores}" HorizontalAlignment="Center"/>
+                            <TextBlock Text="Computadores" FontSize="11" Margin="0,3,0,0"/>
+                        </StackPanel>
+                    </Button>
+                    <Button Style="{StaticResource BotaoFerramenta}" Click="MenuProcurar_Click">
+                        <StackPanel>
+                            <Path Style="{StaticResource Icone}" Data="{StaticResource IconeProcurar}" HorizontalAlignment="Center"/>
+                            <TextBlock Text="Procurar" FontSize="11" Margin="0,3,0,0"/>
+                        </StackPanel>
+                    </Button>
+                    <Border Width="1" Background="{DynamicResource PincelBorda}" Margin="6,6"/>
+                    <Button Style="{StaticResource BotaoFerramenta}" Click="BotaoSala_Click">
+                        <StackPanel>
+                            <Path Style="{StaticResource Icone}" Data="{StaticResource IconeSala}" HorizontalAlignment="Center"/>
+                            <TextBlock Text="Sala" FontSize="11" Margin="0,3,0,0"/>
+                        </StackPanel>
+                    </Button>
+                    <Button Style="{StaticResource BotaoFerramenta}" Click="BotaoPapelDeParede_Click">
+                        <StackPanel>
+                            <Path Style="{StaticResource Icone}" Data="{StaticResource IconePapel}" HorizontalAlignment="Center"/>
+                            <TextBlock Text="Papel de parede" FontSize="11" Margin="0,3,0,0"/>
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+            </DockPanel>
+        </Border>
+
+        <!-- Barra de status -->
+        <Border DockPanel.Dock="Bottom" Background="{DynamicResource PincelSuperficie2}" Padding="12,5"
+                BorderBrush="{DynamicResource PincelBorda}" BorderThickness="0,1,0,0">
+            <DockPanel>
+                <TextBlock x:Name="TextoCreditos" DockPanel.Dock="Right" Foreground="{DynamicResource PincelTextoFraco}"
+                           FontSize="11" VerticalAlignment="Center" Margin="12,0,0,0"/>
+                <StackPanel Orientation="Horizontal">
+                    <Ellipse Width="9" Height="9" Fill="{DynamicResource PincelOnline}" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                    <TextBlock x:Name="TextoEstado" Foreground="{DynamicResource PincelTexto}" FontSize="12" VerticalAlignment="Center"/>
+                    <Border Width="1" Background="{DynamicResource PincelBorda}" Margin="12,2"/>
+                    <TextBlock x:Name="TextoSala" Foreground="{DynamicResource PincelTextoFraco}" FontSize="12" VerticalAlignment="Center"/>
+                    <Border Width="1" Background="{DynamicResource PincelBorda}" Margin="12,2"/>
+                    <TextBlock x:Name="TextoProfessor" Foreground="{DynamicResource PincelTextoFraco}" FontSize="12" VerticalAlignment="Center"/>
+                    <!-- Aparece só quando há alunos com versão mais antiga que a deste programa. -->
+                    <TextBlock x:Name="TextoDesatualizados" Visibility="Collapsed" FontSize="12" VerticalAlignment="Center" Margin="16,0,0,0"
+                               Foreground="{DynamicResource PincelAviso}" Cursor="Hand" TextDecorations="Underline"
+                               ToolTip="Abrir a janela de atualização" MouseLeftButtonUp="TextoDesatualizados_Click"/>
+                </StackPanel>
+            </DockPanel>
+        </Border>
+
+        <!-- Aviso de versão nova (aparece só quando o GitHub tem uma versão mais nova) -->
+        <Border x:Name="BannerAtualizacao" DockPanel.Dock="Top" Visibility="Collapsed"
+                Background="{DynamicResource PincelRealce}" Padding="14,9" Cursor="Hand"
+                MouseLeftButtonUp="BannerAtualizacao_Click">
+            <DockPanel>
+                <Button DockPanel.Dock="Right" Content="✕" Padding="8,2" Background="Transparent" BorderThickness="0"
+                        Foreground="White" ToolTip="Dispensar" Click="DispensarBanner_Click"/>
+                <TextBlock DockPanel.Dock="Right" Text="Atualizar" Foreground="White" FontWeight="SemiBold"
+                           VerticalAlignment="Center" Margin="0,0,14,0" TextDecorations="Underline"/>
+                <TextBlock x:Name="TextoBanner" Foreground="White" VerticalAlignment="Center"/>
+            </DockPanel>
+        </Border>
+
+        <!-- Grade de telas (a parte preta fica só no vídeo de cada tela) -->
+        <Grid Background="{DynamicResource PincelFundo}">
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <ItemsControl x:Name="Grade" Margin="8">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <WrapPanel/>
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate DataType="{x:Type local:TileVm}">
+                            <Border Width="{Binding Largura}" Margin="8" Background="{DynamicResource PincelSuperficie}" CornerRadius="6"
+                                    BorderBrush="{Binding CorBorda}" BorderThickness="2" Cursor="Hand"
+                                    ToolTip="{Binding Endereco}" MouseLeftButtonDown="Tile_MouseDown">
+                                <Border.ContextMenu>
+                                    <ContextMenu>
+                                        <MenuItem Header="Ver tela" Click="TileVerTela_Click"/>
+                                        <MenuItem Header="Reconectar" Click="TileReconectar_Click"/>
+                                    </ContextMenu>
+                                </Border.ContextMenu>
+                                <StackPanel>
+                                    <Grid Height="{Binding AlturaImagem}" Background="Black">
+                                        <Image Source="{Binding Imagem}" Stretch="Uniform" Opacity="{Binding Opacidade}"
+                                               RenderOptions.BitmapScalingMode="HighQuality"/>
+                                        <TextBlock Text="{Binding Mensagem}" Foreground="#CCCCCC" Margin="10"
+                                                   HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                   TextWrapping="Wrap" TextAlignment="Center"/>
+                                    </Grid>
+                                    <DockPanel Background="{DynamicResource PincelSuperficie2}">
+                                        <Ellipse DockPanel.Dock="Left" Width="10" Height="10" Fill="{Binding CorEstado}" Margin="9,0,7,0"/>
+                                        <TextBlock Text="{Binding Nome}" Foreground="{DynamicResource PincelTexto}" Padding="0,7"
+                                                   TextTrimming="CharacterEllipsis"/>
+                                    </DockPanel>
+                                </StackPanel>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+
+            <TextBlock x:Name="TextoVazio" Foreground="{DynamicResource PincelTextoFraco}" FontSize="15" TextAlignment="Center" TextWrapping="Wrap"
+                       HorizontalAlignment="Center" VerticalAlignment="Center" Margin="30"
+                       Text="Nenhum computador na sala ainda.&#10;Clique em &quot;Computadores&quot; para adicionar ou procurar na rede."/>
+        </Grid>
+    </DockPanel>
+</Window>

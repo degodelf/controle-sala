@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/ControleSala.Agente/ControleSala.Agente.csproj" />
+    <Project Path="src/ControleSala.Assinador/ControleSala.Assinador.csproj" />
+    <Project Path="src/ControleSala.Comum/ControleSala.Comum.csproj" />
+    <Project Path="src/ControleSala.Professor/ControleSala.Professor.csproj" />
+    <Project Path="src/ControleSala.Testes/ControleSala.Testes.csproj" />
+  </Folder>
+</Solution>

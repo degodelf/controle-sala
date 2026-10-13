@@ -1,0 +1,25 @@
+<Window x:Class="ControleSala.Professor.JanelaEntrar"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="ControleSala — Entrar" Width="380" SizeToContent="Height" ResizeMode="NoResize"
+        WindowStartupLocation="CenterScreen" Background="{DynamicResource PincelFundo}" Foreground="{DynamicResource PincelTexto}"
+        FocusManager.FocusedElement="{Binding ElementName=CampoPin}">
+    <StackPanel Margin="24">
+        <TextBlock Text="Quem está usando?" FontSize="19" FontWeight="SemiBold" Margin="0,0,0,16"/>
+
+        <TextBlock Text="Professor"/>
+        <ComboBox x:Name="ListaProfessores" DisplayMemberPath="Nome" Margin="0,4,0,12" Padding="6,4"
+                  SelectionChanged="Professor_Alterado"/>
+
+        <TextBlock Text="PIN"/>
+        <PasswordBox x:Name="CampoPin" MaxLength="8" Margin="0,4,0,8" Padding="6,4"/>
+
+        <TextBlock x:Name="TextoErro" Foreground="{DynamicResource PincelOffline}" TextWrapping="Wrap" MinHeight="20"/>
+
+        <Button x:Name="BotaoEntrar" Content="Entrar" IsDefault="True" Padding="22,6" Margin="0,12,0,0"
+                HorizontalAlignment="Right" Click="Entrar_Click"/>
+
+        <TextBlock x:Name="TextoCreditos" Foreground="{DynamicResource PincelTextoFraco}" FontSize="10" Margin="0,18,0,0"
+                   HorizontalAlignment="Center"/>
+    </StackPanel>
+</Window>

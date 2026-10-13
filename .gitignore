@@ -1,0 +1,14 @@
+bin/
+obj/
+.vs/
+*.user
+publicar/
+
+# FFmpeg: nem o download bruto nem as DLLs usadas vão para o git (~107 MB). O CI baixa com terceiros/baixar-ffmpeg.ps1.
+terceiros/download-ffmpeg/
+terceiros/ffmpeg/
+# Instalador gerado (vem do CI / do gerar-instalador.ps1)
+instalador/saida/
+
+# Pasta de rascunho de testes
+teste/

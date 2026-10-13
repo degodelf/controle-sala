@@ -1,0 +1,65 @@
+<Window x:Class="ControleSala.Professor.JanelaLimpeza"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Limpeza automática" Width="620" Height="700" MinWidth="520" MinHeight="600"
+        WindowStartupLocation="CenterOwner" Background="{DynamicResource PincelFundo}">
+    <DockPanel Margin="20">
+        <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,14,0,0">
+            <Button Content="Salvar" Style="{StaticResource BotaoPrincipal}" Padding="26,6" Margin="0,0,8,0" Click="Salvar_Click"/>
+            <Button Content="Fechar" IsCancel="True" Padding="16,6"/>
+        </StackPanel>
+        <TextBlock x:Name="TextoMensagem" DockPanel.Dock="Bottom" Foreground="{DynamicResource PincelAviso}" TextWrapping="Wrap" Margin="0,10,0,0"/>
+
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+            <StackPanel>
+                <TextBlock Text="Limpeza automática" Style="{StaticResource Titulo}"/>
+
+                <TextBlock Text="O que apagar na conta do aluno" FontWeight="SemiBold" Foreground="{DynamicResource PincelTexto}" Margin="0,16,0,6"/>
+                <CheckBox x:Name="CxDownloads" Content="Downloads" Margin="0,3"/>
+                <CheckBox x:Name="CxAreaTrabalho" Content="Área de Trabalho" Margin="0,3"/>
+                <CheckBox x:Name="CxDocumentos" Content="Documentos" Margin="0,3"/>
+                <CheckBox x:Name="CxNavegadores" Content="Histórico, cache e cookies dos navegadores" Margin="0,3"/>
+                <CheckBox x:Name="CxLixeira" Content="Esvaziar a Lixeira" Margin="0,3"/>
+                <CheckBox x:Name="CxTemporarios" Content="Arquivos temporários (%TEMP%)" Margin="0,3"/>
+                <CheckBox x:Name="CxPapel" Content="Restaurar o papel de parede padrão (fundo + logo)" Margin="0,3"/>
+
+                <TextBlock Text="Windows Defender" FontWeight="SemiBold" Foreground="{DynamicResource PincelTexto}" Margin="0,16,0,6"/>
+                <CheckBox x:Name="CxDefenderAtualizar" Content="Atualizar o Windows Defender (baixar as definições novas)" Margin="0,3"/>
+                <CheckBox x:Name="CxDefenderVerificar" Content="Fazer uma verificação (varredura) com o Windows Defender" Margin="0,3"/>
+                <StackPanel Orientation="Horizontal" Margin="24,3,0,0">
+                    <RadioButton x:Name="RbRapida" Content="Verificação rápida" GroupName="defender" IsChecked="True" Margin="0,0,16,0" Foreground="{DynamicResource PincelTexto}"/>
+                    <RadioButton x:Name="RbCompleta" Content="Verificação completa (demora mais)" GroupName="defender" Foreground="{DynamicResource PincelTexto}"/>
+                </StackPanel>
+
+                <TextBlock Text="Não apagar (um nome por linha — pastas ou arquivos a preservar)" Style="{StaticResource Rotulo}" Margin="0,16,0,4"/>
+                <TextBox x:Name="CampoExcecoes" Height="70" AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" Padding="6,4"/>
+
+                <TextBlock Text="Imagem mostrada durante a limpeza (opcional)" Style="{StaticResource Rotulo}" Margin="0,16,0,4"/>
+                <DockPanel>
+                    <Button DockPanel.Dock="Right" Content="Escolher..." Padding="10,4" Margin="6,0,0,0" Click="EscolherImagem_Click"/>
+                    <Button DockPanel.Dock="Right" Content="Remover" Padding="10,4" Margin="6,0,0,0" Click="RemoverImagem_Click"/>
+                    <TextBlock x:Name="TextoImagem" Foreground="{DynamicResource PincelTextoFraco}" VerticalAlignment="Center"/>
+                </DockPanel>
+
+                <TextBlock Text="Quando limpar (agenda)" FontWeight="SemiBold" Foreground="{DynamicResource PincelTexto}" Margin="0,18,0,6"/>
+                <CheckBox x:Name="CxAgendada" Content="Limpar automaticamente nos dias e horário abaixo" Margin="0,3,0,8"/>
+                <WrapPanel x:Name="PainelDias" Margin="0,0,0,8">
+                    <ToggleButton Tag="0" Content="Dom" Width="54" Margin="0,0,6,0"/>
+                    <ToggleButton Tag="1" Content="Seg" Width="54" Margin="0,0,6,0"/>
+                    <ToggleButton Tag="2" Content="Ter" Width="54" Margin="0,0,6,0"/>
+                    <ToggleButton Tag="3" Content="Qua" Width="54" Margin="0,0,6,0"/>
+                    <ToggleButton Tag="4" Content="Qui" Width="54" Margin="0,0,6,0"/>
+                    <ToggleButton Tag="5" Content="Sex" Width="54" Margin="0,0,6,0"/>
+                    <ToggleButton Tag="6" Content="Sáb" Width="54"/>
+                </WrapPanel>
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="Horário (HH:mm):" VerticalAlignment="Center" Foreground="{DynamicResource PincelTexto}" Margin="0,0,8,0"/>
+                    <TextBox x:Name="CampoHora" Width="80" Padding="6,4" MaxLength="5"/>
+                </StackPanel>
+
+                <TextBlock Foreground="{DynamicResource PincelTextoFraco}" FontSize="11" TextWrapping="Wrap" Margin="0,16,0,0"
+                           Text="A limpeza vale para os computadores quando eles ficam online. Para o agendamento funcionar, o agente precisa estar instalado como serviço. A limpeza só mexe na conta do aluno, nunca na de administrador."/>
+            </StackPanel>
+        </ScrollViewer>
+    </DockPanel>
+</Window>

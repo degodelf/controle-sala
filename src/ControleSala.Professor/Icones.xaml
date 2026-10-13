@@ -1,0 +1,74 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!--
+        Ícones em vetor (traçado), desenhados numa caixa de 24x24. Cada um é um Geometry reaproveitável.
+        Nas janelas viram <Path Data="{StaticResource IconeX}" Stroke="{DynamicResource PincelTexto}" .../>,
+        então acompanham a cor do tema. Estilo "Icone" abaixo já deixa o traçado arredondado e na espessura certa.
+    -->
+
+    <Style x:Key="Icone" TargetType="Path">
+        <Setter Property="Stroke" Value="{DynamicResource PincelTexto}"/>
+        <Setter Property="StrokeThickness" Value="1.8"/>
+        <Setter Property="StrokeStartLineCap" Value="Round"/>
+        <Setter Property="StrokeEndLineCap" Value="Round"/>
+        <Setter Property="StrokeLineJoin" Value="Round"/>
+        <Setter Property="Fill" Value="Transparent"/>
+        <Setter Property="Width" Value="24"/>
+        <Setter Property="Height" Value="24"/>
+        <Setter Property="Stretch" Value="None"/>
+        <Setter Property="SnapsToDevicePixels" Value="True"/>
+    </Style>
+
+    <!-- Enviar arquivos: folha com seta para cima. -->
+    <StreamGeometry x:Key="IconeEnviar">M7,3 L14,3 L19,8 L19,21 L7,21 Z M14,3 L14,8 L19,8 M12.5,17 L12.5,11 M9.8,13.2 L12.5,10.5 L15.2,13.2</StreamGeometry>
+
+    <!-- Computadores: monitor com base. -->
+    <StreamGeometry x:Key="IconeComputadores">M3,5 L21,5 L21,16 L3,16 Z M8,20 L16,20 M12,16 L12,20</StreamGeometry>
+
+    <!-- Procurar na rede: lupa. -->
+    <StreamGeometry x:Key="IconeProcurar">M11,4 A7,7 0 1 0 11,18 A7,7 0 1 0 11,4 Z M16,16 L21,21</StreamGeometry>
+
+    <!-- Papel de parede: moldura de imagem com montanha e sol. -->
+    <StreamGeometry x:Key="IconePapel">M3,5 L21,5 L21,19 L3,19 Z M8,10 A1.3,1.3 0 1 0 8,9.9 Z M4,18 L9,12 L13,16 L16,13 L20,18</StreamGeometry>
+
+    <!-- Sala / chave. -->
+    <StreamGeometry x:Key="IconeSala">M8,9 A4,4 0 1 0 8,9.1 Z M11,11 L20,20 M17,17 L19,15 M15,15 L17,13</StreamGeometry>
+
+    <!-- Tema: meia-lua (sol/lua) para o botão de trocar claro/escuro. -->
+    <StreamGeometry x:Key="IconeTema">M12,3 A9,9 0 1 0 21,12 A7,7 0 1 1 12,3 Z</StreamGeometry>
+
+    <!-- Professores / pessoa. -->
+    <StreamGeometry x:Key="IconeProfessor">M12,4 A3.3,3.3 0 1 0 12,10.6 A3.3,3.3 0 1 0 12,4 Z M5.5,20 A6.5,6.5 0 0 1 18.5,20 Z</StreamGeometry>
+
+    <!-- Sobre / informação. -->
+    <StreamGeometry x:Key="IconeSobre">M12,3 A9,9 0 1 0 12,21 A9,9 0 1 0 12,3 Z M12,11 L12,16 M12,7.6 L12,7.9</StreamGeometry>
+
+    <!-- Abrir link: dois elos de corrente. -->
+    <StreamGeometry x:Key="IconeLink">M9.5,14.5 L14.5,9.5 M10.5,7.5 L12.5,5.5 A3,3 0 0 1 17,9.5 L15,11.5 M13.5,16.5 L11.5,18.5 A3,3 0 0 1 7,14.5 L9,12.5</StreamGeometry>
+
+    <!-- Mensagem: balão de fala. -->
+    <StreamGeometry x:Key="IconeMensagem">M4,5 L20,5 L20,16 L11,16 L7,20 L7,16 L4,16 Z</StreamGeometry>
+
+    <!-- Bloquear tela: cadeado. -->
+    <StreamGeometry x:Key="IconeBloquear">M6,11 L18,11 L18,20 L6,20 Z M8.5,11 L8.5,7.5 A3.5,3.5 0 0 1 15.5,7.5 L15.5,11</StreamGeometry>
+
+    <!-- Programa: janela de aplicativo. -->
+    <StreamGeometry x:Key="IconePrograma">M4,5 L20,5 L20,19 L4,19 Z M4,8.5 L20,8.5 M6.5,6.7 L6.6,6.7 M8.5,6.7 L8.6,6.7</StreamGeometry>
+
+    <!-- Energia (desligar): botão liga/desliga. -->
+    <StreamGeometry x:Key="IconeEnergia">M12,3 L12,11 M7.5,6 A6.5,6.5 0 1 0 16.5,6</StreamGeometry>
+
+    <!-- Som silenciado: alto-falante com X. -->
+    <StreamGeometry x:Key="IconeSom">M4,9.5 L7,9.5 L11,6 L11,18 L7,14.5 L4,14.5 Z M15,9.5 L20,14.5 M20,9.5 L15,14.5</StreamGeometry>
+
+    <!-- Limpeza: vassoura. -->
+    <StreamGeometry x:Key="IconeLimpeza">M14,4 L20,10 M15.5,8.5 L8,16 L5,19 M6,13 L11,18 M4,20 L6,19 L11,18 L13,11</StreamGeometry>
+
+    <!-- Internet: globo. -->
+    <StreamGeometry x:Key="IconeInternet">M12,3 A9,9 0 1 0 12,21 A9,9 0 1 0 12,3 Z M3,12 L21,12 M12,3 A13,9 0 0 0 12,21 A13,9 0 0 0 12,3</StreamGeometry>
+
+    <!-- Atualizar: seta em círculo. -->
+    <StreamGeometry x:Key="IconeAtualizar">M19.5,12 A7.5,7.5 0 1 1 17.3,6.7 M18,3 L18,7.5 L13.5,7.5</StreamGeometry>
+
+</ResourceDictionary>

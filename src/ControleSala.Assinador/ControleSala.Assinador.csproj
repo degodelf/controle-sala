@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Ferramenta SÓ do autor: gera a chave de assinatura e assina os instaladores. Não vai no instalador. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>ControleSala.Assinador</RootNamespace>
+    <AssemblyName>ControleSala.Assinador</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ControleSala.Comum\ControleSala.Comum.csproj" />
+  </ItemGroup>
+
+</Project>

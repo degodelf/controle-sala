@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>ControleSala.Comum</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="FFmpeg.AutoGen" Version="8.1.0" />
+    <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="10.0.10" />
+  </ItemGroup>
+
+  <!-- DLLs do FFmpeg (LGPL) vão junto do .exe de quem referencia este projeto. -->
+  <ItemGroup>
+    <None Include="..\..\terceiros\ffmpeg\*.dll" Link="%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\terceiros\ffmpeg\LICENSE-FFmpeg-LGPL.txt" Link="LICENSE-FFmpeg-LGPL.txt" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>

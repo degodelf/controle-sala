@@ -1,0 +1,40 @@
+<Window x:Class="ControleSala.Professor.JanelaSala"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Sala" Width="540" SizeToContent="Height" ResizeMode="NoResize"
+        WindowStartupLocation="CenterOwner" Background="{DynamicResource PincelFundo}" Foreground="{DynamicResource PincelTexto}">
+    <StackPanel Margin="24">
+        <TextBlock Text="Sala" FontSize="19" FontWeight="SemiBold"/>
+        <TextBlock x:Name="TextoAjuda" TextWrapping="Wrap" Foreground="{DynamicResource PincelTextoFraco}" Margin="0,6,0,16"/>
+
+        <StackPanel x:Name="PainelCriar">
+            <TextBlock Text="Nome da escola"/>
+            <TextBox x:Name="CampoEscola" MaxLength="80" Margin="0,4,0,12" Padding="6,4"/>
+            <TextBlock Text="Nome da sala (por exemplo, Laboratório de Informática 1)"/>
+            <TextBox x:Name="CampoSala" MaxLength="60" Margin="0,4,0,12" Padding="6,4"/>
+            <Button Content="Criar sala" Padding="22,7" HorizontalAlignment="Left" Click="Criar_Click"/>
+        </StackPanel>
+
+        <StackPanel x:Name="PainelPronta">
+            <Border Background="{DynamicResource PincelSuperficie}" BorderBrush="{DynamicResource PincelBorda}" BorderThickness="1" Padding="14,10" Margin="0,0,0,14">
+                <StackPanel>
+                    <TextBlock x:Name="TextoEscola" FontSize="15" FontWeight="SemiBold"/>
+                    <TextBlock x:Name="TextoSala" Margin="0,2,0,8"/>
+                    <TextBlock Foreground="{DynamicResource PincelTextoFraco}" FontSize="11" Text="Identificação da chave (confira se é a mesma nos alunos):"/>
+                    <TextBlock x:Name="TextoImpressao" FontFamily="Consolas" FontSize="16" Foreground="{DynamicResource PincelRealce}"/>
+                </StackPanel>
+            </Border>
+
+            <TextBlock TextWrapping="Wrap" Margin="0,0,0,10"
+                       Text="Para colocar um computador de aluno na sala: gere o pacote abaixo, copie para um pendrive e rode o ControleSala-Setup (opção Aluno) em cada PC. O instalador pede a senha do pacote."/>
+            <WrapPanel>
+                <Button Content="Gerar pacote para os alunos..." Padding="14,7" Margin="0,0,8,6" Click="GerarPacote_Click"/>
+                <Button Content="Restaurar de um pacote..." Padding="14,7" Margin="0,0,0,6" Click="Restaurar_Click"/>
+            </WrapPanel>
+        </StackPanel>
+
+        <TextBlock x:Name="TextoMensagem" Foreground="{DynamicResource PincelAviso}" TextWrapping="Wrap" MinHeight="20" Margin="0,10,0,0"/>
+
+        <Button Content="Fechar" IsCancel="True" Padding="22,6" HorizontalAlignment="Right" Margin="0,10,0,0"/>
+    </StackPanel>
+</Window>

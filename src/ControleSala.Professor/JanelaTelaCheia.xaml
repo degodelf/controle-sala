@@ -1,0 +1,20 @@
+<Window x:Class="ControleSala.Professor.JanelaTelaCheia"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Width="1100" Height="680" WindowStartupLocation="CenterOwner" Background="Black"
+        PreviewKeyDown="Window_PreviewKeyDown" Closed="Window_Closed">
+    <DockPanel>
+        <Border DockPanel.Dock="Bottom" Background="{DynamicResource PincelSuperficie2}" Padding="10,5">
+            <DockPanel>
+                <TextBlock x:Name="TextoCreditos" DockPanel.Dock="Right" Foreground="{DynamicResource PincelTextoFraco}" FontSize="11"
+                           VerticalAlignment="Center" Margin="12,0,0,0"/>
+                <TextBlock x:Name="TextoEstatisticas" Foreground="{DynamicResource PincelRealce}" FontFamily="Consolas" FontSize="13"/>
+            </DockPanel>
+        </Border>
+        <Grid>
+            <Image x:Name="Tela" Stretch="Uniform" RenderOptions.BitmapScalingMode="Linear"/>
+            <TextBlock x:Name="TextoMensagem" Foreground="{DynamicResource PincelTextoFraco}" FontSize="16" TextAlignment="Center"
+                       HorizontalAlignment="Center" VerticalAlignment="Center" TextWrapping="Wrap" Margin="30"/>
+        </Grid>
+    </DockPanel>
+</Window>
