@@ -438,6 +438,13 @@ sealed class ConexaoProfessor(TcpClient tcp, Stream fluxo, ServidorVideo servido
                     case TipoMensagem.Comando:
                         ReceberComando(buffer.AsSpan(0, msg.Tamanho));
                         break;
+                    case TipoMensagem.Entrada:
+                        if (Protocolo.LerEntrada(buffer.AsSpan(0, msg.Tamanho)) is { } ev)
+                        {
+                            IndicadorControle.Tocar(Nome); // aviso visível ao aluno
+                            InterfaceAgente.Postar(() => EntradaRemota.Aplicar(ev)); // injeta na área de trabalho ativa
+                        }
+                        break;
                     case TipoMensagem.ConfigLimpeza:
                         ConfigLimpezaAgente.Receber(Protocolo.LerConfigLimpeza(buffer.AsSpan(0, msg.Tamanho)));
                         break;

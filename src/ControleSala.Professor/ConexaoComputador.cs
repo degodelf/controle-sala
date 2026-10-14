@@ -77,6 +77,9 @@ sealed unsafe partial class ConexaoComputador : IDisposable
         }
     }
 
+    /// <summary>Envia um evento de controle remoto (mouse/teclado) para o agente. Sem conexão, é ignorado.</summary>
+    public void EnviarEntrada(byte[] mensagem) => Enviar(mensagem);
+
     /// <param name="chave">Chave da sala; sem ela, só se conecta a agentes de teste neste mesmo PC.</param>
     public ConexaoComputador(ComputadorSala dados, byte[]? chave)
     {

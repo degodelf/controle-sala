@@ -13,12 +13,12 @@ namespace ControleSala.Professor;
 /// </summary>
 public partial class JanelaComando : Window
 {
-    internal sealed class ItemAlvo(ConexaoComputador conexao) : INotifyPropertyChanged
+    internal sealed class ItemAlvo(ConexaoComputador conexao, bool marcadoInicial) : INotifyPropertyChanged
     {
         static readonly Brush Verde = Pincel(0x4C, 0xAF, 0x50), Vermelho = Pincel(0xE5, 0x39, 0x35), Ambar = Pincel(0xFF, 0xC1, 0x07), Cinza = Pincel(0x9A, 0x9A, 0x9A);
         static Brush Pincel(byte r, byte g, byte b) { var p = new SolidColorBrush(Color.FromRgb(r, g, b)); p.Freeze(); return p; }
 
-        bool _marcado = conexao.Estado == EstadoConexao.Online;
+        bool _marcado = marcadoInicial;
         bool _enviando;
         string _status = "";
         Brush _corStatus = Cinza;
@@ -60,14 +60,16 @@ public partial class JanelaComando : Window
 
     /// <param name="prepararArgumento">Valida/normaliza o texto digitado (ex.: o link). Null = comando sem texto.</param>
     /// <param name="opcoes">Se dado, mostra uma lista suspensa em vez de caixa de texto (ex.: a lista de programas).</param>
+    /// <param name="preMarcar">Quais computadores já vêm marcados (a seleção da grade). Null = todos os online (padrão).</param>
     internal JanelaComando(IEnumerable<ConexaoComputador> computadores, AcaoComando acao, string titulo,
-        string? rotuloArgumento, Func<string, (bool, string)>? prepararArgumento, IReadOnlyList<Opcao>? opcoes = null)
+        string? rotuloArgumento, Func<string, (bool, string)>? prepararArgumento, IReadOnlyList<Opcao>? opcoes = null,
+        Func<ConexaoComputador, bool>? preMarcar = null)
     {
         InitializeComponent();
         _acao = acao;
         _prepararArgumento = prepararArgumento;
         _usaLista = opcoes != null;
-        _alvos = [.. computadores.Select(c => new ItemAlvo(c))];
+        _alvos = [.. computadores.Select(c => new ItemAlvo(c, c.Estado == EstadoConexao.Online && (preMarcar?.Invoke(c) ?? true)))];
         Title = titulo;
         TextoTitulo.Text = titulo;
         ListaComputadores.ItemsSource = _alvos;

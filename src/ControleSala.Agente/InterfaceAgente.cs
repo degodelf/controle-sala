@@ -35,4 +35,11 @@ static class InterfaceAgente
         Iniciar();
         _ponte!.Invoke(acao);
     }
+
+    /// <summary>Executa <paramref name="acao"/> na thread de interface sem esperar (para eventos frequentes, como o controle remoto).</summary>
+    public static void Postar(Action acao)
+    {
+        Iniciar();
+        try { _ponte!.BeginInvoke(acao); } catch (Exception) { /* interface encerrando */ }
+    }
 }

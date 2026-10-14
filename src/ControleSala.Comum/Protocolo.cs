@@ -18,6 +18,11 @@ public enum TipoMensagem : byte
     PedirQuadroChave = 10,
     /// <summary>Professor → agente: [byte modo] escolhe o que quer receber. Sem isso o agente não envia vídeo.</summary>
     DefinirModo = 11,
+    /// <summary>
+    /// Professor → agente: controle remoto (mouse/teclado). [byte sub][...]; o agente aplica o evento na sessão do aluno.
+    /// Só o professor com a chave da sala chega aqui, e o aluno vê um aviso de "sendo controlado". Ver <see cref="TipoEntrada"/>.
+    /// </summary>
+    Entrada = 12,
     /// <summary>Professor → agente: [string UTF-8] nome do professor que está vendo a tela (mostrado ao aluno).</summary>
     Identificacao = 13,
     /// <summary>Professor → agente: [uint32 id][int64 tamanho][uint16 n][nome UTF-8] começa o envio de um arquivo.</summary>
@@ -84,6 +89,19 @@ public readonly record struct RespostaComando(uint Id, bool Ok, string Mensagem)
 
 /// <summary>Miniatura: imagem pequena, poucos quadros por segundo (para a grade). Completo: tela inteira em alto FPS.</summary>
 public enum ModoVideo : byte { Miniatura = 0, Completo = 1 }
+
+/// <summary>Tipos de evento do controle remoto (mensagem <see cref="TipoMensagem.Entrada"/>).</summary>
+public enum TipoEntrada : byte { MouseMover = 1, MouseBotao = 2, MouseRoda = 3, Tecla = 4 }
+
+/// <summary>Botão do mouse no controle remoto.</summary>
+public enum BotaoMouse : byte { Esquerdo = 0, Direito = 1, Meio = 2 }
+
+/// <summary>
+/// Um evento de controle remoto. As coordenadas X/Y são normalizadas em 0..65535 sobre a tela do aluno
+/// (0 = esquerda/topo, 65535 = direita/baixo), para funcionar em qualquer resolução.
+/// </summary>
+public readonly record struct EventoEntrada(
+    TipoEntrada Tipo, ushort X, ushort Y, BotaoMouse Botao, bool Pressionado, short Roda, ushort Tecla, bool Estendida);
 
 public readonly record struct Ola(int Largura, int Altura, string Encoder, string Maquina);
 
@@ -294,6 +312,74 @@ public static class Protocolo
 
     public static ModoVideo LerModo(ReadOnlySpan<byte> corpo) =>
         corpo.Length >= 1 && corpo[0] == (byte)ModoVideo.Completo ? ModoVideo.Completo : ModoVideo.Miniatura;
+
+    // ---------- Controle remoto (mouse/teclado) ----------
+
+    public static byte[] MontarEntradaMouseMover(ushort x, ushort y)
+    {
+        var corpo = new byte[5];
+        corpo[0] = (byte)TipoEntrada.MouseMover;
+        BinaryPrimitives.WriteUInt16LittleEndian(corpo.AsSpan(1), x);
+        BinaryPrimitives.WriteUInt16LittleEndian(corpo.AsSpan(3), y);
+        return Montar(TipoMensagem.Entrada, corpo);
+    }
+
+    public static byte[] MontarEntradaMouseBotao(ushort x, ushort y, BotaoMouse botao, bool pressionado)
+    {
+        var corpo = new byte[7];
+        corpo[0] = (byte)TipoEntrada.MouseBotao;
+        BinaryPrimitives.WriteUInt16LittleEndian(corpo.AsSpan(1), x);
+        BinaryPrimitives.WriteUInt16LittleEndian(corpo.AsSpan(3), y);
+        corpo[5] = (byte)botao;
+        corpo[6] = (byte)(pressionado ? 1 : 0);
+        return Montar(TipoMensagem.Entrada, corpo);
+    }
+
+    public static byte[] MontarEntradaMouseRoda(ushort x, ushort y, short delta)
+    {
+        var corpo = new byte[7];
+        corpo[0] = (byte)TipoEntrada.MouseRoda;
+        BinaryPrimitives.WriteUInt16LittleEndian(corpo.AsSpan(1), x);
+        BinaryPrimitives.WriteUInt16LittleEndian(corpo.AsSpan(3), y);
+        BinaryPrimitives.WriteInt16LittleEndian(corpo.AsSpan(5), delta);
+        return Montar(TipoMensagem.Entrada, corpo);
+    }
+
+    public static byte[] MontarEntradaTecla(ushort tecla, bool pressionado, bool estendida)
+    {
+        var corpo = new byte[5];
+        corpo[0] = (byte)TipoEntrada.Tecla;
+        BinaryPrimitives.WriteUInt16LittleEndian(corpo.AsSpan(1), tecla);
+        corpo[3] = (byte)(pressionado ? 1 : 0);
+        corpo[4] = (byte)(estendida ? 1 : 0);
+        return Montar(TipoMensagem.Entrada, corpo);
+    }
+
+    /// <summary>Lê um evento de controle remoto; null se o corpo estiver inconsistente.</summary>
+    public static EventoEntrada? LerEntrada(ReadOnlySpan<byte> corpo)
+    {
+        if (corpo.Length < 1) return null;
+        switch ((TipoEntrada)corpo[0])
+        {
+            case TipoEntrada.MouseMover when corpo.Length == 5:
+                return new EventoEntrada(TipoEntrada.MouseMover,
+                    BinaryPrimitives.ReadUInt16LittleEndian(corpo[1..]), BinaryPrimitives.ReadUInt16LittleEndian(corpo[3..]),
+                    default, false, 0, 0, false);
+            case TipoEntrada.MouseBotao when corpo.Length == 7 && corpo[5] <= (byte)BotaoMouse.Meio:
+                return new EventoEntrada(TipoEntrada.MouseBotao,
+                    BinaryPrimitives.ReadUInt16LittleEndian(corpo[1..]), BinaryPrimitives.ReadUInt16LittleEndian(corpo[3..]),
+                    (BotaoMouse)corpo[5], corpo[6] != 0, 0, 0, false);
+            case TipoEntrada.MouseRoda when corpo.Length == 7:
+                return new EventoEntrada(TipoEntrada.MouseRoda,
+                    BinaryPrimitives.ReadUInt16LittleEndian(corpo[1..]), BinaryPrimitives.ReadUInt16LittleEndian(corpo[3..]),
+                    default, false, BinaryPrimitives.ReadInt16LittleEndian(corpo[5..]), 0, false);
+            case TipoEntrada.Tecla when corpo.Length == 5:
+                return new EventoEntrada(TipoEntrada.Tecla, 0, 0, default, corpo[3] != 0, 0,
+                    BinaryPrimitives.ReadUInt16LittleEndian(corpo[1..]), corpo[4] != 0);
+            default:
+                return null;
+        }
+    }
 
     static byte[] Montar(TipoMensagem tipo, ReadOnlySpan<byte> corpo)
     {

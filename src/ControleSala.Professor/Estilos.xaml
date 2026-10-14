@@ -50,6 +50,61 @@
         <Setter Property="FontWeight" Value="SemiBold"/>
     </Style>
 
+    <!-- Botão de alternar (ligado/desligado): arredondado, fica azul quando ligado. Usado nos dias da semana. -->
+    <Style TargetType="ToggleButton">
+        <Setter Property="Background" Value="{DynamicResource PincelBotao}"/>
+        <Setter Property="Foreground" Value="{DynamicResource PincelTexto}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource PincelBorda}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="Padding" Value="8,6"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="SnapsToDevicePixels" Value="True"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ToggleButton">
+                    <Border x:Name="b" CornerRadius="5" Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
+                                          Margin="{TemplateBinding Padding}"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="b" Property="Background" Value="{DynamicResource PincelBotaoSobre}"/>
+                        </Trigger>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="b" Property="Background" Value="{DynamicResource PincelRealce}"/>
+                            <Setter TargetName="b" Property="BorderBrush" Value="{DynamicResource PincelRealce}"/>
+                            <Setter Property="Foreground" Value="{DynamicResource PincelRealceTexto}"/>
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter TargetName="b" Property="Opacity" Value="0.45"/>
+                            <Setter Property="Cursor" Value="Arrow"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Cartão: agrupa uma seção com fundo, borda e cantos arredondados (usado na janela de limpeza). -->
+    <Style x:Key="Cartao" TargetType="Border">
+        <Setter Property="Background" Value="{DynamicResource PincelSuperficie}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource PincelBorda}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="CornerRadius" Value="8"/>
+        <Setter Property="Padding" Value="14"/>
+        <Setter Property="Margin" Value="0,0,0,12"/>
+    </Style>
+
+    <!-- Título de seção dentro de um cartão. -->
+    <Style x:Key="TituloSecao" TargetType="TextBlock">
+        <Setter Property="Foreground" Value="{DynamicResource PincelTexto}"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="FontSize" Value="13"/>
+        <Setter Property="Margin" Value="0,0,0,8"/>
+    </Style>
+
     <Style TargetType="TextBlock">
         <Setter Property="Foreground" Value="{DynamicResource PincelTexto}"/>
         <Setter Property="TextOptions.TextFormattingMode" Value="Ideal"/>

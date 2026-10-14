@@ -91,6 +91,26 @@ const
 function SetEnvironmentVariable(Nome, Valor: String): Boolean;
   external 'SetEnvironmentVariableW@kernel32.dll stdcall';
 
+{ --- Arrastar e soltar o arquivo .controlesala na janela do instalador --- }
+const
+  GWL_WNDPROC = -4;
+  WM_DROPFILES = $0233;
+  WM_COPYGLOBALDATA = $0049;
+  MSGFLT_ALLOW = 1;
+
+function CallWindowProc(lpPrevWndFunc: LongInt; hWnd: HWND; Msg: Cardinal; wParam: LongInt; lParam: LongInt): LongInt;
+  external 'CallWindowProcW@user32.dll stdcall';
+function SetWindowLong(hWnd: HWND; nIndex: Integer; dwNewLong: LongInt): LongInt;
+  external 'SetWindowLongW@user32.dll stdcall';
+function ChangeWindowMessageFilterEx(hWnd: HWND; Msg: Cardinal; Action: Cardinal; Estrutura: LongInt): Boolean;
+  external 'ChangeWindowMessageFilterEx@user32.dll stdcall';
+procedure DragAcceptFiles(hWnd: HWND; Aceita: Boolean);
+  external 'DragAcceptFiles@shell32.dll stdcall';
+function DragQueryFile(hDrop: LongInt; iArquivo: Cardinal; lpszArquivo: String; cch: Cardinal): Cardinal;
+  external 'DragQueryFileW@shell32.dll stdcall';
+procedure DragFinish(hDrop: LongInt);
+  external 'DragFinish@shell32.dll stdcall';
+
 var
   PaginaTipo: TInputOptionWizardPage;
   PaginaManter: TInputOptionWizardPage;
@@ -99,6 +119,49 @@ var
   SalaEscola, SalaNome: String;
   TipoAnterior: String;             { 'professor' ou 'aluno' da instalação anterior; vazio = primeira instalação }
   AtualEscola, AtualNome: String;   { sala já gravada neste PC de aluno (atualização) }
+  WndProcAntigo: LongInt;           { procedimento de janela original, para o arrastar-e-soltar }
+
+{ Recebe um arquivo arrastado para a janela: se for .controlesala, preenche o campo da sala. }
+procedure TratarArquivoSoltado(Arquivo: String);
+begin
+  if (PaginaSala <> nil) and (Lowercase(ExtractFileExt(Arquivo)) = '.controlesala') and FileExists(Arquivo) then
+  begin
+    PaginaSala.Values[0] := Arquivo;
+    { Se o PC já tinha sala (atualização), arrastar um pacote significa trocar de sala. }
+    if (PaginaManter <> nil) then PaginaManter.SelectedValueIndex := 1;
+  end;
+end;
+
+{ Novo procedimento de janela do assistente: intercepta o "soltar arquivo" (WM_DROPFILES). }
+function WndProcHook(hWnd: HWND; Msg: Cardinal; wParam: LongInt; lParam: LongInt): LongInt;
+var
+  Buffer: String;
+  p: Integer;
+begin
+  if Msg = WM_DROPFILES then
+  begin
+    SetLength(Buffer, 1024);
+    DragQueryFile(wParam, 0, Buffer, 1024);   { pega o 1º arquivo solto }
+    p := Pos(#0, Buffer);
+    if p > 0 then Buffer := Copy(Buffer, 1, p - 1);
+    DragFinish(wParam);
+    TratarArquivoSoltado(Buffer);
+    Result := 0;
+    Exit;
+  end;
+  Result := CallWindowProc(WndProcAntigo, hWnd, Msg, wParam, lParam);
+end;
+
+{ Liga o arrastar-e-soltar na janela do assistente (uma vez). }
+procedure LigarArrastarSoltar;
+begin
+  if WndProcAntigo <> 0 then Exit;
+  DragAcceptFiles(WizardForm.Handle, True);
+  { O instalador roda elevado: sem isto o Windows (UIPI) bloqueia arquivos arrastados do Explorer comum. }
+  ChangeWindowMessageFilterEx(WizardForm.Handle, WM_DROPFILES, MSGFLT_ALLOW, 0);
+  ChangeWindowMessageFilterEx(WizardForm.Handle, WM_COPYGLOBALDATA, MSGFLT_ALLOW, 0);
+  WndProcAntigo := SetWindowLong(WizardForm.Handle, GWL_WNDPROC, CreateCallback(@WndProcHook));
+end;
 
 { ---------- tipo de computador, arquivo e senha (assistente ou linha de comando) ---------- }
 
@@ -309,6 +372,20 @@ begin
     'Digite a senha do pacote da sala',
     'É a senha que o professor escolheu ao gerar o pacote.');
   PaginaSenha.Add('Senha:', True);
+
+  { Arrastar e soltar o .controlesala na janela + uma dica visível na página da sala. }
+  LigarArrastarSoltar;
+  with TNewStaticText.Create(WizardForm) do
+  begin
+    Parent := PaginaSala.Surface;
+    AutoSize := False;
+    WordWrap := True;
+    Left := 0;
+    Width := PaginaSala.SurfaceWidth;
+    Top := ScaleY(74);
+    Height := ScaleY(36);
+    Caption := 'Dica: você também pode arrastar o arquivo .controlesala (do pendrive) e soltar nesta janela.';
+  end;
 end;
 
 procedure RegisterPreviousData(PreviousDataKey: Integer);

@@ -2,19 +2,28 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Width="1100" Height="680" WindowStartupLocation="CenterOwner" Background="Black"
-        PreviewKeyDown="Window_PreviewKeyDown" Closed="Window_Closed">
+        PreviewKeyDown="Window_PreviewKeyDown" PreviewKeyUp="Window_PreviewKeyUp" Closed="Window_Closed">
     <DockPanel>
         <Border DockPanel.Dock="Bottom" Background="{DynamicResource PincelSuperficie2}" Padding="10,5">
             <DockPanel>
                 <TextBlock x:Name="TextoCreditos" DockPanel.Dock="Right" Foreground="{DynamicResource PincelTextoFraco}" FontSize="11"
                            VerticalAlignment="Center" Margin="12,0,0,0"/>
-                <TextBlock x:Name="TextoEstatisticas" Foreground="{DynamicResource PincelRealce}" FontFamily="Consolas" FontSize="13"/>
+                <ToggleButton x:Name="BotaoControlar" DockPanel.Dock="Left" Content="Controlar" Padding="14,4" Margin="0,0,10,0"
+                              VerticalAlignment="Center" ToolTip="Controlar o mouse e o teclado deste computador (o aluno vê um aviso)"
+                              Checked="Controlar_Checked" Unchecked="Controlar_Unchecked"/>
+                <TextBlock x:Name="TextoDica" DockPanel.Dock="Left" Foreground="{DynamicResource PincelTextoFraco}" FontSize="11"
+                           VerticalAlignment="Center" Margin="0,0,12,0"
+                           Text="Esc sai do controle. O aluno vê um aviso enquanto você controla."
+                           Visibility="Collapsed"/>
+                <TextBlock x:Name="TextoEstatisticas" Foreground="{DynamicResource PincelRealce}" FontFamily="Consolas" FontSize="13"
+                           VerticalAlignment="Center"/>
             </DockPanel>
         </Border>
         <Grid>
-            <Image x:Name="Tela" Stretch="Uniform" RenderOptions.BitmapScalingMode="Linear"/>
+            <Image x:Name="Tela" Stretch="Uniform" RenderOptions.BitmapScalingMode="Linear" Focusable="False"
+                   MouseMove="Tela_MouseMove" MouseDown="Tela_MouseDown" MouseUp="Tela_MouseUp" MouseWheel="Tela_MouseWheel"/>
             <TextBlock x:Name="TextoMensagem" Foreground="{DynamicResource PincelTextoFraco}" FontSize="16" TextAlignment="Center"
-                       HorizontalAlignment="Center" VerticalAlignment="Center" TextWrapping="Wrap" Margin="30"/>
+                       HorizontalAlignment="Center" VerticalAlignment="Center" TextWrapping="Wrap" Margin="30" IsHitTestVisible="False"/>
         </Grid>
     </DockPanel>
 </Window>

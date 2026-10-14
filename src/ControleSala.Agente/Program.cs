@@ -13,11 +13,25 @@ static partial class Programa
     static StreamWriter? _log;
     static readonly Lock _travaLog = new();
 
+    static int PreviaLimpeza(string pasta, string? imagem)
+    {
+        System.Windows.Forms.Application.EnableVisualStyles();
+        Directory.CreateDirectory(pasta);
+        using (var f = new AvisoLimpezaForm(45, imagem)) { using var b = f.Previa(1200, 760); b.Save(Path.Combine(pasta, "aviso.png")); }
+        using (var f = new LimpezaForm(imagem)) { using var b = f.Previa(1200, 760); b.Save(Path.Combine(pasta, "carregando.png")); }
+        Console.WriteLine("Prévias geradas em " + pasta);
+        return 0;
+    }
+
     [STAThread]
     static int Main(string[] args)
     {
         // Sem isso o Windows pode recusar a Desktop Duplication ou entregar a tela em escala errada.
         SetProcessDpiAwarenessContext(-4); // PER_MONITOR_AWARE_V2
+
+        // Dev: gera imagens das telas de limpeza para conferir o visual (--previa-limpeza <pasta> [imagem]).
+        if (Array.IndexOf(args, "--previa-limpeza") is int pi && pi >= 0)
+            return PreviaLimpeza(args[pi + 1], pi + 2 < args.Length ? args[pi + 2] : null);
 
         var opcoes = Opcoes.Ler(args);
         if (opcoes == null) return 1;
@@ -117,11 +131,16 @@ static partial class Programa
         // A thread de interface mostra as janelas no PC do aluno (bandeja, mensagem, bloqueio) e recebe os comandos.
         InterfaceAgente.Iniciar();
         Bandeja? bandeja = null;
+        AgendadorLimpeza? agendador = null;
         if (opcoes.Sessao)
+        {
             InterfaceAgente.NaInterface(() => bandeja = new Bandeja(sala, servidor));
+            agendador = AgendadorLimpeza.Iniciar(); // limpeza agendada: avisa o aluno e limpa, aqui na sessão
+        }
 
         Executar(servidor, opcoes); // bloqueia nesta thread até Ctrl+C / parada do serviço
 
+        agendador?.Dispose();
         if (bandeja != null) InterfaceAgente.NaInterface(bandeja.Dispose);
         Log("Agente encerrado.");
         return 0;

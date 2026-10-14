@@ -4,7 +4,10 @@
         xmlns:local="clr-namespace:ControleSala.Professor"
         Title="ControleSala — Professor"
         Width="1180" Height="720" WindowStartupLocation="CenterScreen"
-        Background="{DynamicResource PincelFundo}" Closed="Window_Closed">
+        Background="{DynamicResource PincelFundo}" Closed="Window_Closed" KeyDown="Window_KeyDown">
+    <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolVis"/>
+    </Window.Resources>
     <DockPanel>
 
         <!-- Barra de menus -->
@@ -109,6 +112,7 @@
                         <Path Style="{StaticResource Icone}" Data="{StaticResource IconeTema}"/>
                     </Button>
                 </StackPanel>
+                <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
                 <StackPanel Orientation="Horizontal">
                     <Button Style="{StaticResource BotaoFerramenta}" Click="BotaoEnviarArquivos_Click">
                         <StackPanel>
@@ -122,6 +126,19 @@
                             <TextBlock Text="Abrir link" FontSize="11" Margin="0,3,0,0"/>
                         </StackPanel>
                     </Button>
+                    <Button Style="{StaticResource BotaoFerramenta}" Click="ComandoMensagem_Click">
+                        <StackPanel>
+                            <Path Style="{StaticResource Icone}" Data="{StaticResource IconeMensagem}" HorizontalAlignment="Center"/>
+                            <TextBlock Text="Mensagem" FontSize="11" Margin="0,3,0,0"/>
+                        </StackPanel>
+                    </Button>
+                    <Button Style="{StaticResource BotaoFerramenta}" Click="ComandoBloquear_Click">
+                        <StackPanel>
+                            <Path Style="{StaticResource Icone}" Data="{StaticResource IconeBloquear}" HorizontalAlignment="Center"/>
+                            <TextBlock Text="Bloquear tela" FontSize="11" Margin="0,3,0,0"/>
+                        </StackPanel>
+                    </Button>
+                    <Border Width="1" Background="{DynamicResource PincelBorda}" Margin="6,6"/>
                     <Button Style="{StaticResource BotaoFerramenta}" Click="BotaoComputadores_Click">
                         <StackPanel>
                             <Path Style="{StaticResource Icone}" Data="{StaticResource IconeComputadores}" HorizontalAlignment="Center"/>
@@ -147,7 +164,15 @@
                             <TextBlock Text="Papel de parede" FontSize="11" Margin="0,3,0,0"/>
                         </StackPanel>
                     </Button>
+                    <Border Width="1" Background="{DynamicResource PincelBorda}" Margin="6,6"/>
+                    <Button Style="{StaticResource BotaoFerramenta}" Click="ComandoDesligar_Click">
+                        <StackPanel>
+                            <Path Style="{StaticResource Icone}" Data="{StaticResource IconeEnergia}" HorizontalAlignment="Center"/>
+                            <TextBlock Text="Desligar" FontSize="11" Margin="0,3,0,0"/>
+                        </StackPanel>
+                    </Button>
                 </StackPanel>
+                </ScrollViewer>
             </DockPanel>
         </Border>
 
@@ -160,6 +185,9 @@
                 <StackPanel Orientation="Horizontal">
                     <Ellipse Width="9" Height="9" Fill="{DynamicResource PincelOnline}" VerticalAlignment="Center" Margin="0,0,6,0"/>
                     <TextBlock x:Name="TextoEstado" Foreground="{DynamicResource PincelTexto}" FontSize="12" VerticalAlignment="Center"/>
+                    <!-- Aparece só quando há computadores marcados na grade. -->
+                    <TextBlock x:Name="TextoSelecao" Foreground="{DynamicResource PincelRealce}" FontSize="12" FontWeight="SemiBold"
+                               VerticalAlignment="Center" Margin="10,0,0,0" Visibility="Collapsed"/>
                     <Border Width="1" Background="{DynamicResource PincelBorda}" Margin="12,2"/>
                     <TextBlock x:Name="TextoSala" Foreground="{DynamicResource PincelTextoFraco}" FontSize="12" VerticalAlignment="Center"/>
                     <Border Width="1" Background="{DynamicResource PincelBorda}" Margin="12,2"/>
@@ -186,7 +214,7 @@
         </Border>
 
         <!-- Grade de telas (a parte preta fica só no vídeo de cada tela) -->
-        <Grid Background="{DynamicResource PincelFundo}">
+        <Grid Background="{DynamicResource PincelFundo}" MouseLeftButtonDown="Fundo_MouseDown">
             <ScrollViewer VerticalScrollBarVisibility="Auto">
                 <ItemsControl x:Name="Grade" Margin="8">
                     <ItemsControl.ItemsPanel>
@@ -196,37 +224,69 @@
                     </ItemsControl.ItemsPanel>
                     <ItemsControl.ItemTemplate>
                         <DataTemplate DataType="{x:Type local:TileVm}">
-                            <Border Width="{Binding Largura}" Margin="8" Background="{DynamicResource PincelSuperficie}" CornerRadius="6"
-                                    BorderBrush="{Binding CorBorda}" BorderThickness="2" Cursor="Hand"
-                                    ToolTip="{Binding Endereco}" MouseLeftButtonDown="Tile_MouseDown">
-                                <Border.ContextMenu>
+                            <Grid Width="{Binding Largura}" Margin="8" MouseLeftButtonDown="Tile_MouseDown" MouseRightButtonDown="Tile_MouseRightDown">
+                                <Grid.ContextMenu>
                                     <ContextMenu>
                                         <MenuItem Header="Ver tela" Click="TileVerTela_Click"/>
                                         <MenuItem Header="Reconectar" Click="TileReconectar_Click"/>
+                                        <Separator/>
+                                        <MenuItem Header="Abrir link..." Click="ComandoLink_Click"/>
+                                        <MenuItem Header="Enviar mensagem..." Click="ComandoMensagem_Click"/>
+                                        <MenuItem Header="Enviar arquivos..." Click="BotaoEnviarArquivos_Click"/>
+                                        <Separator/>
+                                        <MenuItem Header="Bloquear a tela..." Click="ComandoBloquear_Click"/>
+                                        <MenuItem Header="Desbloquear a tela..." Click="ComandoDesbloquear_Click"/>
+                                        <Separator/>
+                                        <MenuItem Header="Abrir programa..." Click="ComandoAbrirPrograma_Click"/>
+                                        <MenuItem Header="Fechar programa..." Click="ComandoFecharPrograma_Click"/>
+                                        <MenuItem Header="Silenciar o som..." Click="ComandoSilenciar_Click"/>
+                                        <MenuItem Header="Reativar o som..." Click="ComandoReativarSom_Click"/>
+                                        <Separator/>
+                                        <MenuItem Header="Bloquear TODA a internet..." Click="BloquearInternet_Click"/>
+                                        <MenuItem Header="Liberar a internet..." Click="LiberarInternet_Click"/>
+                                        <Separator/>
+                                        <MenuItem Header="Desligar..." Click="ComandoDesligar_Click"/>
+                                        <MenuItem Header="Reiniciar..." Click="ComandoReiniciar_Click"/>
+                                        <Separator/>
+                                        <MenuItem Header="Limpar agora..." Click="LimparAgora_Click"/>
                                     </ContextMenu>
-                                </Border.ContextMenu>
-                                <StackPanel>
-                                    <Grid Height="{Binding AlturaImagem}" Background="Black">
-                                        <Image Source="{Binding Imagem}" Stretch="Uniform" Opacity="{Binding Opacidade}"
-                                               RenderOptions.BitmapScalingMode="HighQuality"/>
-                                        <TextBlock Text="{Binding Mensagem}" Foreground="#CCCCCC" Margin="10"
-                                                   HorizontalAlignment="Center" VerticalAlignment="Center"
-                                                   TextWrapping="Wrap" TextAlignment="Center"/>
-                                    </Grid>
-                                    <DockPanel Background="{DynamicResource PincelSuperficie2}">
-                                        <Ellipse DockPanel.Dock="Left" Width="10" Height="10" Fill="{Binding CorEstado}" Margin="9,0,7,0"/>
-                                        <TextBlock Text="{Binding Nome}" Foreground="{DynamicResource PincelTexto}" Padding="0,7"
-                                                   TextTrimming="CharacterEllipsis"/>
-                                    </DockPanel>
-                                </StackPanel>
-                            </Border>
+                                </Grid.ContextMenu>
+                                <Border Background="{DynamicResource PincelSuperficie}" CornerRadius="6"
+                                        BorderBrush="{Binding CorBorda}" BorderThickness="2" Cursor="Hand"
+                                        ToolTip="{Binding Endereco}">
+                                    <StackPanel>
+                                        <Grid Height="{Binding AlturaImagem}" Background="Black">
+                                            <Image Source="{Binding Imagem}" Stretch="Uniform" Opacity="{Binding Opacidade}"
+                                                   RenderOptions.BitmapScalingMode="HighQuality"/>
+                                            <TextBlock Text="{Binding Mensagem}" Foreground="#CCCCCC" Margin="10"
+                                                       HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                       TextWrapping="Wrap" TextAlignment="Center"/>
+                                        </Grid>
+                                        <DockPanel Background="{DynamicResource PincelSuperficie2}">
+                                            <Ellipse DockPanel.Dock="Left" Width="10" Height="10" Fill="{Binding CorEstado}" Margin="9,0,7,0"/>
+                                            <TextBlock Text="{Binding Nome}" Foreground="{DynamicResource PincelTexto}" Padding="0,7"
+                                                       TextTrimming="CharacterEllipsis"/>
+                                        </DockPanel>
+                                    </StackPanel>
+                                </Border>
+                                <!-- Contorno azul quando marcado. -->
+                                <Border CornerRadius="6" BorderBrush="{DynamicResource PincelRealce}" BorderThickness="3"
+                                        IsHitTestVisible="False" Visibility="{Binding Selecionado, Converter={StaticResource BoolVis}}"/>
+                                <!-- Selo de marcado (canto superior esquerdo). -->
+                                <Border Width="22" Height="22" CornerRadius="11" Margin="7" IsHitTestVisible="False"
+                                        HorizontalAlignment="Left" VerticalAlignment="Top" Background="{DynamicResource PincelRealce}"
+                                        Visibility="{Binding Selecionado, Converter={StaticResource BoolVis}}">
+                                    <Path Data="M5,10 L8.5,13.5 L14,6.5" Stroke="White" StrokeThickness="2"
+                                          StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"/>
+                                </Border>
+                            </Grid>
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
             </ScrollViewer>
 
             <TextBlock x:Name="TextoVazio" Foreground="{DynamicResource PincelTextoFraco}" FontSize="15" TextAlignment="Center" TextWrapping="Wrap"
-                       HorizontalAlignment="Center" VerticalAlignment="Center" Margin="30"
+                       HorizontalAlignment="Center" VerticalAlignment="Center" Margin="30" IsHitTestVisible="False"
                        Text="Nenhum computador na sala ainda.&#10;Clique em &quot;Computadores&quot; para adicionar ou procurar na rede."/>
         </Grid>
     </DockPanel>

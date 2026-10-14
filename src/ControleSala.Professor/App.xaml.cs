@@ -271,8 +271,12 @@ public partial class App : Application
 
     static MainWindow MostrarBannerDeTeste(MainWindow w)
     {
-        // Só para a captura: mostra a faixa de aviso de versão nova.
-        w.Loaded += (_, _) => w.MostrarAvisoVersaoParaTeste(new ControleSala.Comum.AtualizacaoDisponivel("0.4.0", "https://x/Setup.exe", ""));
+        // Só para a captura: mostra a faixa de aviso de versão nova e marca alguns computadores (visual da seleção).
+        w.Loaded += (_, _) =>
+        {
+            w.MostrarAvisoVersaoParaTeste(new ControleSala.Comum.AtualizacaoDisponivel("0.4.0", "https://x/Setup.exe", ""));
+            w.SelecionarParaTeste(2);
+        };
         return w;
     }
 

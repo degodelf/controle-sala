@@ -71,10 +71,120 @@ public partial class JanelaTelaCheia : Window
     /// <summary>Texto da barra de estatísticas e da mensagem (usado pela ferramenta de captura).</summary>
     internal string Resumo => $"{TextoEstatisticas.Text} | {TextoMensagem.Text}";
 
+    // ---------- Controle remoto (mouse e teclado) ----------
+
+    bool _controlando;
+    long _ultimoMove;
+    ushort _ultimoNx, _ultimoNy;
+    static readonly long IntervaloMove = Stopwatch.Frequency / 120; // no máximo ~120 envios de movimento por segundo
+
+    void Controlar_Checked(object sender, RoutedEventArgs e)
+    {
+        _controlando = true;
+        TextoDica.Visibility = Visibility.Visible;
+        Tela.Cursor = Cursors.Cross;
+        Keyboard.Focus(this); // garante que as teclas cheguem a esta janela
+    }
+
+    void Controlar_Unchecked(object sender, RoutedEventArgs e)
+    {
+        _controlando = false;
+        TextoDica.Visibility = Visibility.Collapsed;
+        Tela.Cursor = Cursors.Arrow;
+        if (Tela.IsMouseCaptured) Tela.ReleaseMouseCapture();
+    }
+
+    /// <summary>Converte um ponto sobre a imagem em coordenadas 0..65535 da tela do aluno (respeitando as faixas pretas).</summary>
+    bool PosicaoNormalizada(Point p, out ushort nx, out ushort ny)
+    {
+        nx = ny = 0;
+        if (_bitmap == null) return false;
+        double iw = Tela.ActualWidth, ih = Tela.ActualHeight, fw = _bitmap.PixelWidth, fh = _bitmap.PixelHeight;
+        if (iw <= 0 || ih <= 0 || fw <= 0 || fh <= 0) return false;
+        double escala = Math.Min(iw / fw, ih / fh);
+        double dw = fw * escala, dh = fh * escala, offX = (iw - dw) / 2, offY = (ih - dh) / 2;
+        double fx = (p.X - offX) / dw, fy = (p.Y - offY) / dh;
+        if (fx is < 0 or > 1 || fy is < 0 or > 1) return false;
+        nx = (ushort)Math.Round(fx * 65535);
+        ny = (ushort)Math.Round(fy * 65535);
+        return true;
+    }
+
+    void Tela_MouseMove(object sender, MouseEventArgs e)
+    {
+        if (!_controlando || !PosicaoNormalizada(e.GetPosition(Tela), out var nx, out var ny)) return;
+        long agora = Stopwatch.GetTimestamp();
+        if (agora - _ultimoMove < IntervaloMove) return; // limita a frequência
+        if (nx == _ultimoNx && ny == _ultimoNy) return;
+        _ultimoMove = agora;
+        _ultimoNx = nx; _ultimoNy = ny;
+        _conexao.EnviarEntrada(Protocolo.MontarEntradaMouseMover(nx, ny));
+    }
+
+    void Tela_MouseDown(object sender, MouseButtonEventArgs e)
+    {
+        if (!_controlando || Botao(e.ChangedButton) is not { } botao) return;
+        if (!PosicaoNormalizada(e.GetPosition(Tela), out var nx, out var ny)) return;
+        Tela.CaptureMouse();
+        _conexao.EnviarEntrada(Protocolo.MontarEntradaMouseBotao(nx, ny, botao, true));
+        e.Handled = true;
+    }
+
+    void Tela_MouseUp(object sender, MouseButtonEventArgs e)
+    {
+        if (!_controlando || Botao(e.ChangedButton) is not { } botao) return;
+        PosicaoNormalizada(e.GetPosition(Tela), out var nx, out var ny);
+        if (Tela.IsMouseCaptured) Tela.ReleaseMouseCapture();
+        _conexao.EnviarEntrada(Protocolo.MontarEntradaMouseBotao(nx, ny, botao, false));
+        e.Handled = true;
+    }
+
+    void Tela_MouseWheel(object sender, MouseWheelEventArgs e)
+    {
+        if (!_controlando || !PosicaoNormalizada(e.GetPosition(Tela), out var nx, out var ny)) return;
+        _conexao.EnviarEntrada(Protocolo.MontarEntradaMouseRoda(nx, ny, (short)Math.Clamp(e.Delta, short.MinValue, short.MaxValue)));
+        e.Handled = true;
+    }
+
+    static BotaoMouse? Botao(MouseButton b) => b switch
+    {
+        MouseButton.Left => BotaoMouse.Esquerdo,
+        MouseButton.Right => BotaoMouse.Direito,
+        MouseButton.Middle => BotaoMouse.Meio,
+        _ => null,
+    };
+
     void Window_PreviewKeyDown(object sender, KeyEventArgs e)
     {
-        if (e.Key == Key.Escape) Close();
+        if (!_controlando)
+        {
+            if (e.Key == Key.Escape) Close();
+            return;
+        }
+        if (e.Key == Key.Escape) { BotaoControlar.IsChecked = false; e.Handled = true; return; } // Esc sai do controle
+        EnviarTecla(e, pressionado: true);
+        e.Handled = true;
     }
+
+    void Window_PreviewKeyUp(object sender, KeyEventArgs e)
+    {
+        if (!_controlando) return;
+        if (e.Key != Key.Escape) EnviarTecla(e, pressionado: false);
+        e.Handled = true;
+    }
+
+    void EnviarTecla(KeyEventArgs e, bool pressionado)
+    {
+        var tecla = e.Key == Key.System ? e.SystemKey : e.Key;
+        int vk = KeyInterop.VirtualKeyFromKey(tecla);
+        if (vk is <= 0 or > 255) return;
+        _conexao.EnviarEntrada(Protocolo.MontarEntradaTecla((ushort)vk, pressionado, EhEstendida(tecla)));
+    }
+
+    /// <summary>Teclas "estendidas" (setas, navegação, teclas da direita), que precisam da marca correta no Windows.</summary>
+    static bool EhEstendida(Key k) => k is Key.Left or Key.Right or Key.Up or Key.Down
+        or Key.Home or Key.End or Key.PageUp or Key.PageDown or Key.Insert or Key.Delete
+        or Key.NumLock or Key.PrintScreen or Key.Apps or Key.RightCtrl or Key.RightAlt or Key.Divide;
 
     void Window_Closed(object? sender, EventArgs e)
     {

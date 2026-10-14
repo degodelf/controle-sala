@@ -11,10 +11,9 @@
             <ProgressBar x:Name="Barra" Height="6" Visibility="Collapsed" Foreground="{DynamicResource PincelRealce}"/>
             <TextBlock x:Name="TextoMensagem" Foreground="{DynamicResource PincelAviso}" TextWrapping="Wrap" MinHeight="20" Margin="0,8,0,0"/>
             <WrapPanel Margin="0,8,0,0">
-                <Button x:Name="BotaoBaixar" Content="Baixar" Style="{StaticResource BotaoPrincipal}" Padding="22,6" Margin="0,0,8,6" Click="Baixar_Click"/>
-                <Button x:Name="BotaoConsole" Content="Atualizar este computador" Padding="14,6" Margin="0,0,8,6" IsEnabled="False" Click="AtualizarConsole_Click"/>
-                <Button x:Name="BotaoAlunos" Content="Enviar aos alunos" Padding="14,6" Margin="0,0,8,6" IsEnabled="False" Click="EnviarAlunos_Click"/>
-                <Button Content="Agora não" IsCancel="True" Padding="14,6" Margin="0,0,0,6"/>
+                <Button x:Name="BotaoAtualizar" Content="Atualizar agora" Style="{StaticResource BotaoPrincipal}" Padding="22,6" Margin="0,0,8,6" Click="AtualizarAgora_Click"/>
+                <Button x:Name="BotaoAlunos" Content="Enviar aos alunos" Padding="14,6" Margin="0,0,8,6" Click="EnviarAlunos_Click"/>
+                <Button x:Name="BotaoCancelar" Content="Agora não" IsCancel="True" Padding="14,6" Margin="0,0,0,6"/>
             </WrapPanel>
         </StackPanel>
 

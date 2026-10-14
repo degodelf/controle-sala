@@ -2,8 +2,12 @@
 
 ## Próximos passos (em ordem)
 
-1. **Controle remoto** — cursor do mouse na transmissão; mouse e teclado do professor no PC do aluno.
-   **Item obrigatório** (pedido do Diego: "tem que fazer"); ainda não iniciado.
+1. ~~**Controle remoto**~~ — **feito (2026-10-14)**: botão **"Controlar"** na tela cheia envia mouse (mover/clicar/roda) e
+   teclado ao agente, que injeta na sessão do aluno (`SendInput`). Mensagem `Entrada` (12) no protocolo (coordenadas
+   normalizadas 0..65535); `EntradaRemota.cs` no agente; `IndicadorControle.cs` mostra a faixa **"Prof. X está controlando
+   este computador"** (transparência). Só pelo canal autenticado da sala. **Decisão:** por enquanto **não trava** o mouse/teclado
+   do aluno (os dois mexem) — dá para adicionar a trava depois. Esc sai do controle. Build + 8 testes do protocolo; a injeção
+   real precisa de teste nos 2 PCs (não dá para testar daqui). Pendente de ideia antiga: desenhar o cursor do professor sobre a transmissão.
 2. **Segurança** — **núcleo feito (2026-10-10)**: chave da sala, pacote com senha, aperto de mão com prova da chave
    nos dois sentidos, canal AES-256-GCM, perfis de professor, nome do professor no ícone do aluno (ver
    "Instalador e segurança da sala" abaixo). **Falta:** log de auditoria (quem viu/fez o quê), limite de tentativas
@@ -13,7 +17,12 @@
    posição das mesas (hoje a ordem é a da lista, com ▲▼).
 4. ~~**60 fps estáveis**~~ — **resolvido de outro jeito (2026-10-12)**: medição mostrou que a decodificação por software já faz ~339 fps (hardware seria MAIS lento aqui); o gargalo era rodar tudo num PC só. Decisão do Diego: baixar o padrão para **30 fps** (suave para monitorar/controlar, metade da rede e da CPU). `--fps` ainda ajusta.
 5. ~~**Comandos**~~ — **feitos (2026-10-11/12)**: link, mensagem, bloquear/desbloquear tela, abrir/fechar programa, desligar/reiniciar/logoff, silenciar, Wake-on-LAN, bloquear internet/sites. Ver README.
-6. ~~**Limpeza automatizada**~~ — **feita (2026-10-12)**: configurável (o que apagar, exceções, imagem, papel de parede) e **agendada** (dias+horário via tarefa do Windows) + Limpar agora. Ver README.
+6. ~~**Limpeza automatizada**~~ — **feita (2026-10-12)**: configurável (o que apagar, exceções, imagem, papel de parede) e **agendada** (dias+horário) + Limpar agora. Ver README.
+   **Atualizada (2026-10-14):** o agendamento saiu da Tarefa do Windows (rodava como SYSTEM na sessão 0, invisível) e passou
+   para o **próprio agente em sessão** (`AgendadorLimpeza`), que checa a cada 30 s se está na hora (lógica pura testada em
+   `AgendaLimpeza`), mostra o **aviso ao aluno** (contagem regressiva + "Limpar agora" / "Adiar 1 hora"; adiar = +1 h) e,
+   seguindo, mostra a **tela de carregamento** e limpa. `ConfigLimpezaAgente` só salva o `limpeza.json` e apaga a tarefa
+   antiga. O teste real na escola (roteiro) passou dentro do previsto.
 7. ~~**Transferir arquivos**~~ — **feito (2026-10-11)**: professor → alunos (ver README "Enviar arquivos").
    **Teste real com administrador passou:** com o agente instalado como serviço, o arquivo chegou em
    `C:\Users\Public\Desktop\Arquivos do Professor` (acentos certos; a pasta tem Usuários:Modificar para os alunos). Falta: mandar
@@ -21,6 +30,27 @@
 8. ~~**Atualização**~~ — **feita (2026-10-12)**: o Setup novo instala por cima mantendo tudo; e o professor atualiza os
    alunos pela rede (instalador com assinatura do autor, só versão mais nova). Ver README "Atualizar". Teste com
    administrador (0.2.99 → 0.3.0 pela rede) PASSOU. Falta: o backup da chave de assinatura pelo Diego.
+
+## Melhorias de interface (2026-10-14, pedido do Diego depois do teste real)
+
+- ~~**Selecionar computadores na grade**~~ — **feito**: clique (um), **Ctrl+clique** (vários), **Shift+clique** (intervalo),
+  **Ctrl+A** (todos), **Esc** (limpa), clique no vazio limpa. Contorno azul + selo de marcado; "X selecionados" na barra de
+  status. **Botão direito** abre um menu com as ações (ver tela, link, mensagem, arquivos, bloquear, silenciar, internet,
+  desligar/reiniciar, limpar) agindo só nos marcados (direito num não-marcado seleciona só ele). Todos os comandos e o enviar
+  arquivos respeitam a seleção (nada marcado = todos, como antes). Verificado por captura fora da tela.
+- ~~**Barra de ferramentas com mais ações**~~ — **feito**: + Mensagem, Bloquear tela, Desligar; rola na horizontal se faltar espaço.
+- ~~**Cores da limpeza**~~ — **feito**: janela em cartões; botões dos dias da semana com o visual do programa (azul quando ligados),
+  via estilo global de `ToggleButton`.
+- ~~**Tela de aviso + carregamento da limpeza**~~ — **feito** (ver item 6): visual do programa (cartão escuro, azul, logo da
+  escola, barra azul própria, crédito discreto). Conferidas por imagem (`--previa-limpeza`).
+- ~~**Controle remoto (mouse/teclado)**~~ — **feito (2026-10-14)**, ver item 1 acima.
+- ~~**Arrastar e soltar o .controlesala no instalador**~~ — **feito (2026-10-14)**: além do botão Procurar (que já existia), dá
+  para arrastar o `.controlesala` do pendrive e soltar na janela do instalador (`ControleSala.iss`: WM_DROPFILES + liberação
+  do UIPI por rodar elevado + dica na página). Precisa ser validado ao gerar o Setup (não há ISCC no ambiente de dev atual).
+- ~~**Atualização online "num clique"**~~ — **já existia** (faixa de aviso → `JanelaNovaVersao`); em 2026-10-14 virou botão único
+  **"Atualizar agora"** (baixa do GitHub + confere assinatura + instala por cima, mantendo tudo). "Enviar aos alunos" baixa sob demanda.
+- **Falta (ideias futuras):** travar o mouse/teclado do aluno durante o controle (opção estilo Veyon); arrastar as miniaturas
+  para a posição das mesas; log de auditoria (LGPD).
 
 ## Instalador e segurança da sala (feito 2026-10-10)
 

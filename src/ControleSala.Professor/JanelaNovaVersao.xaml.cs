@@ -20,49 +20,82 @@ public partial class JanelaNovaVersao : Window
         InitializeComponent();
         Title = $"Nova versão {nova.Versao}";
         TextoTitulo.Text = $"Nova versão disponível: {nova.Versao}";
-        TextoSub.Text = $"Você tem a versão {Versoes.Atual}.";
+        TextoSub.Text = $"Você tem a versão {Versoes.Atual}. Atualizar mantém a sala, os professores e as configurações.";
         TextoNotas.Text = string.IsNullOrWhiteSpace(nova.Notas) ? "(sem descrição)" : nova.Notas;
+        BotaoAlunos.IsEnabled = _computadores.Count > 0;
     }
 
-    async void Baixar_Click(object sender, RoutedEventArgs e)
+    /// <summary>Baixa o instalador (se ainda não baixou) e confere a assinatura do autor. Lança em caso de erro.</summary>
+    async Task GarantirBaixadoAsync()
     {
-        TextoMensagem.Text = "";
-        BotaoBaixar.IsEnabled = false;
+        if (_baixado) return;
         Barra.Visibility = Visibility.Visible;
         Barra.IsIndeterminate = false;
         Barra.Value = 0;
         try
         {
+            TextoMensagem.Foreground = (System.Windows.Media.Brush)FindResource("PincelTextoFraco");
+            TextoMensagem.Text = "Baixando a atualização...";
             Directory.CreateDirectory(Path.GetDirectoryName(Atualizacoes.CaminhoPadrao)!);
             await BaixarAsync(_nova.UrlInstalador, Atualizacoes.CaminhoPadrao);
 
-            // Confere a assinatura do autor: só um instalador oficial é aceito.
-            TextoMensagem.Foreground = (System.Windows.Media.Brush)FindResource("PincelTextoFraco");
+            // Confere a assinatura do autor: só um instalador oficial é aceito (download adulterado é recusado).
             TextoMensagem.Text = "Conferindo a assinatura...";
             var pronto = await Atualizacoes.PrepararAsync(Atualizacoes.CaminhoPadrao, default);
-
             _baixado = true;
-            BotaoConsole.IsEnabled = true;
-            BotaoAlunos.IsEnabled = _computadores.Count > 0;
             TextoMensagem.Foreground = (System.Windows.Media.Brush)FindResource("PincelOnline");
-            TextoMensagem.Text = $"Instalador {pronto.Versao} baixado e assinatura conferida. Escolha o que fazer.";
-        }
-        catch (ArgumentException ex)   // assinatura inválida / instalador não encontrado
-        {
-            TextoMensagem.Foreground = (System.Windows.Media.Brush)FindResource("PincelOffline");
-            TextoMensagem.Text = ex.Message;
-            BotaoBaixar.IsEnabled = true;
-        }
-        catch (Exception ex) when (ex is HttpRequestException or IOException or TaskCanceledException)
-        {
-            TextoMensagem.Foreground = (System.Windows.Media.Brush)FindResource("PincelOffline");
-            TextoMensagem.Text = $"Não foi possível baixar: {ex.Message}";
-            BotaoBaixar.IsEnabled = true;
+            TextoMensagem.Text = $"Instalador {pronto.Versao} baixado e assinatura conferida.";
         }
         finally
         {
             Barra.Visibility = Visibility.Collapsed;
         }
+    }
+
+    async void AtualizarAgora_Click(object sender, RoutedEventArgs e)
+    {
+        if (MessageBox.Show(this,
+                "Atualizar este computador agora? O ControleSala vai baixar a versão nova, fechar e instalar por cima " +
+                "(a sala, os professores e as configurações continuam). Só vai aparecer o aviso de permissão do Windows.",
+                "Atualizar agora", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
+
+        BotaoAtualizar.IsEnabled = false;
+        BotaoAlunos.IsEnabled = false;
+        try
+        {
+            await GarantirBaixadoAsync();
+            InstalarEFechar();
+        }
+        catch (ArgumentException ex)   // assinatura inválida / instalador não encontrado
+        {
+            Erro(ex.Message);
+        }
+        catch (Exception ex) when (ex is HttpRequestException or IOException or TaskCanceledException)
+        {
+            Erro($"Não foi possível baixar: {ex.Message}");
+        }
+    }
+
+    void InstalarEFechar()
+    {
+        try
+        {
+            // O instalador pede administrador (abre a janela de permissão do Windows) e instala por cima.
+            Process.Start(new ProcessStartInfo(Atualizacoes.CaminhoPadrao) { UseShellExecute = true });
+            Application.Current.Shutdown();
+        }
+        catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or IOException)
+        {
+            Erro($"Não foi possível abrir o instalador: {ex.Message}");
+        }
+    }
+
+    void Erro(string texto)
+    {
+        TextoMensagem.Foreground = (System.Windows.Media.Brush)FindResource("PincelOffline");
+        TextoMensagem.Text = texto;
+        BotaoAtualizar.IsEnabled = true;
+        BotaoAlunos.IsEnabled = _computadores.Count > 0;
     }
 
     async Task BaixarAsync(string url, string destino)
@@ -102,9 +135,24 @@ public partial class JanelaNovaVersao : Window
         }
     }
 
-    void EnviarAlunos_Click(object sender, RoutedEventArgs e)
+    async void EnviarAlunos_Click(object sender, RoutedEventArgs e)
     {
-        if (!_baixado) return;
+        BotaoAtualizar.IsEnabled = false;
+        BotaoAlunos.IsEnabled = false;
+        try
+        {
+            await GarantirBaixadoAsync();
+        }
+        catch (ArgumentException ex)
+        {
+            Erro(ex.Message);
+            return;
+        }
+        catch (Exception ex) when (ex is HttpRequestException or IOException or TaskCanceledException)
+        {
+            Erro($"Não foi possível baixar: {ex.Message}");
+            return;
+        }
         // A janela de atualização dos alunos carrega sozinha o instalador que acabamos de salvar.
         new JanelaAtualizarAlunos(_computadores) { Owner = Owner }.ShowDialog();
         Close();

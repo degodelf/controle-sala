@@ -28,6 +28,7 @@ sealed class TileVm : INotifyPropertyChanged
     string _mensagem = "Conectando...";
     Brush _corEstado = Ambar, _corBorda = BordaNormal;
     double _opacidade = 1;
+    bool _selecionado;
     EstadoConexao? _ultimoEstado;
     string _ultimoDetalhe = "";
 
@@ -36,6 +37,13 @@ sealed class TileVm : INotifyPropertyChanged
     public string Endereco => $"{Conexao.Dados.Endereco}:{Conexao.Dados.Porta}";
 
     public TileVm(ConexaoComputador conexao) => Conexao = conexao;
+
+    /// <summary>Se este computador está marcado na grade (contorno azul + selo). A seleção vale para os comandos.</summary>
+    public bool Selecionado
+    {
+        get => _selecionado;
+        set { if (_selecionado == value) return; _selecionado = value; Mudou(); }
+    }
 
     public double Largura
     {

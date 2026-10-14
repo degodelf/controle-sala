@@ -18,7 +18,9 @@ static class ConfigLimpezaAgente
             string caminho = Path.Combine(LimpezaExecutor.PastaDados, "limpeza.json");
             Directory.CreateDirectory(LimpezaExecutor.PastaDados);
             File.WriteAllText(caminho, json);
-            Agendar(config);
+            // O agendamento agora é feito pelo próprio agente em sessão (AgendadorLimpeza), que relê este arquivo.
+            // Remove qualquer Tarefa do Windows criada por versões antigas, para não limpar duas vezes.
+            RemoverAgendamento();
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
@@ -38,22 +40,8 @@ static class ConfigLimpezaAgente
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
     }
 
-    /// <summary>Remove a limpeza agendada (desinstalação).</summary>
+    /// <summary>Remove a Tarefa do Windows antiga da limpeza (desinstalação e migração de versões anteriores).</summary>
     public static void RemoverAgendamento() => Schtasks($"/delete /tn {NomeTarefa} /f");
-
-    static void Agendar(LimpezaConfig c)
-    {
-        Schtasks($"/delete /tn {NomeTarefa} /f"); // sempre refaz do zero
-        if (!c.Agendada || c.Dias.Count == 0 || !LimpezaConfig.HoraValida(c.Hora)) return;
-
-        string[] mapa = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
-        string dias = string.Join(",", c.Dias.Where(d => d is >= 0 and <= 6).Distinct().OrderBy(d => d).Select(d => mapa[d]));
-        if (dias.Length == 0) return;
-
-        string exe = Environment.ProcessPath!;
-        // Roda como SYSTEM na hora marcada; o próprio agente (--limpar) descobre quem está usando o PC e limpa.
-        Schtasks($"/create /tn {NomeTarefa} /tr \"\\\"{exe}\\\" --limpar\" /sc weekly /d {dias} /st {c.Hora} /ru SYSTEM /rl HIGHEST /f");
-    }
 
     static int Schtasks(string argumentos)
     {
