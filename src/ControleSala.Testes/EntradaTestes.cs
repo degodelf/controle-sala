@@ -57,6 +57,16 @@ public class EntradaTestes
         Assert.Equal(estendida, ev.Estendida);
     }
 
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void Travar(bool ligar)
+    {
+        var ev = Ida_e_volta(Protocolo.MontarEntradaTravar(ligar));
+        Assert.Equal(TipoEntrada.Travar, ev.Tipo);
+        Assert.Equal(ligar, ev.Pressionado);
+    }
+
     [Fact]
     public void Corpo_invalido_retorna_nulo()
     {

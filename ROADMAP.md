@@ -8,6 +8,9 @@
    este computador"** (transparência). Só pelo canal autenticado da sala. **Decisão:** por enquanto **não trava** o mouse/teclado
    do aluno (os dois mexem) — dá para adicionar a trava depois. Esc sai do controle. Build + 8 testes do protocolo; a injeção
    real precisa de teste nos 2 PCs (não dá para testar daqui). Pendente de ideia antiga: desenhar o cursor do professor sobre a transmissão.
+   **2026-10-14 (cont.):** botão **"Travar aluno"** (trava o mouse/teclado físico do aluno durante o controle, via `BlockInput`;
+   `TravaAluno.cs` com watchdog que destrava sozinho se o professor cair; o professor reenvia "travar" a cada 2 s; Ctrl+Alt+Del
+   do aluno continua funcionando). A **versão** do programa aparece discreta no rodapé (barra de status e tela cheia).
 2. **Segurança** — **núcleo feito (2026-10-10)**: chave da sala, pacote com senha, aperto de mão com prova da chave
    nos dois sentidos, canal AES-256-GCM, perfis de professor, nome do professor no ícone do aluno (ver
    "Instalador e segurança da sala" abaixo). **Falta:** log de auditoria (quem viu/fez o quê), limite de tentativas
@@ -49,8 +52,9 @@
   do UIPI por rodar elevado + dica na página). Precisa ser validado ao gerar o Setup (não há ISCC no ambiente de dev atual).
 - ~~**Atualização online "num clique"**~~ — **já existia** (faixa de aviso → `JanelaNovaVersao`); em 2026-10-14 virou botão único
   **"Atualizar agora"** (baixa do GitHub + confere assinatura + instala por cima, mantendo tudo). "Enviar aos alunos" baixa sob demanda.
-- **Falta (ideias futuras):** travar o mouse/teclado do aluno durante o controle (opção estilo Veyon); arrastar as miniaturas
-  para a posição das mesas; log de auditoria (LGPD).
+- ~~**Travar o mouse/teclado do aluno durante o controle**~~ — **feito (2026-10-14)**, ver item 1.
+- **Falta (ideias futuras):** arrastar as miniaturas para a posição das mesas; log de auditoria (LGPD); cursor do professor
+  desenhado sobre a transmissão.
 
 ## Instalador e segurança da sala (feito 2026-10-10)
 

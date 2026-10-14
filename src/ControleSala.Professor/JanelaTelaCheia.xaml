@@ -8,9 +8,13 @@
             <DockPanel>
                 <TextBlock x:Name="TextoCreditos" DockPanel.Dock="Right" Foreground="{DynamicResource PincelTextoFraco}" FontSize="11"
                            VerticalAlignment="Center" Margin="12,0,0,0"/>
-                <ToggleButton x:Name="BotaoControlar" DockPanel.Dock="Left" Content="Controlar" Padding="14,4" Margin="0,0,10,0"
+                <ToggleButton x:Name="BotaoControlar" DockPanel.Dock="Left" Content="Controlar" Padding="14,4" Margin="0,0,8,0"
                               VerticalAlignment="Center" ToolTip="Controlar o mouse e o teclado deste computador (o aluno vê um aviso)"
                               Checked="Controlar_Checked" Unchecked="Controlar_Unchecked"/>
+                <ToggleButton x:Name="BotaoTravar" DockPanel.Dock="Left" Content="Travar aluno" Padding="14,4" Margin="0,0,10,0"
+                              VerticalAlignment="Center" IsEnabled="False"
+                              ToolTip="Bloquear o mouse e o teclado do aluno enquanto você controla (Ctrl+Alt+Del do aluno ainda funciona)"
+                              Checked="Travar_Checked" Unchecked="Travar_Unchecked"/>
                 <TextBlock x:Name="TextoDica" DockPanel.Dock="Left" Foreground="{DynamicResource PincelTextoFraco}" FontSize="11"
                            VerticalAlignment="Center" Margin="0,0,12,0"
                            Text="Esc sai do controle. O aluno vê um aviso enquanto você controla."

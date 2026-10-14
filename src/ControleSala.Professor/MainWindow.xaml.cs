@@ -16,7 +16,7 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
-        TextoCreditos.Text = Creditos.Linha;
+        TextoCreditos.Text = Creditos.LinhaComVersao(Versoes.Atual);
         MostrarProfessor();
         MostrarSala();
         Grade.ItemsSource = _tiles;

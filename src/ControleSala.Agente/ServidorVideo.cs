@@ -442,7 +442,10 @@ sealed class ConexaoProfessor(TcpClient tcp, Stream fluxo, ServidorVideo servido
                         if (Protocolo.LerEntrada(buffer.AsSpan(0, msg.Tamanho)) is { } ev)
                         {
                             IndicadorControle.Tocar(Nome); // aviso visível ao aluno
-                            InterfaceAgente.Postar(() => EntradaRemota.Aplicar(ev)); // injeta na área de trabalho ativa
+                            if (ev.Tipo == TipoEntrada.Travar)
+                                TravaAluno.Definir(ev.Pressionado); // trava/destrava o mouse+teclado do aluno
+                            else
+                                InterfaceAgente.Postar(() => EntradaRemota.Aplicar(ev)); // injeta na área de trabalho ativa
                         }
                         break;
                     case TipoMensagem.ConfigLimpeza:

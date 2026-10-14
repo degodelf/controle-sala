@@ -91,7 +91,7 @@ public readonly record struct RespostaComando(uint Id, bool Ok, string Mensagem)
 public enum ModoVideo : byte { Miniatura = 0, Completo = 1 }
 
 /// <summary>Tipos de evento do controle remoto (mensagem <see cref="TipoMensagem.Entrada"/>).</summary>
-public enum TipoEntrada : byte { MouseMover = 1, MouseBotao = 2, MouseRoda = 3, Tecla = 4 }
+public enum TipoEntrada : byte { MouseMover = 1, MouseBotao = 2, MouseRoda = 3, Tecla = 4, Travar = 5 }
 
 /// <summary>Botão do mouse no controle remoto.</summary>
 public enum BotaoMouse : byte { Esquerdo = 0, Direito = 1, Meio = 2 }
@@ -355,6 +355,10 @@ public static class Protocolo
         return Montar(TipoMensagem.Entrada, corpo);
     }
 
+    /// <summary>Trava (ou destrava) o mouse/teclado do aluno durante o controle. O professor reenvia "ligar" de tempos em tempos.</summary>
+    public static byte[] MontarEntradaTravar(bool ligar) =>
+        Montar(TipoMensagem.Entrada, [(byte)TipoEntrada.Travar, (byte)(ligar ? 1 : 0)]);
+
     /// <summary>Lê um evento de controle remoto; null se o corpo estiver inconsistente.</summary>
     public static EventoEntrada? LerEntrada(ReadOnlySpan<byte> corpo)
     {
@@ -376,6 +380,8 @@ public static class Protocolo
             case TipoEntrada.Tecla when corpo.Length == 5:
                 return new EventoEntrada(TipoEntrada.Tecla, 0, 0, default, corpo[3] != 0, 0,
                     BinaryPrimitives.ReadUInt16LittleEndian(corpo[1..]), corpo[4] != 0);
+            case TipoEntrada.Travar when corpo.Length == 2:
+                return new EventoEntrada(TipoEntrada.Travar, 0, 0, default, corpo[1] != 0, 0, 0, false);
             default:
                 return null;
         }

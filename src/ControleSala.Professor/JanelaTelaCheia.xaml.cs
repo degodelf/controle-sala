@@ -3,6 +3,7 @@ using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using System.Windows.Threading;
 using ControleSala.Comum;
 
 namespace ControleSala.Professor;
@@ -25,7 +26,7 @@ public partial class JanelaTelaCheia : Window
         _usarQuadro = UsarQuadro;
         InitializeComponent();
         Title = $"{conexao.Dados.Nome} — tela";
-        TextoCreditos.Text = Creditos.Linha;
+        TextoCreditos.Text = Creditos.LinhaComVersao(Versoes.Atual);
         TextoMensagem.Text = "Aguardando imagem...";
         _bytesAntes = conexao.BytesRecebidos;
         conexao.Modo = ModoVideo.Completo;
@@ -78,11 +79,14 @@ public partial class JanelaTelaCheia : Window
     ushort _ultimoNx, _ultimoNy;
     static readonly long IntervaloMove = Stopwatch.Frequency / 120; // no máximo ~120 envios de movimento por segundo
 
+    DispatcherTimer? _relogioTrava; // reenvia "travar" a cada 2 s enquanto a trava está ligada
+
     void Controlar_Checked(object sender, RoutedEventArgs e)
     {
         _controlando = true;
         TextoDica.Visibility = Visibility.Visible;
         Tela.Cursor = Cursors.Cross;
+        BotaoTravar.IsEnabled = true;
         Keyboard.Focus(this); // garante que as teclas cheguem a esta janela
     }
 
@@ -92,6 +96,29 @@ public partial class JanelaTelaCheia : Window
         TextoDica.Visibility = Visibility.Collapsed;
         Tela.Cursor = Cursors.Arrow;
         if (Tela.IsMouseCaptured) Tela.ReleaseMouseCapture();
+        BotaoTravar.IsChecked = false; // solta a trava ao sair do controle
+        BotaoTravar.IsEnabled = false;
+    }
+
+    void Travar_Checked(object sender, RoutedEventArgs e)
+    {
+        _conexao.EnviarEntrada(Protocolo.MontarEntradaTravar(true));
+        _relogioTrava ??= new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
+        _relogioTrava.Tick -= Trava_Tick;
+        _relogioTrava.Tick += Trava_Tick;
+        _relogioTrava.Start();
+    }
+
+    void Travar_Unchecked(object sender, RoutedEventArgs e)
+    {
+        _relogioTrava?.Stop();
+        _conexao.EnviarEntrada(Protocolo.MontarEntradaTravar(false));
+    }
+
+    // Reenvia "travar" enquanto a trava está ligada; se o professor cair, o agente destrava sozinho.
+    void Trava_Tick(object? sender, EventArgs e)
+    {
+        if (BotaoTravar.IsChecked == true) _conexao.EnviarEntrada(Protocolo.MontarEntradaTravar(true));
     }
 
     /// <summary>Converte um ponto sobre a imagem em coordenadas 0..65535 da tela do aluno (respeitando as faixas pretas).</summary>
@@ -189,6 +216,8 @@ public partial class JanelaTelaCheia : Window
     void Window_Closed(object? sender, EventArgs e)
     {
         CompositionTarget.Rendering -= AoRenderizar;
+        _relogioTrava?.Stop();
+        if (BotaoTravar.IsChecked == true) _conexao.EnviarEntrada(Protocolo.MontarEntradaTravar(false)); // destrava ao fechar
         _conexao.Modo = ModoVideo.Miniatura; // volta para a grade leve
     }
 }
