@@ -25,7 +25,11 @@ public partial class JanelaNovaVersao : Window
         BotaoAlunos.IsEnabled = _computadores.Count > 0;
     }
 
-    /// <summary>Baixa o instalador (se ainda não baixou) e confere a assinatura do autor. Lança em caso de erro.</summary>
+    /// <summary>
+    /// Baixa o instalador do GitHub (se ainda não baixou). Para atualizar o PRÓPRIO PC do professor basta isto:
+    /// o download vem por HTTPS do repositório oficial. A assinatura do autor só é exigida para ENVIAR aos alunos
+    /// (a janela de atualização dos alunos confere, e cada agente confere de novo ao receber).
+    /// </summary>
     async Task GarantirBaixadoAsync()
     {
         if (_baixado) return;
@@ -38,18 +42,27 @@ public partial class JanelaNovaVersao : Window
             TextoMensagem.Text = "Baixando a atualização...";
             Directory.CreateDirectory(Path.GetDirectoryName(Atualizacoes.CaminhoPadrao)!);
             await BaixarAsync(_nova.UrlInstalador, Atualizacoes.CaminhoPadrao);
-
-            // Confere a assinatura do autor: só um instalador oficial é aceito (download adulterado é recusado).
-            TextoMensagem.Text = "Conferindo a assinatura...";
-            var pronto = await Atualizacoes.PrepararAsync(Atualizacoes.CaminhoPadrao, default);
+            if (!ArquivoEhInstalador(Atualizacoes.CaminhoPadrao))
+                throw new ArgumentException("O arquivo baixado não parece um instalador válido. Tente novamente.");
             _baixado = true;
             TextoMensagem.Foreground = (System.Windows.Media.Brush)FindResource("PincelOnline");
-            TextoMensagem.Text = $"Instalador {pronto.Versao} baixado e assinatura conferida.";
+            TextoMensagem.Text = $"Versão {_nova.Versao} baixada do GitHub.";
         }
         finally
         {
             Barra.Visibility = Visibility.Collapsed;
         }
+    }
+
+    /// <summary>Confere rapidamente que o download é um programa do Windows ("MZ") e não uma página de erro.</summary>
+    static bool ArquivoEhInstalador(string caminho)
+    {
+        try
+        {
+            using var f = File.OpenRead(caminho);
+            return f.Length > 100_000 && f.ReadByte() == 'M' && f.ReadByte() == 'Z';
+        }
+        catch (IOException) { return false; }
     }
 
     async void AtualizarAgora_Click(object sender, RoutedEventArgs e)
