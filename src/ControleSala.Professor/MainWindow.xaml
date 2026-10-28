@@ -165,6 +165,13 @@
                         </StackPanel>
                     </Button>
                     <Border Width="1" Background="{DynamicResource PincelBorda}" Margin="6,6"/>
+                    <Button Style="{StaticResource BotaoFerramenta}" Click="Limpeza_Click" ToolTip="Configurar a limpeza e a verificação automáticas (e Limpar agora)">
+                        <StackPanel>
+                            <Path Style="{StaticResource Icone}" Data="{StaticResource IconeLimpeza}" HorizontalAlignment="Center"/>
+                            <TextBlock Text="Limpeza" FontSize="11" Margin="0,3,0,0"/>
+                        </StackPanel>
+                    </Button>
+                    <Border Width="1" Background="{DynamicResource PincelBorda}" Margin="6,6"/>
                     <Button Style="{StaticResource BotaoFerramenta}" Click="ComandoDesligar_Click">
                         <StackPanel>
                             <Path Style="{StaticResource Icone}" Data="{StaticResource IconeEnergia}" HorizontalAlignment="Center"/>
@@ -192,6 +199,11 @@
                     <TextBlock x:Name="TextoSala" Foreground="{DynamicResource PincelTextoFraco}" FontSize="12" VerticalAlignment="Center"/>
                     <Border Width="1" Background="{DynamicResource PincelBorda}" Margin="12,2"/>
                     <TextBlock x:Name="TextoProfessor" Foreground="{DynamicResource PincelTextoFraco}" FontSize="12" VerticalAlignment="Center"/>
+                    <Border Width="1" Background="{DynamicResource PincelBorda}" Margin="12,2"/>
+                    <!-- Agenda da limpeza, sempre visível (clique abre a configuração). -->
+                    <TextBlock x:Name="TextoLimpeza" FontSize="12" VerticalAlignment="Center" Cursor="Hand"
+                               Foreground="{DynamicResource PincelTextoFraco}" ToolTip="Abrir a configuração da limpeza"
+                               MouseLeftButtonUp="TextoLimpeza_Click"/>
                     <!-- Aparece só quando há alunos com versão mais antiga que a deste programa. -->
                     <TextBlock x:Name="TextoDesatualizados" Visibility="Collapsed" FontSize="12" VerticalAlignment="Center" Margin="16,0,0,0"
                                Foreground="{DynamicResource PincelAviso}" Cursor="Hand" TextDecorations="Underline"

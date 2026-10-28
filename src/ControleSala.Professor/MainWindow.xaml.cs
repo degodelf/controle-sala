@@ -19,6 +19,7 @@ public partial class MainWindow : Window
         TextoCreditos.Text = Creditos.LinhaComVersao(Versoes.Atual);
         MostrarProfessor();
         MostrarSala();
+        AtualizarAgendaLimpeza();
         Grade.ItemsSource = _tiles;
         ReconstruirGrade();
         CompositionTarget.Rendering += AoRenderizar;
@@ -212,6 +213,18 @@ public partial class MainWindow : Window
         if (janela.Salvou)
             foreach (var t in _tiles.Where(t => t.Conexao.Estado == EstadoConexao.Online))
                 t.Conexao.ReenviarConfigLimpeza();
+        AtualizarAgendaLimpeza();
+    }
+
+    void TextoLimpeza_Click(object sender, MouseButtonEventArgs e) => Limpeza_Click(sender, e);
+
+    /// <summary>Mostra na barra de status quando a limpeza automática roda (ou "desligada"), sempre visível.</summary>
+    void AtualizarAgendaLimpeza()
+    {
+        var c = LimpezaConfig.Carregar();
+        bool ligada = c.Agendada && c.Dias.Count > 0;
+        TextoLimpeza.Text = ligada ? $"🧹 Limpeza: {c.ResumoAgenda()}" : "🧹 Limpeza: desligada";
+        TextoLimpeza.Foreground = (Brush)FindResource(ligada ? "PincelTexto" : "PincelTextoFraco");
     }
 
     void LimparAgora_Click(object sender, RoutedEventArgs e)

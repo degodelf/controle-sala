@@ -52,11 +52,12 @@ static class EntradaRemota
 
     static void Tecla(ushort vk, bool pressionado, bool estendida)
     {
+        ushort scan = (ushort)MapVirtualKey(vk, MAPVK_VK_TO_VSC); // código de varredura: alguns programas só reagem a ele
         uint flags = (pressionado ? 0u : KEYEVENTF_KEYUP) | (estendida ? KEYEVENTF_EXTENDEDKEY : 0u);
         var entrada = new INPUT
         {
             type = INPUT_KEYBOARD,
-            U = { ki = new KEYBDINPUT { wVk = vk, dwFlags = flags } },
+            U = { ki = new KEYBDINPUT { wVk = vk, wScan = scan, dwFlags = flags } },
         };
         Enviar(entrada);
     }
@@ -80,6 +81,7 @@ static class EntradaRemota
     const uint MOUSEEVENTF_RIGHTDOWN = 0x0008, MOUSEEVENTF_RIGHTUP = 0x0010;
     const uint MOUSEEVENTF_MIDDLEDOWN = 0x0020, MOUSEEVENTF_MIDDLEUP = 0x0040;
     const uint KEYEVENTF_KEYUP = 0x0002, KEYEVENTF_EXTENDEDKEY = 0x0001;
+    const uint MAPVK_VK_TO_VSC = 0;
 
     [StructLayout(LayoutKind.Sequential)]
     struct MOUSEINPUT { public int dx; public int dy; public uint mouseData; public uint dwFlags; public uint time; public nint dwExtraInfo; }
@@ -99,4 +101,7 @@ static class EntradaRemota
 
     [DllImport("user32.dll", SetLastError = true)]
     static extern uint SendInput(uint nInputs, INPUT[] pInputs, int cbSize);
+
+    [DllImport("user32.dll")]
+    static extern uint MapVirtualKey(uint uCode, uint uMapType);
 }

@@ -85,8 +85,9 @@ public partial class JanelaTelaCheia : Window
     {
         _controlando = true;
         TextoDica.Visibility = Visibility.Visible;
-        Tela.Cursor = Cursors.Cross;
+        Tela.Cursor = Cursors.Arrow; // cursor normal (o antigo "+" confundia); o modo é indicado pelo botão azul e a dica
         BotaoTravar.IsEnabled = true;
+        Activate();
         Keyboard.Focus(this); // garante que as teclas cheguem a esta janela
     }
 
