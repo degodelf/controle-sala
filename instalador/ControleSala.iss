@@ -473,6 +473,20 @@ begin
   Result := Executar(ExpandConstant('{sys}\netsh.exe'), Parametros);
 end;
 
+{ Reserva a porta do agente para o ControleSala. Em alguns PCs o Windows (Hyper-V/virtualização) reserva faixas de
+  portas e BLOQUEIA o "bind" do agente (erro de soquete 10013) — aí o agente não liga e o PC não aparece no professor.
+  Se a reserva direta falhar (a porta está dentro de uma faixa dinâmica), solta o winnat, reserva e religa.
+  Erros são ignorados de propósito (nem todo PC tem winnat, e reservar de novo é inofensivo). }
+procedure ReservarPorta;
+begin
+  if Netsh('int ipv4 add excludedportrange protocol=tcp startport=' + PortaVideo + ' numberofports=1 store=persistent') <> 0 then
+  begin
+    Executar(ExpandConstant('{sys}\net.exe'), 'stop winnat');
+    Netsh('int ipv4 add excludedportrange protocol=tcp startport=' + PortaVideo + ' numberofports=1 store=persistent');
+    Executar(ExpandConstant('{sys}\net.exe'), 'start winnat');
+  end;
+end;
+
 function ServicoExiste: Boolean;
 begin
   Result := Sc('query ' + NomeServico) <> 1060; { 1060 = o serviço não existe }
@@ -557,6 +571,9 @@ begin
   Netsh('advfirewall firewall add rule name="' + RegraAgente + '" dir=in action=allow program="' + Exe +
         '" protocol=TCP localport=' + PortaVideo + ' remoteip=localsubnet profile=any enable=yes');
 
+  { 2b) garante que a porta do agente não seja bloqueada pelo Windows (erro 10013 em PCs com virtualização) }
+  ReservarPorta;
+
   { 3) serviço do Windows: liga com o PC e reinicia sozinho se cair }
   if ServicoExiste then
     Sc('delete ' + NomeServico);
@@ -618,6 +635,7 @@ begin
         Sc('delete ' + NomeServico);
       Netsh('advfirewall firewall delete rule name="' + RegraAgente + '"');
       Netsh('advfirewall firewall delete rule name="' + RegraProfessor + '"');
+      Netsh('int ipv4 delete excludedportrange protocol=tcp startport=' + PortaVideo + ' numberofports=1 store=persistent');
     end;
   end;
 

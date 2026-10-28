@@ -109,7 +109,20 @@ static partial class Programa
         // Pasta padrão = área de trabalho pública do PC do aluno (todos os usuários veem e podem alterar).
         // --pasta-recebidos serve para testar sem administrador.
         string pastaRecebidos = opcoes.PastaRecebidos ?? PastaRecebidos.Padrao;
-        using var servidor = new ServidorVideo(endereco, opcoes.Porta, sala?.Chave, pastaRecebidos, liberarParaAlunos: opcoes.PastaRecebidos == null);
+        ServidorVideo servidor;
+        try
+        {
+            servidor = new ServidorVideo(endereco, opcoes.Porta, sala?.Chave, pastaRecebidos, liberarParaAlunos: opcoes.PastaRecebidos == null);
+        }
+        catch (System.Net.Sockets.SocketException ex) when (ex.SocketErrorCode == System.Net.Sockets.SocketError.AccessDenied)
+        {
+            // O Windows (Hyper-V/virtualização) reservou a faixa de portas e bloqueou o bind (erro 10013).
+            Log($"ERRO: o Windows bloqueou a porta {opcoes.Porta} (erro 10013). Reinstale pelo ControleSala-Setup novo " +
+                "(ele reserva a porta), ou como administrador: 'net stop winnat' → " +
+                $"'netsh int ipv4 add excludedportrange protocol=tcp startport={opcoes.Porta} numberofports=1 store=persistent' → 'net start winnat', e reinicie.");
+            return 3;
+        }
+        using var _descarteServidor = servidor;
         string? mac = MacDaPlaca();
         if (mac != null) { servidor.MacMsg = Protocolo.MontarEnderecoMac(mac); Log($"MAC deste PC: {mac}"); }
         Log($"Versão {Versoes.Atual}");
