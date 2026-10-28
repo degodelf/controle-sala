@@ -9,7 +9,7 @@
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
+            <RowDefinition x:Name="LinhaLista" Height="*"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
@@ -17,12 +17,15 @@
         <TextBlock Grid.Row="0" x:Name="TextoTitulo" Style="{StaticResource Titulo}"/>
 
         <StackPanel Grid.Row="1" x:Name="PainelArgumento" Margin="0,14,0,0">
+            <!-- Aparece quando a lista de PCs está escondida (comando sobre a seleção da grade). -->
+            <TextBlock x:Name="TextoAlvos" Foreground="{DynamicResource PincelRealce}" FontWeight="SemiBold"
+                       TextWrapping="Wrap" Margin="0,0,0,12" Visibility="Collapsed"/>
             <TextBlock x:Name="RotuloArgumento" Style="{StaticResource Rotulo}"/>
             <TextBox x:Name="CampoArgumento" Padding="6,5" KeyDown="Campo_KeyDown"/>
             <ComboBox x:Name="ListaOpcoes" Padding="6,4" DisplayMemberPath="Texto" Visibility="Collapsed"/>
         </StackPanel>
 
-        <DockPanel Grid.Row="2" Margin="0,16,0,6">
+        <DockPanel Grid.Row="2" x:Name="PainelLista" Margin="0,16,0,6">
             <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
                 <Button x:Name="BotaoTodos" Content="Todos" Padding="12,4" Margin="0,0,8,0" Click="Todos_Click"/>
                 <Button x:Name="BotaoNenhum" Content="Nenhum" Padding="12,4" Click="Nenhum_Click"/>

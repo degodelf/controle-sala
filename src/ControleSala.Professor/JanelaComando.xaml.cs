@@ -61,9 +61,10 @@ public partial class JanelaComando : Window
     /// <param name="prepararArgumento">Valida/normaliza o texto digitado (ex.: o link). Null = comando sem texto.</param>
     /// <param name="opcoes">Se dado, mostra uma lista suspensa em vez de caixa de texto (ex.: a lista de programas).</param>
     /// <param name="preMarcar">Quais computadores já vêm marcados (a seleção da grade). Null = todos os online (padrão).</param>
+    /// <param name="ocultarLista">Esconde a lista de PCs: o comando já vem mirado nos computadores dados (a seleção da grade).</param>
     internal JanelaComando(IEnumerable<ConexaoComputador> computadores, AcaoComando acao, string titulo,
         string? rotuloArgumento, Func<string, (bool, string)>? prepararArgumento, IReadOnlyList<Opcao>? opcoes = null,
-        Func<ConexaoComputador, bool>? preMarcar = null)
+        Func<ConexaoComputador, bool>? preMarcar = null, bool ocultarLista = false)
     {
         InitializeComponent();
         _acao = acao;
@@ -73,6 +74,19 @@ public partial class JanelaComando : Window
         Title = titulo;
         TextoTitulo.Text = titulo;
         ListaComputadores.ItemsSource = _alvos;
+
+        if (ocultarLista)
+        {
+            // O comando já vem mirado na seleção da grade: esconde a lista e mostra só um resumo dos alvos.
+            PainelLista.Visibility = Visibility.Collapsed;
+            ListaComputadores.Visibility = Visibility.Collapsed;
+            LinhaLista.Height = new GridLength(0);
+            int marcados = _alvos.Count(a => a.Marcado);
+            TextoAlvos.Text = $"Enviando para {marcados} computador{(marcados == 1 ? "" : "es")} selecionado{(marcados == 1 ? "" : "s")}.";
+            TextoAlvos.Visibility = Visibility.Visible;
+            MinHeight = 240;
+            Height = 300;
+        }
 
         if (rotuloArgumento == null)
         {

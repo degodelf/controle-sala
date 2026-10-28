@@ -43,7 +43,7 @@ public partial class MainWindow : Window
 
     void IniciarAutoAtualizacao()
     {
-        _auto = new AutoAtualizadorAlunos(() => Conexoes, AvisoAtualizacao);
+        _auto = new AutoAtualizadorAlunos(() => Conexoes, MostrarAviso);
         _ = _auto.RetomarAsync();   // retoma uma atualização pendente (PCs que estavam desligados)
         _relogioAuto = new DispatcherTimer { Interval = TimeSpan.FromSeconds(6) };
         _relogioAuto.Tick += (_, _) => _auto?.Verificar();
@@ -54,11 +54,11 @@ public partial class MainWindow : Window
     void MostrarConclusaoAtualizacao()
     {
         if (Atualizacoes.ConsumirMarcador() is { } alvo && alvo == Versoes.Atual)
-            AvisoAtualizacao($"ControleSala atualizado para a versão {alvo} com sucesso ✓");
+            MostrarAviso($"ControleSala atualizado para a versão {alvo} com sucesso ✓");
     }
 
     /// <summary>Mostra um aviso curto na barra de status (some sozinho depois de alguns segundos).</summary>
-    void AvisoAtualizacao(string texto)
+    void MostrarAviso(string texto)
     {
         TextoAviso.Text = texto;
         TextoAviso.Visibility = Visibility.Visible;
@@ -178,81 +178,123 @@ public partial class MainWindow : Window
 
     void TextoDesatualizados_Click(object sender, MouseButtonEventArgs e) => AtualizarAlunos_Click(sender, e);
 
+    // --- Comandos ---
+    // Com computadores marcados na grade: agem DIRETO nos marcados (sem reabrir a escolha de PCs).
+    // Os que pedem um texto (link, mensagem, programa) só pedem o texto — a lista de PCs fica escondida.
+    // Sem nada marcado: abrem a janela com a lista, como antes.
+
+    bool HaSelecao => _tiles.Any(t => t.Selecionado);
+
+    /// <summary>Conexões marcadas na grade (mesmo as offline; a janela/execução ignora as que não estão online).</summary>
+    List<ConexaoComputador> SelecaoConexoes() => _tiles.Where(t => t.Selecionado).Select(t => t.Conexao).ToList();
+
+    /// <summary>Comando que precisa de um texto/opção: com seleção, só pede o texto (lista de PCs escondida); senão, mostra a lista.</summary>
+    void AbrirComando(AcaoComando acao, string titulo, string? rotulo, Func<string, (bool, string)>? validar, IReadOnlyList<JanelaComando.Opcao>? opcoes = null)
+    {
+        var janela = HaSelecao
+            ? new JanelaComando(SelecaoConexoes(), acao, titulo, rotulo, validar, opcoes, ocultarLista: true)
+            : new JanelaComando(Conexoes, acao, titulo, rotulo, validar, opcoes, preMarcar: PreMarca());
+        janela.Owner = this;
+        janela.ShowDialog();
+    }
+
+    /// <summary>Comando sem texto: com seleção, envia direto (confirma antes se for sério); senão abre a janela para escolher os PCs.</summary>
+    void Comando(AcaoComando acao, string titulo, string argumento = "", string? confirmar = null)
+    {
+        if (HaSelecao) { ExecutarDireto(acao, argumento, titulo, confirmar); return; }
+        new JanelaComando(Conexoes, acao, titulo, null, _ => (true, argumento), preMarcar: PreMarca())
+        { Owner = this, ConfirmacaoAntesDeEnviar = confirmar }.ShowDialog();
+    }
+
+    /// <summary>Envia o comando aos marcados que estão online e avisa o resultado na barra de status.</summary>
+    async void ExecutarDireto(AcaoComando acao, string argumento, string nomeComando, string? confirmar)
+    {
+        var alvos = _tiles.Where(t => t.Selecionado && t.Conexao.Estado == EstadoConexao.Online).Select(t => t.Conexao).ToList();
+        if (alvos.Count == 0) { MostrarAviso("Nenhum computador selecionado está online."); return; }
+        if (confirmar != null &&
+            MessageBox.Show(this, $"{confirmar}\n\nComputadores selecionados: {alvos.Count}.", nomeComando,
+                MessageBoxButton.YesNo, MessageBoxImage.Warning, MessageBoxResult.No) != MessageBoxResult.Yes)
+            return;
+
+        MostrarAviso($"{nomeComando}: enviando a {alvos.Count}...");
+        int falhas = 0;
+        await Task.WhenAll(alvos.Select(async c =>
+        {
+            try { var (ok, _) = await c.EnviarComandoAsync(acao, argumento, CancellationToken.None); if (!ok) Interlocked.Increment(ref falhas); }
+            catch { Interlocked.Increment(ref falhas); }
+        }));
+        MostrarAviso(falhas == 0
+            ? $"{nomeComando}: enviado a {alvos.Count} computador{(alvos.Count == 1 ? "" : "es")} ✓"
+            : $"{nomeComando}: {alvos.Count - falhas} ok, {falhas} com erro.");
+    }
+
     void ComandoLink_Click(object sender, RoutedEventArgs e)
-        => new JanelaComando(Conexoes, AcaoComando.AbrirLink,
-            "Abrir link nos computadores", "Endereço do site (ex.: www.escola.edu.br)",
-            texto => Links.Validar(texto, out var url) is { } erro ? (false, erro) : (true, url), preMarcar: PreMarca()) { Owner = this }.ShowDialog();
+        => AbrirComando(AcaoComando.AbrirLink, "Abrir link nos computadores", "Endereço do site (ex.: www.escola.edu.br)",
+            texto => Links.Validar(texto, out var url) is { } erro ? (false, erro) : (true, url));
 
     void ComandoMensagem_Click(object sender, RoutedEventArgs e)
-        => new JanelaComando(Conexoes, AcaoComando.Mensagem,
-            "Enviar mensagem aos alunos", "Mensagem que aparece na tela do aluno",
-            texto => string.IsNullOrWhiteSpace(texto) ? (false, "Digite a mensagem.") : (true, texto.Trim()), preMarcar: PreMarca()) { Owner = this }.ShowDialog();
+        => AbrirComando(AcaoComando.Mensagem, "Enviar mensagem aos alunos", "Mensagem que aparece na tela do aluno",
+            texto => string.IsNullOrWhiteSpace(texto) ? (false, "Digite a mensagem.") : (true, texto.Trim()));
 
     void ComandoBloquear_Click(object sender, RoutedEventArgs e)
-        => new JanelaComando(Conexoes, AcaoComando.BloquearTela,
-            "Bloquear a tela dos alunos", "Recado na tela (opcional — padrão: \"Atenção ao professor\")",
-            texto => (true, texto.Trim()), preMarcar: PreMarca()) { Owner = this }.ShowDialog();
+        => Comando(AcaoComando.BloquearTela, "Bloquear tela");
 
     void ComandoDesbloquear_Click(object sender, RoutedEventArgs e)
-        => new JanelaComando(Conexoes, AcaoComando.DesbloquearTela,
-            "Desbloquear a tela dos alunos", null, null, preMarcar: PreMarca()) { Owner = this }.ShowDialog();
+        => Comando(AcaoComando.DesbloquearTela, "Desbloquear tela");
 
     void ComandoAbrirPrograma_Click(object sender, RoutedEventArgs e)
     {
         var lista = Programas.Carregar();
         if (lista.Count == 0) { MessageBox.Show(this, "Cadastre ao menos um programa em \"Programas permitidos...\".", "Abrir programa", MessageBoxButton.OK, MessageBoxImage.Information); return; }
-        var opcoes = lista.Select(p => new JanelaComando.Opcao(p.Nome, p.Comando)).ToList();
-        new JanelaComando(Conexoes, AcaoComando.AbrirPrograma, "Abrir programa nos computadores",
-            "Programa", _ => (true, ""), opcoes, PreMarca()) { Owner = this }.ShowDialog();
+        AbrirComando(AcaoComando.AbrirPrograma, "Abrir programa nos computadores", "Programa", _ => (true, ""),
+            lista.Select(p => new JanelaComando.Opcao(p.Nome, p.Comando)).ToList());
     }
 
     void ComandoFecharPrograma_Click(object sender, RoutedEventArgs e)
     {
         var lista = Programas.Carregar();
         if (lista.Count == 0) { MessageBox.Show(this, "Cadastre ao menos um programa em \"Programas permitidos...\".", "Fechar programa", MessageBoxButton.OK, MessageBoxImage.Information); return; }
-        var opcoes = lista.Select(p => new JanelaComando.Opcao(p.Nome, p.NomeProcesso)).ToList();
-        new JanelaComando(Conexoes, AcaoComando.FecharPrograma, "Fechar programa nos computadores",
-            "Programa", _ => (true, ""), opcoes, PreMarca()) { Owner = this }.ShowDialog();
+        AbrirComando(AcaoComando.FecharPrograma, "Fechar programa nos computadores", "Programa", _ => (true, ""),
+            lista.Select(p => new JanelaComando.Opcao(p.Nome, p.NomeProcesso)).ToList());
     }
 
     void GerenciarProgramas_Click(object sender, RoutedEventArgs e)
         => new JanelaProgramas { Owner = this }.ShowDialog();
 
     void ComandoDesligar_Click(object sender, RoutedEventArgs e)
-        => new JanelaComando(Conexoes, AcaoComando.Desligar, "Desligar os computadores", null, null, preMarcar: PreMarca())
-        { Owner = this, ConfirmacaoAntesDeEnviar = "Desligar os computadores selecionados? Os alunos verão um aviso de 20 segundos antes." }.ShowDialog();
+        => Comando(AcaoComando.Desligar, "Desligar os computadores",
+            confirmar: "Desligar os computadores selecionados? Os alunos verão um aviso de 20 segundos antes.");
 
     void ComandoReiniciar_Click(object sender, RoutedEventArgs e)
-        => new JanelaComando(Conexoes, AcaoComando.Reiniciar, "Reiniciar os computadores", null, null, preMarcar: PreMarca())
-        { Owner = this, ConfirmacaoAntesDeEnviar = "Reiniciar os computadores selecionados? Os alunos verão um aviso de 20 segundos antes." }.ShowDialog();
+        => Comando(AcaoComando.Reiniciar, "Reiniciar os computadores",
+            confirmar: "Reiniciar os computadores selecionados? Os alunos verão um aviso de 20 segundos antes.");
 
     void ComandoLogoff_Click(object sender, RoutedEventArgs e)
-        => new JanelaComando(Conexoes, AcaoComando.Logoff, "Encerrar a sessão dos alunos (logoff)", null, null, preMarcar: PreMarca())
-        { Owner = this, ConfirmacaoAntesDeEnviar = "Encerrar a sessão dos computadores selecionados? Os alunos verão um aviso de 20 segundos antes." }.ShowDialog();
+        => Comando(AcaoComando.Logoff, "Encerrar a sessão (logoff)",
+            confirmar: "Encerrar a sessão dos computadores selecionados? Os alunos verão um aviso de 20 segundos antes.");
 
     void ComandoSilenciar_Click(object sender, RoutedEventArgs e)
-        => new JanelaComando(Conexoes, AcaoComando.Silenciar, "Silenciar o som dos alunos", null, _ => (true, "1"), preMarcar: PreMarca()) { Owner = this }.ShowDialog();
+        => Comando(AcaoComando.Silenciar, "Silenciar o som", "1");
 
     void ComandoReativarSom_Click(object sender, RoutedEventArgs e)
-        => new JanelaComando(Conexoes, AcaoComando.Silenciar, "Reativar o som dos alunos", null, _ => (true, "0"), preMarcar: PreMarca()) { Owner = this }.ShowDialog();
+        => Comando(AcaoComando.Silenciar, "Reativar o som", "0");
 
     void WakeOnLan_Click(object sender, RoutedEventArgs e)
         => new JanelaWakeOnLan(_sala) { Owner = this }.ShowDialog();
 
     void BloquearInternet_Click(object sender, RoutedEventArgs e)
-        => new JanelaComando(Conexoes, AcaoComando.BloquearInternet, "Bloquear TODA a internet", null, _ => (true, ""), preMarcar: PreMarca())
-        { Owner = this, ConfirmacaoAntesDeEnviar = "Bloquear toda a internet nos computadores selecionados? A rede local (e o ControleSala) continua funcionando. Use \"Liberar a internet\" para desfazer." }.ShowDialog();
+        => Comando(AcaoComando.BloquearInternet, "Bloquear TODA a internet",
+            confirmar: "Bloquear toda a internet nos computadores selecionados? A rede local (e o ControleSala) continua funcionando. Use \"Liberar a internet\" para desfazer.");
 
     void BloquearSites_Click(object sender, RoutedEventArgs e)
     {
         var sites = Sites.Carregar();
         if (sites.Count == 0) { MessageBox.Show(this, "Cadastre os sites em \"Sites bloqueados...\" primeiro.", "Bloquear sites", MessageBoxButton.OK, MessageBoxImage.Information); return; }
-        new JanelaComando(Conexoes, AcaoComando.BloquearInternet, $"Bloquear {sites.Count} site(s)", null, _ => (true, string.Join(",", sites)), preMarcar: PreMarca())
-        { Owner = this }.ShowDialog();
+        Comando(AcaoComando.BloquearInternet, $"Bloquear {sites.Count} site(s)", string.Join(",", sites));
     }
 
     void LiberarInternet_Click(object sender, RoutedEventArgs e)
-        => new JanelaComando(Conexoes, AcaoComando.LiberarInternet, "Liberar a internet", null, null, preMarcar: PreMarca()) { Owner = this }.ShowDialog();
+        => Comando(AcaoComando.LiberarInternet, "Liberar a internet");
 
     void GerenciarSites_Click(object sender, RoutedEventArgs e)
         => new JanelaSites { Owner = this }.ShowDialog();
@@ -279,11 +321,8 @@ public partial class MainWindow : Window
     }
 
     void LimparAgora_Click(object sender, RoutedEventArgs e)
-    {
-        var config = LimpezaConfig.Carregar().Serializar();
-        new JanelaComando(Conexoes, AcaoComando.Limpeza, "Limpar agora", null, _ => (true, config), preMarcar: PreMarca())
-        { Owner = this, ConfirmacaoAntesDeEnviar = "Limpar agora os computadores selecionados? Serão apagados os arquivos marcados na configuração da limpeza (a conta de administrador não é tocada)." }.ShowDialog();
-    }
+        => Comando(AcaoComando.Limpeza, "Limpar agora", LimpezaConfig.Carregar().Serializar(),
+            confirmar: "Limpar agora os computadores selecionados? Serão apagados os arquivos marcados na configuração da limpeza (a conta de administrador não é tocada).");
 
     void AoRenderizar(object? sender, EventArgs e)
     {
