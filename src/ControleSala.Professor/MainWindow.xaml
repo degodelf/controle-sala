@@ -226,7 +226,9 @@
         </Border>
 
         <!-- Grade de telas (a parte preta fica só no vídeo de cada tela) -->
-        <Grid Background="{DynamicResource PincelFundo}" MouseLeftButtonDown="Fundo_MouseDown">
+        <Grid x:Name="AreaGrade" Background="{DynamicResource PincelFundo}"
+              MouseLeftButtonDown="Fundo_MouseDown" MouseMove="Area_MouseMove" MouseLeftButtonUp="Area_MouseUp"
+              ClipToBounds="True">
             <ScrollViewer VerticalScrollBarVisibility="Auto">
                 <ItemsControl x:Name="Grade" Margin="8">
                     <ItemsControl.ItemsPanel>
@@ -296,6 +298,18 @@
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
             </ScrollViewer>
+
+            <!-- Caixa de seleção por arrasto do mouse (marquee). Não captura cliques. -->
+            <Canvas IsHitTestVisible="False">
+                <Rectangle x:Name="CaixaSelecao" Visibility="Collapsed" StrokeThickness="1.5" RadiusX="2" RadiusY="2">
+                    <Rectangle.Fill>
+                        <SolidColorBrush Color="{DynamicResource CorRealce}" Opacity="0.20"/>
+                    </Rectangle.Fill>
+                    <Rectangle.Stroke>
+                        <SolidColorBrush Color="{DynamicResource CorRealce}"/>
+                    </Rectangle.Stroke>
+                </Rectangle>
+            </Canvas>
 
             <TextBlock x:Name="TextoVazio" Foreground="{DynamicResource PincelTextoFraco}" FontSize="15" TextAlignment="Center" TextWrapping="Wrap"
                        HorizontalAlignment="Center" VerticalAlignment="Center" Margin="30" IsHitTestVisible="False"

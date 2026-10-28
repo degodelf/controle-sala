@@ -266,9 +266,15 @@ public partial class MainWindow : Window
         foreach (var t in _tiles) t.Largura = e.NewValue;
     }
 
-    // --- Seleção de computadores na grade (clique, Ctrl+clique, Shift+clique, Ctrl+A, Esc) ---
+    // --- Seleção de computadores na grade (clique, Ctrl+clique, Shift+clique, Ctrl+A, Esc e arrasto do mouse) ---
 
     int _ancora = -1; // índice do último clicado, base do Shift+clique
+
+    Point _inicioArrasto;                 // onde o arrasto começou (coordenadas de AreaGrade)
+    bool _candidatoArrasto;               // botão esquerdo desceu numa área vazia
+    bool _arrastando;                     // já passou do limiar e está desenhando a caixa
+    bool _aditivoArrasto;                 // Ctrl segurado ao começar: soma à seleção que já existia
+    readonly HashSet<TileVm> _selecaoBase = []; // seleção no instante em que o arrasto começou
 
     void Tile_MouseDown(object sender, MouseButtonEventArgs e)
     {
@@ -308,10 +314,89 @@ public partial class MainWindow : Window
 
     void Fundo_MouseDown(object sender, MouseButtonEventArgs e)
     {
-        // Clique numa área vazia (fora dos computadores) limpa a seleção.
+        // Botão esquerdo numa área vazia (fora dos computadores): começa a seleção por arrasto.
+        // Sem arrastar, vira um clique simples que limpa a seleção (ao soltar).
         if (AcharTile(e.OriginalSource as DependencyObject) != null) return;
-        foreach (var t in _tiles) t.Selecionado = false;
+
+        _aditivoArrasto = (Keyboard.Modifiers & ModifierKeys.Control) != 0;
+        _selecaoBase.Clear();
+        if (_aditivoArrasto)
+            foreach (var t in _tiles.Where(t => t.Selecionado)) _selecaoBase.Add(t);
+        else
+            foreach (var t in _tiles) t.Selecionado = false;
+
+        _inicioArrasto = e.GetPosition(AreaGrade);
+        _candidatoArrasto = true;
+        _arrastando = false;
+        AreaGrade.CaptureMouse();
         AtualizarContagemSelecao();
+    }
+
+    void Area_MouseMove(object sender, MouseEventArgs e)
+    {
+        if (!_candidatoArrasto || e.LeftButton != MouseButtonState.Pressed) return;
+
+        var p = e.GetPosition(AreaGrade);
+        p.X = Math.Max(0, Math.Min(p.X, AreaGrade.ActualWidth));
+        p.Y = Math.Max(0, Math.Min(p.Y, AreaGrade.ActualHeight));
+
+        if (!_arrastando)
+        {
+            // Só desenha depois de um pequeno movimento, para não confundir com um clique.
+            if (Math.Abs(p.X - _inicioArrasto.X) < 4 && Math.Abs(p.Y - _inicioArrasto.Y) < 4) return;
+            _arrastando = true;
+            CaixaSelecao.Visibility = Visibility.Visible;
+        }
+
+        double x = Math.Min(p.X, _inicioArrasto.X), y = Math.Min(p.Y, _inicioArrasto.Y);
+        double w = Math.Abs(p.X - _inicioArrasto.X), h = Math.Abs(p.Y - _inicioArrasto.Y);
+        System.Windows.Controls.Canvas.SetLeft(CaixaSelecao, x);
+        System.Windows.Controls.Canvas.SetTop(CaixaSelecao, y);
+        CaixaSelecao.Width = w;
+        CaixaSelecao.Height = h;
+
+        var caixa = new Rect(x, y, w, h);
+        foreach (var t in _tiles)
+        {
+            var r = RetanguloDoTile(t);
+            bool dentro = r.HasValue && caixa.IntersectsWith(r.Value);
+            t.Selecionado = dentro || (_aditivoArrasto && _selecaoBase.Contains(t));
+        }
+        AtualizarContagemSelecao();
+    }
+
+    void Area_MouseUp(object sender, MouseButtonEventArgs e)
+    {
+        if (!_candidatoArrasto) return;
+        _candidatoArrasto = false;
+        AreaGrade.ReleaseMouseCapture();
+        if (_arrastando)
+        {
+            _arrastando = false;
+            CaixaSelecao.Visibility = Visibility.Collapsed;
+            _ancora = PrimeiroSelecionado(); // base para um Shift+clique seguinte
+        }
+        _selecaoBase.Clear();
+        AtualizarContagemSelecao();
+    }
+
+    int PrimeiroSelecionado()
+    {
+        for (int i = 0; i < _tiles.Count; i++)
+            if (_tiles[i].Selecionado) return i;
+        return -1;
+    }
+
+    /// <summary>Retângulo que o computador ocupa na tela, em coordenadas de AreaGrade (ou null se ainda não há caixa).</summary>
+    Rect? RetanguloDoTile(TileVm tile)
+    {
+        if (Grade.ItemContainerGenerator.ContainerFromItem(tile) is not FrameworkElement c) return null;
+        if (c.ActualWidth <= 0 || c.ActualHeight <= 0) return null;
+        try
+        {
+            return c.TransformToVisual(AreaGrade).TransformBounds(new Rect(0, 0, c.ActualWidth, c.ActualHeight));
+        }
+        catch { return null; }
     }
 
     void Window_KeyDown(object sender, KeyEventArgs e)
