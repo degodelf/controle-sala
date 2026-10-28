@@ -11,16 +11,18 @@ public partial class JanelaNovaVersao : Window
 {
     readonly AtualizacaoDisponivel _nova;
     readonly List<ConexaoComputador> _computadores;
+    readonly AutoAtualizadorAlunos? _auto;
     bool _baixado;
 
-    internal JanelaNovaVersao(AtualizacaoDisponivel nova, List<ConexaoComputador> computadores)
+    internal JanelaNovaVersao(AtualizacaoDisponivel nova, List<ConexaoComputador> computadores, AutoAtualizadorAlunos? auto = null)
     {
         _nova = nova;
         _computadores = computadores;
+        _auto = auto;
         InitializeComponent();
         Title = $"Nova versão {nova.Versao}";
         TextoTitulo.Text = $"Nova versão disponível: {nova.Versao}";
-        TextoSub.Text = $"Você tem a versão {Versoes.Atual}. Atualizar mantém a sala, os professores e as configurações.";
+        TextoSub.Text = $"Você tem a versão {Versoes.Atual}. \"Atualizar tudo\" atualiza os alunos e este PC; só aparece uma permissão do Windows. A sala e as configurações continuam.";
         TextoNotas.Text = string.IsNullOrWhiteSpace(nova.Notas) ? "(sem descrição)" : nova.Notas;
         BotaoAlunos.IsEnabled = _computadores.Count > 0;
     }
@@ -68,12 +70,12 @@ public partial class JanelaNovaVersao : Window
     async void AtualizarAgora_Click(object sender, RoutedEventArgs e)
     {
         if (MessageBox.Show(this,
-                "Atualizar este computador agora? O ControleSala vai baixar a versão nova, fechar e instalar por cima " +
-                "(a sala, os professores e as configurações continuam). Só vai aparecer o aviso de permissão do Windows.",
-                "Atualizar agora", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
+                "Atualizar só este computador agora? O ControleSala baixa a versão nova, fecha e instala por cima " +
+                "(a sala, os professores e as configurações continuam). Aparece uma permissão do Windows e, depois, " +
+                "uma barra de carregamento; o programa reabre sozinho ao terminar.",
+                "Atualizar este computador", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
 
-        BotaoAtualizar.IsEnabled = false;
-        BotaoAlunos.IsEnabled = false;
+        Bloquear(true);
         try
         {
             await GarantirBaixadoAsync();
@@ -89,12 +91,24 @@ public partial class JanelaNovaVersao : Window
         }
     }
 
+    void Bloquear(bool ocupado)
+    {
+        BotaoTudo.IsEnabled = BotaoAtualizar.IsEnabled = !ocupado;
+        BotaoAlunos.IsEnabled = !ocupado && _computadores.Count > 0;
+    }
+
     void InstalarEFechar()
     {
         try
         {
-            // O instalador pede administrador (abre a janela de permissão do Windows) e instala por cima.
-            Process.Start(new ProcessStartInfo(Atualizacoes.CaminhoBaixado) { UseShellExecute = true });
+            // Modo silencioso: sem telas de "Avançar" — só a permissão do Windows e uma barra. O instalador
+            // reabre o programa ao terminar (ver o [Run] no .iss). Anotamos a versão para mostrar "concluído" ao reabrir.
+            Atualizacoes.MarcarAtualizando(_nova.Versao);
+            Process.Start(new ProcessStartInfo(Atualizacoes.CaminhoBaixado)
+            {
+                UseShellExecute = true,
+                Arguments = "/SILENT /SUPPRESSMSGBOXES /NORESTART",
+            });
             Application.Current.Shutdown();
         }
         catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or IOException)
@@ -103,12 +117,76 @@ public partial class JanelaNovaVersao : Window
         }
     }
 
+    /// <summary>Atualiza os alunos online desatualizados, liga o auto-update para os que estão desligados, e por fim este PC.</summary>
+    async void AtualizarTudo_Click(object sender, RoutedEventArgs e)
+    {
+        if (MessageBox.Show(this,
+                "Atualizar tudo agora?\n\n• Os computadores dos alunos que estão ligados se atualizam sozinhos (sem clique neles).\n" +
+                "• Os que estiverem desligados serão atualizados assim que ligarem.\n" +
+                "• Por último, este computador: aparece uma permissão do Windows, uma barra de carregamento, e o programa reabre sozinho.",
+                "Atualizar tudo", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
+
+        Bloquear(true);
+        try
+        {
+            await GarantirBaixadoAsync();
+
+            // Para enviar aos alunos o instalador precisa estar assinado por você. Se não estiver, atualiza só este PC.
+            InstaladorParaAlunos inst;
+            try
+            {
+                inst = await Atualizacoes.PrepararAsync(Atualizacoes.CaminhoBaixado, CancellationToken.None);
+            }
+            catch (ArgumentException)
+            {
+                TextoMensagem.Foreground = (System.Windows.Media.Brush)FindResource("PincelAviso");
+                TextoMensagem.Text = "O instalador baixado não está assinado: atualizo só este computador. Para os alunos, use um instalador assinado.";
+                await Task.Delay(2500);
+                InstalarEFechar();
+                return;
+            }
+
+            var alvos = _computadores.Where(c => Atualizacoes.Desatualizado(c, inst.Versao)).ToList();
+            if (alvos.Count > 0)
+            {
+                Barra.Visibility = Visibility.Visible;
+                Barra.IsIndeterminate = true;
+                int prontos = 0;
+                var progresso = new Progress<ProgressoAtualizacao>(p =>
+                {
+                    if (p.Ok != null && ++prontos <= alvos.Count)
+                        TextoMensagem.Text = $"Enviando aos alunos... {prontos}/{alvos.Count}";
+                });
+                TextoMensagem.Foreground = (System.Windows.Media.Brush)FindResource("PincelTextoFraco");
+                TextoMensagem.Text = $"Enviando aos alunos... 0/{alvos.Count}";
+                await Atualizacoes.EnviarAsync(inst, alvos, progresso, CancellationToken.None);
+                Barra.IsIndeterminate = false;
+                Barra.Visibility = Visibility.Collapsed;
+            }
+
+            // Liga o auto-update: pega os desligados quando voltarem (e reinicia junto com o professor).
+            _auto?.Ativar(inst);
+
+            TextoMensagem.Foreground = (System.Windows.Media.Brush)FindResource("PincelOnline");
+            TextoMensagem.Text = "Alunos atualizando. Agora este computador...";
+            await Task.Delay(1200);
+            InstalarEFechar();
+        }
+        catch (ArgumentException ex)
+        {
+            Erro(ex.Message);
+        }
+        catch (Exception ex) when (ex is HttpRequestException or IOException or UnauthorizedAccessException or TaskCanceledException)
+        {
+            Erro($"Não foi possível baixar: {ex.Message}");
+        }
+    }
+
     void Erro(string texto)
     {
         TextoMensagem.Foreground = (System.Windows.Media.Brush)FindResource("PincelOffline");
         TextoMensagem.Text = texto;
-        BotaoAtualizar.IsEnabled = true;
-        BotaoAlunos.IsEnabled = _computadores.Count > 0;
+        Bloquear(false);
     }
 
     async Task BaixarAsync(string url, string destino)
@@ -132,8 +210,7 @@ public partial class JanelaNovaVersao : Window
 
     async void EnviarAlunos_Click(object sender, RoutedEventArgs e)
     {
-        BotaoAtualizar.IsEnabled = false;
-        BotaoAlunos.IsEnabled = false;
+        Bloquear(true);
         try
         {
             await GarantirBaixadoAsync();

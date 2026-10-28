@@ -5,17 +5,19 @@
         WindowStartupLocation="CenterOwner" Background="{DynamicResource PincelFundo}">
     <DockPanel Margin="22">
         <TextBlock x:Name="TextoTitulo" DockPanel.Dock="Top" Style="{StaticResource Titulo}"/>
-        <TextBlock x:Name="TextoSub" DockPanel.Dock="Top" Style="{StaticResource Rotulo}" Margin="0,4,0,12"/>
+        <TextBlock x:Name="TextoSub" DockPanel.Dock="Top" Style="{StaticResource Rotulo}" TextWrapping="Wrap" Margin="0,4,0,12"/>
 
         <StackPanel DockPanel.Dock="Bottom" Margin="0,12,0,0">
             <ProgressBar x:Name="Barra" Height="6" Visibility="Collapsed" Foreground="{DynamicResource PincelRealce}"/>
             <TextBlock x:Name="TextoMensagem" Foreground="{DynamicResource PincelAviso}" TextWrapping="Wrap" MinHeight="20" Margin="0,8,0,0"/>
             <WrapPanel Margin="0,8,0,0">
-                <Button x:Name="BotaoAtualizar" Content="Atualizar agora" Style="{StaticResource BotaoPrincipal}" Padding="22,6" Margin="0,0,8,6"
-                        ToolTip="Baixa do GitHub e instala neste computador (mantém a sala e as configurações)." Click="AtualizarAgora_Click"/>
-                <Button x:Name="BotaoAlunos" Content="Enviar aos alunos" Padding="14,6" Margin="0,0,8,6"
-                        ToolTip="Envia a atualização aos computadores dos alunos. Este caminho exige o instalador assinado por você." Click="EnviarAlunos_Click"/>
-                <Button x:Name="BotaoCancelar" Content="Agora não" IsCancel="True" Padding="14,6" Margin="0,0,0,6"/>
+                <Button x:Name="BotaoTudo" Content="Atualizar tudo" Style="{StaticResource BotaoPrincipal}" Padding="22,6" Margin="0,0,8,6"
+                        ToolTip="Atualiza os computadores dos alunos e, por último, este computador. Só aparece uma permissão do Windows; o resto é automático." Click="AtualizarTudo_Click"/>
+                <Button x:Name="BotaoAtualizar" Content="Só este computador" Padding="14,6" Margin="0,0,8,6"
+                        ToolTip="Instala a versão nova só neste PC (mantém a sala e as configurações)." Click="AtualizarAgora_Click"/>
+                <Button x:Name="BotaoAlunos" Content="Só os alunos" Padding="14,6" Margin="0,0,8,6"
+                        ToolTip="Abre a janela detalhada para escolher quais computadores dos alunos atualizar." Click="EnviarAlunos_Click"/>
+                <Button x:Name="BotaoCancelar" Content="Depois" IsCancel="True" Padding="14,6" Margin="0,0,0,6"/>
             </WrapPanel>
         </StackPanel>
 

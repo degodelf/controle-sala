@@ -8,6 +8,9 @@ namespace ControleSala.Professor;
 
 public partial class App : Application
 {
+    /// <summary>Verdadeiro durante a captura de telas (--capturar): não busca atualização nem abre o aviso central.</summary>
+    internal static bool Capturando { get; private set; }
+
     protected override void OnStartup(StartupEventArgs e)
     {
         try
@@ -35,6 +38,7 @@ public partial class App : Application
         int k = Array.IndexOf(e.Args, "--capturar");
         if (k >= 0 && k + 2 < e.Args.Length)
         {
+            Capturando = true;
             int w = Array.IndexOf(e.Args, "--esperar");
             double esperar = w >= 0 && w + 1 < e.Args.Length ? double.Parse(e.Args[w + 1], System.Globalization.CultureInfo.InvariantCulture) : 0;
             CapturarJanela(e.Args[k + 1], e.Args[k + 2], esperar);

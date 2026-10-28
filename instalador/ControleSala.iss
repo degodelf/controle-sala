@@ -75,7 +75,9 @@ Name: "{autoprograms}\ControleSala (Professor)"; Filename: "{app}\{#ExeProfessor
 Name: "{autodesktop}\ControleSala"; Filename: "{app}\{#ExeProfessor}"; IconFilename: "{app}\controlesala.ico"; Tasks: iconedesktop; Check: EhProfessor
 
 [Run]
-Filename: "{app}\{#ExeProfessor}"; Description: "Abrir o ControleSala agora"; Flags: nowait postinstall skipifsilent runasoriginaluser; Check: EhProfessor
+; Sem "skipifsilent": na atualização silenciosa (botão "Atualizar agora" do professor) o programa reabre sozinho.
+; No PC do aluno, EhProfessor é falso, então isto não roda lá.
+Filename: "{app}\{#ExeProfessor}"; Description: "Abrir o ControleSala agora"; Flags: nowait postinstall runasoriginaluser; Check: EhProfessor
 
 [UninstallDelete]
 Type: filesandordirs; Name: "{app}"

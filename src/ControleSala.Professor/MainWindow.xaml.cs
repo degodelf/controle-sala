@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Threading;
 using ControleSala.Comum;
 
 namespace ControleSala.Professor;
@@ -23,10 +24,53 @@ public partial class MainWindow : Window
         Grade.ItemsSource = _tiles;
         ReconstruirGrade();
         CompositionTarget.Rendering += AoRenderizar;
-        _ = VerificarAtualizacaoAsync();
+        if (!App.Capturando)   // na captura de telas não busca atualização nem mexe no marcador/pendentes
+        {
+            IniciarAutoAtualizacao();
+            MostrarConclusaoAtualizacao();
+            _ = VerificarAtualizacaoAsync();
+        }
     }
 
     AtualizacaoDisponivel? _novaVersao;
+    bool _avisouVersaoNova;
+
+    // --- Atualização online (aviso central, auto-update dos alunos, aviso de "concluído") ---
+
+    AutoAtualizadorAlunos? _auto;
+    DispatcherTimer? _relogioAuto;
+    DispatcherTimer? _relogioAviso;
+
+    void IniciarAutoAtualizacao()
+    {
+        _auto = new AutoAtualizadorAlunos(() => Conexoes, AvisoAtualizacao);
+        _ = _auto.RetomarAsync();   // retoma uma atualização pendente (PCs que estavam desligados)
+        _relogioAuto = new DispatcherTimer { Interval = TimeSpan.FromSeconds(6) };
+        _relogioAuto.Tick += (_, _) => _auto?.Verificar();
+        _relogioAuto.Start();
+    }
+
+    /// <summary>Ao reabrir depois de instalar a atualização deste PC: confirma na barra de status.</summary>
+    void MostrarConclusaoAtualizacao()
+    {
+        if (Atualizacoes.ConsumirMarcador() is { } alvo && alvo == Versoes.Atual)
+            AvisoAtualizacao($"ControleSala atualizado para a versão {alvo} com sucesso ✓");
+    }
+
+    /// <summary>Mostra um aviso curto na barra de status (some sozinho depois de alguns segundos).</summary>
+    void AvisoAtualizacao(string texto)
+    {
+        TextoAviso.Text = texto;
+        TextoAviso.Visibility = Visibility.Visible;
+        _relogioAviso?.Stop();
+        _relogioAviso = new DispatcherTimer { Interval = TimeSpan.FromSeconds(12) };
+        _relogioAviso.Tick += (_, _) =>
+        {
+            _relogioAviso?.Stop();
+            TextoAviso.Visibility = Visibility.Collapsed;
+        };
+        _relogioAviso.Start();
+    }
 
     /// <summary>Checa o GitHub, sem travar nada, e mostra o aviso se houver versão nova.</summary>
     async Task VerificarAtualizacaoAsync()
@@ -36,7 +80,15 @@ public partial class MainWindow : Window
         _novaVersao = nova;
         TextoBanner.Text = $"Nova versão disponível: {nova.Versao} (você tem a {Versoes.Atual}).";
         BannerAtualizacao.Visibility = Visibility.Visible;
+        if (!_avisouVersaoNova)   // aviso no meio da tela, só uma vez por abertura do programa
+        {
+            _avisouVersaoNova = true;
+            AbrirJanelaNovaVersao(nova);
+        }
     }
+
+    void AbrirJanelaNovaVersao(AtualizacaoDisponivel nova)
+        => new JanelaNovaVersao(nova, Conexoes, _auto) { Owner = this }.ShowDialog();
 
     /// <summary>Só para a ferramenta de captura: força o aviso de versão nova.</summary>
     internal void MostrarAvisoVersaoParaTeste(AtualizacaoDisponivel nova)
@@ -55,8 +107,7 @@ public partial class MainWindow : Window
 
     void BannerAtualizacao_Click(object sender, MouseButtonEventArgs e)
     {
-        if (_novaVersao is { } nova)
-            new JanelaNovaVersao(nova, Conexoes) { Owner = this }.ShowDialog();
+        if (_novaVersao is { } nova) AbrirJanelaNovaVersao(nova);
     }
 
     void DispensarBanner_Click(object sender, RoutedEventArgs e)

@@ -25,6 +25,34 @@ static class Atualizacoes
     public static string CaminhoBaixado => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ControleSala", "atualizacao", "ControleSala-Setup.exe");
 
+    /// <summary>Marcador deixado antes de instalar a atualização do próprio professor, para avisar "concluído" ao reabrir.</summary>
+    static string CaminhoMarcadorConcluido => Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ControleSala", "atualizacao", "atualizado-para.txt");
+
+    /// <summary>Antes de instalar por cima: anota a versão alvo para, ao reabrir, mostrar "atualizado com sucesso".</summary>
+    public static void MarcarAtualizando(string versao)
+    {
+        try
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(CaminhoMarcadorConcluido)!);
+            File.WriteAllText(CaminhoMarcadorConcluido, versao);
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException) { }
+    }
+
+    /// <summary>Lê e apaga o marcador. Devolve a versão alvo anotada, ou null se não havia.</summary>
+    public static string? ConsumirMarcador()
+    {
+        try
+        {
+            if (!File.Exists(CaminhoMarcadorConcluido)) return null;
+            string v = File.ReadAllText(CaminhoMarcadorConcluido).Trim();
+            File.Delete(CaminhoMarcadorConcluido);
+            return string.IsNullOrWhiteSpace(v) ? null : v;
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException) { return null; }
+    }
+
     /// <summary>Agente online com versão conhecida e mais antiga que <paramref name="versao"/>.</summary>
     public static bool Desatualizado(ConexaoComputador c, string versao) =>
         c.Estado == EstadoConexao.Online && c.VersaoAgente is { } v && Versoes.MaisNova(versao, v);
