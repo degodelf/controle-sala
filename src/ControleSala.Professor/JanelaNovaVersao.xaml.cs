@@ -40,9 +40,9 @@ public partial class JanelaNovaVersao : Window
         {
             TextoMensagem.Foreground = (System.Windows.Media.Brush)FindResource("PincelTextoFraco");
             TextoMensagem.Text = "Baixando a atualização...";
-            Directory.CreateDirectory(Path.GetDirectoryName(Atualizacoes.CaminhoPadrao)!);
-            await BaixarAsync(_nova.UrlInstalador, Atualizacoes.CaminhoPadrao);
-            if (!ArquivoEhInstalador(Atualizacoes.CaminhoPadrao))
+            Directory.CreateDirectory(Path.GetDirectoryName(Atualizacoes.CaminhoBaixado)!);
+            await BaixarAsync(_nova.UrlInstalador, Atualizacoes.CaminhoBaixado);
+            if (!ArquivoEhInstalador(Atualizacoes.CaminhoBaixado))
                 throw new ArgumentException("O arquivo baixado não parece um instalador válido. Tente novamente.");
             _baixado = true;
             TextoMensagem.Foreground = (System.Windows.Media.Brush)FindResource("PincelOnline");
@@ -83,7 +83,7 @@ public partial class JanelaNovaVersao : Window
         {
             Erro(ex.Message);
         }
-        catch (Exception ex) when (ex is HttpRequestException or IOException or TaskCanceledException)
+        catch (Exception ex) when (ex is HttpRequestException or IOException or UnauthorizedAccessException or TaskCanceledException)
         {
             Erro($"Não foi possível baixar: {ex.Message}");
         }
@@ -94,7 +94,7 @@ public partial class JanelaNovaVersao : Window
         try
         {
             // O instalador pede administrador (abre a janela de permissão do Windows) e instala por cima.
-            Process.Start(new ProcessStartInfo(Atualizacoes.CaminhoPadrao) { UseShellExecute = true });
+            Process.Start(new ProcessStartInfo(Atualizacoes.CaminhoBaixado) { UseShellExecute = true });
             Application.Current.Shutdown();
         }
         catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or IOException)
@@ -130,24 +130,6 @@ public partial class JanelaNovaVersao : Window
         }
     }
 
-    void AtualizarConsole_Click(object sender, RoutedEventArgs e)
-    {
-        if (!_baixado) return;
-        if (MessageBox.Show(this, "Atualizar este computador agora? O ControleSala vai fechar e o instalador vai abrir (ele mantém a sala, os professores e as configurações).",
-                "Atualizar este computador", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
-        try
-        {
-            // O instalador pede administrador (abre a janela de permissão do Windows) e instala por cima.
-            Process.Start(new ProcessStartInfo(Atualizacoes.CaminhoPadrao) { UseShellExecute = true });
-            Application.Current.Shutdown();
-        }
-        catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or IOException)
-        {
-            TextoMensagem.Foreground = (System.Windows.Media.Brush)FindResource("PincelOffline");
-            TextoMensagem.Text = $"Não foi possível abrir o instalador: {ex.Message}";
-        }
-    }
-
     async void EnviarAlunos_Click(object sender, RoutedEventArgs e)
     {
         BotaoAtualizar.IsEnabled = false;
@@ -161,13 +143,13 @@ public partial class JanelaNovaVersao : Window
             Erro(ex.Message);
             return;
         }
-        catch (Exception ex) when (ex is HttpRequestException or IOException or TaskCanceledException)
+        catch (Exception ex) when (ex is HttpRequestException or IOException or UnauthorizedAccessException or TaskCanceledException)
         {
             Erro($"Não foi possível baixar: {ex.Message}");
             return;
         }
-        // A janela de atualização dos alunos carrega sozinha o instalador que acabamos de salvar.
-        new JanelaAtualizarAlunos(_computadores) { Owner = Owner }.ShowDialog();
+        // Abre a janela dos alunos já apontando para o instalador que acabamos de baixar (ela confere a assinatura).
+        new JanelaAtualizarAlunos(_computadores, Atualizacoes.CaminhoBaixado) { Owner = Owner }.ShowDialog();
         Close();
     }
 }

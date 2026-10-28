@@ -53,7 +53,7 @@ public partial class JanelaAtualizarAlunos : Window
     InstaladorParaAlunos? _instalador;
     CancellationTokenSource? _cancelar;
 
-    internal JanelaAtualizarAlunos(IEnumerable<ConexaoComputador> computadores)
+    internal JanelaAtualizarAlunos(IEnumerable<ConexaoComputador> computadores, string? instaladorInicial = null)
     {
         InitializeComponent();
         _alvos = [.. computadores.Select(c => new ItemAlvo(c))];
@@ -64,8 +64,11 @@ public partial class JanelaAtualizarAlunos : Window
         if (_alvos.Count == 0) TextoMensagem.Text = "Não há computadores na sala. Adicione em \"Computadores...\".";
         Loaded += async (_, _) =>
         {
-            if (File.Exists(Atualizacoes.CaminhoPadrao))
-                await CarregarInstalador(Atualizacoes.CaminhoPadrao);
+            // Preferência: o instalador que o professor acabou de baixar; senão, a cópia guardada pelo instalador.
+            string? caminho = instaladorInicial != null && File.Exists(instaladorInicial) ? instaladorInicial
+                : File.Exists(Atualizacoes.CaminhoPadrao) ? Atualizacoes.CaminhoPadrao : null;
+            if (caminho != null)
+                await CarregarInstalador(caminho);
             else
                 TextoInstalador.Text = "Nenhum instalador guardado neste computador. Clique em \"Escolher instalador...\" e escolha o ControleSala-Setup mais novo.";
         };

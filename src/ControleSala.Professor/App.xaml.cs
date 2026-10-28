@@ -105,6 +105,18 @@ public partial class App : Application
         }
         base.OnStartup(e);
 
+        // Rede de segurança: mostra um aviso em vez de fechar o programa em silêncio se algo inesperado escapar.
+        DispatcherUnhandledException += (_, args) =>
+        {
+            try
+            {
+                MessageBox.Show("Ocorreu um erro inesperado:\n\n" + args.Exception.Message,
+                    "ControleSala", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+            catch (Exception) { }
+            args.Handled = true;
+        };
+
         // Enquanto as telas de entrada estão abertas não existe janela principal: não encerrar sozinho.
         ShutdownMode = ShutdownMode.OnExplicitShutdown;
         var repositorio = new RepositorioPerfis();

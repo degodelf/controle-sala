@@ -18,7 +18,12 @@ static class Atualizacoes
 {
     const int ComputadoresAoMesmoTempo = 4;
 
+    /// <summary>Cópia que o instalador guarda ao instalar (dentro de Arquivos de Programas; só leitura para o usuário comum).</summary>
     public static string CaminhoPadrao => Path.Combine(AppContext.BaseDirectory, "atualizacao", "ControleSala-Setup.exe");
+
+    /// <summary>Onde o professor baixa o instalador novo do GitHub: pasta gravável pelo usuário (Arquivos de Programas não é).</summary>
+    public static string CaminhoBaixado => Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ControleSala", "atualizacao", "ControleSala-Setup.exe");
 
     /// <summary>Agente online com versão conhecida e mais antiga que <paramref name="versao"/>.</summary>
     public static bool Desatualizado(ConexaoComputador c, string versao) =>
