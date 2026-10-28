@@ -45,6 +45,35 @@ public sealed class RepositorioPerfis
     public static bool PinValido(string? pin) =>
         pin is { Length: >= 4 and <= 8 } && pin.All(char.IsAsciiDigit);
 
+    /// <summary>Esse professor tem PIN? Se não tiver, entra sem pedir senha.</summary>
+    public static bool TemPin(PerfilProfessor perfil) => !string.IsNullOrEmpty(perfil.Resumo);
+
+    /// <summary>Cria um professor SEM PIN (entra direto). Usado quando o professor não quer senha.</summary>
+    public PerfilProfessor AdicionarSemPin(string nome)
+    {
+        nome = (nome ?? "").Trim();
+        if (nome.Length == 0 || nome.Length > 60)
+            throw new ArgumentException("Digite um nome com até 60 letras.");
+        if (_perfis.Any(p => string.Equals(p.Nome, nome, StringComparison.CurrentCultureIgnoreCase)))
+            throw new ArgumentException("Já existe um professor com esse nome.");
+
+        var perfil = new PerfilProfessor { Nome = nome };   // sem PIN: Resumo fica vazio
+        _perfis.Add(perfil);
+        Salvar();
+        return perfil;
+    }
+
+    /// <summary>Tira o PIN deste professor (passa a entrar sem senha). Mantém o nome e o resto.</summary>
+    public void RemoverPin(PerfilProfessor perfil)
+    {
+        perfil.Sal = "";
+        perfil.Resumo = "";
+        perfil.Iteracoes = 0;
+        perfil.Falhas = 0;
+        perfil.BloqueadoAte = null;
+        Salvar();
+    }
+
     public PerfilProfessor Adicionar(string nome, string pin)
     {
         nome = (nome ?? "").Trim();
@@ -64,6 +93,9 @@ public sealed class RepositorioPerfis
 
     public ResultadoPin Verificar(PerfilProfessor perfil, string pin, out TimeSpan espera)
     {
+        espera = TimeSpan.Zero;
+        if (!TemPin(perfil)) return ResultadoPin.Correto;   // professor sem senha: entra direto
+
         var agora = _tempo.GetUtcNow();
         if (perfil.BloqueadoAte is { } ate && ate > agora)
         {

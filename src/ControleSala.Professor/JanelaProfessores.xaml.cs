@@ -21,14 +21,22 @@ public partial class JanelaProfessores : Window
     void Atualizar()
     {
         Lista.ItemsSource = _repositorio.Perfis
-            .Select(p => new Item(p, p == _atual ? $"{p.Nome}   (em uso)" : p.Nome))
+            .Select(p => new Item(p, Rotulo(p)))
             .ToList();
+    }
+
+    string Rotulo(PerfilProfessor p)
+    {
+        string selo = RepositorioPerfis.TemPin(p) ? "com senha" : "sem senha";
+        return p == _atual ? $"{p.Nome}   (em uso · {selo})" : $"{p.Nome}   ({selo})";
     }
 
     PerfilProfessor? Selecionado => (Lista.SelectedItem as Item)?.Perfil;
 
-    /// <summary>Ações sensíveis pedem o PIN de quem está usando, para não valerem num programa deixado aberto.</summary>
+    /// <summary>Ações sensíveis pedem o PIN de quem está usando, para não valerem num programa deixado aberto.
+    /// Se quem está usando não tem senha, não há o que confirmar.</summary>
     bool ConfirmarQuemEstaUsando(string pergunta) =>
+        !RepositorioPerfis.TemPin(_atual) ||
         new JanelaConfirmarPin(_repositorio, _atual, pergunta) { Owner = this }.ShowDialog() == true;
 
     void Adicionar_Click(object sender, RoutedEventArgs e)
@@ -48,7 +56,29 @@ public partial class JanelaProfessores : Window
             return;
         }
         if (new JanelaNovoProfessor(_repositorio, ModoPerfil.TrocarPin, perfil) { Owner = this }.ShowDialog() == true)
-            TextoMensagem.Text = $"PIN de {perfil.Nome} alterado.";
+        {
+            Atualizar();
+            TextoMensagem.Text = $"Senha de {perfil.Nome} definida.";
+        }
+    }
+
+    void RemoverSenha_Click(object sender, RoutedEventArgs e)
+    {
+        TextoMensagem.Text = "";
+        if (Selecionado is not { } perfil)
+        {
+            TextoMensagem.Text = "Escolha um professor na lista.";
+            return;
+        }
+        if (!RepositorioPerfis.TemPin(perfil))
+        {
+            TextoMensagem.Text = $"{perfil.Nome} já entra sem senha.";
+            return;
+        }
+        if (!ConfirmarQuemEstaUsando($"{_atual.Nome}, digite o seu PIN para remover a senha de {perfil.Nome}:")) return;
+        _repositorio.RemoverPin(perfil);
+        Atualizar();
+        TextoMensagem.Text = $"{perfil.Nome} agora entra sem senha.";
     }
 
     void Remover_Click(object sender, RoutedEventArgs e)

@@ -20,6 +20,7 @@ public partial class JanelaEntrar : Window
         TextoCreditos.Text = Creditos.Linha;
         ListaProfessores.ItemsSource = repositorio.Perfis;
         ListaProfessores.SelectedIndex = 0;
+        AtualizarCampoPin();
     }
 
     void Professor_Alterado(object sender, SelectionChangedEventArgs e)
@@ -27,7 +28,15 @@ public partial class JanelaEntrar : Window
         if (_aviso == null) return; // evento disparado durante o InitializeComponent
         _aviso.Limpar();
         CampoPin.Clear();
-        CampoPin.Focus();
+        AtualizarCampoPin();
+    }
+
+    /// <summary>Esconde o campo de PIN para quem entra sem senha.</summary>
+    void AtualizarCampoPin()
+    {
+        bool temPin = ListaProfessores.SelectedItem is PerfilProfessor p && RepositorioPerfis.TemPin(p);
+        PainelPin.Visibility = temPin ? Visibility.Visible : Visibility.Collapsed;
+        if (temPin) CampoPin.Focus(); else BotaoEntrar.Focus();
     }
 
     void Entrar_Click(object sender, RoutedEventArgs e)

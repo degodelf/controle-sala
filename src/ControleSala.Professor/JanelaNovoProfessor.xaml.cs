@@ -41,14 +41,24 @@ public partial class JanelaNovoProfessor : Window
                 PainelPinAtual.Visibility = Visibility.Collapsed;
                 break;
             case ModoPerfil.TrocarPin:
-                Title = "Trocar PIN";
-                TextoTitulo.Text = $"Trocar PIN — {perfil!.Nome}";
-                TextoAjuda.Text = "Digite o PIN atual e escolha o novo.";
+                bool tinhaPin = RepositorioPerfis.TemPin(perfil!);
+                Title = tinhaPin ? "Trocar senha" : "Definir senha";
+                TextoTitulo.Text = $"{(tinhaPin ? "Trocar" : "Definir")} senha — {perfil!.Nome}";
+                TextoAjuda.Text = tinhaPin
+                    ? "Digite o PIN atual e escolha o novo."
+                    : "Escolha um PIN (4 a 8 números) para pedir senha na entrada.";
                 PainelNome.Visibility = Visibility.Collapsed;
-                TextoRotuloPin.Text = "Novo PIN (4 a 8 números)";
+                if (!tinhaPin) PainelPinAtual.Visibility = Visibility.Collapsed;   // não há PIN atual a conferir
+                TextoRotuloPin.Text = tinhaPin ? "Novo PIN (4 a 8 números)" : "PIN (4 a 8 números)";
                 break;
         }
-        Loaded += (_, _) => (_modo == ModoPerfil.TrocarPin ? (UIElement)CampoPinAtual : CampoNome).Focus();
+        Loaded += (_, _) =>
+        {
+            if (_modo == ModoPerfil.TrocarPin)
+                (PainelPinAtual.Visibility == Visibility.Visible ? (UIElement)CampoPinAtual : CampoPin).Focus();
+            else
+                CampoNome.Focus();
+        };
     }
 
     void Ok_Click(object sender, RoutedEventArgs e)

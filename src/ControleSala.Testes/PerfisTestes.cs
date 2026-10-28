@@ -189,6 +189,49 @@ public sealed class PerfisTestes : IDisposable
         Assert.Equal(ResultadoPin.Incorreto, repo.Verificar(p, "4321", out _));
     }
 
+    [Fact]
+    public void Professor_sem_pin_entra_sem_senha()
+    {
+        var repo = Novo();
+        var p = repo.AdicionarSemPin("Professor");
+        Assert.False(RepositorioPerfis.TemPin(p));
+        Assert.Equal(ResultadoPin.Correto, repo.Verificar(p, "", out _));
+        Assert.Equal(ResultadoPin.Correto, repo.Verificar(p, "qualquer", out _));
+    }
+
+    [Fact]
+    public void Professor_sem_pin_persiste_sem_senha()
+    {
+        Novo().AdicionarSemPin("Professor");
+        var perfil = Assert.Single(Novo().Perfis);
+        Assert.False(RepositorioPerfis.TemPin(perfil));
+    }
+
+    [Fact]
+    public void Remover_pin_faz_entrar_sem_senha()
+    {
+        var repo = Novo();
+        var p = repo.Adicionar("Diego", "4321");
+        Assert.True(RepositorioPerfis.TemPin(p));
+
+        repo.RemoverPin(p);
+        Assert.False(RepositorioPerfis.TemPin(p));
+        Assert.Equal(ResultadoPin.Correto, repo.Verificar(p, "", out _));
+        Assert.False(RepositorioPerfis.TemPin(Novo().Perfis[0])); // persistiu sem senha
+    }
+
+    [Fact]
+    public void Definir_senha_num_professor_sem_pin()
+    {
+        var repo = Novo();
+        var p = repo.AdicionarSemPin("Professor");
+        // Sem PIN atual, o "PIN atual" vazio passa e define o novo.
+        Assert.Equal(ResultadoPin.Correto, repo.TrocarPin(p, "", "5555", out _));
+        Assert.True(RepositorioPerfis.TemPin(p));
+        Assert.Equal(ResultadoPin.Correto, repo.Verificar(p, "5555", out _));
+        Assert.Equal(ResultadoPin.Incorreto, repo.Verificar(p, "0000", out _));
+    }
+
     sealed class RelogioFalso : TimeProvider
     {
         DateTimeOffset _agora = new(2026, 10, 10, 8, 0, 0, TimeSpan.Zero);

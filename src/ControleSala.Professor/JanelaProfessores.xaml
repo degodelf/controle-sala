@@ -16,9 +16,11 @@
         <ListBox Grid.Row="1" x:Name="Lista" DisplayMemberPath="Texto" Padding="4" FontSize="14"/>
 
         <WrapPanel Grid.Row="2" Margin="0,12,0,0">
-            <Button Content="Adicionar..." Padding="14,6" Margin="0,0,8,0" Click="Adicionar_Click"/>
-            <Button Content="Trocar PIN..." Padding="14,6" Margin="0,0,8,0" Click="TrocarPin_Click"/>
-            <Button Content="Remover" Padding="14,6" Click="Remover_Click"/>
+            <Button Content="Adicionar..." Padding="14,6" Margin="0,0,8,6" Click="Adicionar_Click"/>
+            <Button Content="Definir/trocar senha..." Padding="14,6" Margin="0,0,8,6" Click="TrocarPin_Click"/>
+            <Button Content="Remover senha" Padding="14,6" Margin="0,0,8,6" Click="RemoverSenha_Click"
+                    ToolTip="Faz este professor entrar sem pedir senha (PIN)."/>
+            <Button Content="Remover professor" Padding="14,6" Margin="0,0,0,6" Click="Remover_Click"/>
         </WrapPanel>
 
         <DockPanel Grid.Row="3" Margin="0,14,0,0">

@@ -121,26 +121,10 @@ public partial class App : Application
             args.Handled = true;
         };
 
-        // Enquanto as telas de entrada estão abertas não existe janela principal: não encerrar sozinho.
-        ShutdownMode = ShutdownMode.OnExplicitShutdown;
+        // Entrada sem senha: abre direto como o professor atual (na 1ª vez cria um perfil padrão, sem PIN).
+        // Para quem quiser proteger o programa, dá para definir um PIN em "Professores... > Gerenciar".
         var repositorio = new RepositorioPerfis();
-        PerfilProfessor? professor;
-        if (repositorio.Perfis.Count == 0)
-        {
-            var primeiro = new JanelaNovoProfessor(repositorio, ModoPerfil.PrimeiroAcesso);
-            primeiro.WindowStartupLocation = WindowStartupLocation.CenterScreen;
-            professor = primeiro.ShowDialog() == true ? primeiro.Resultado : null;
-        }
-        else
-        {
-            var entrar = new JanelaEntrar(repositorio);
-            professor = entrar.ShowDialog() == true ? entrar.Escolhido : null;
-        }
-        if (professor == null)
-        {
-            Shutdown(0);
-            return;
-        }
+        var professor = repositorio.Perfis.FirstOrDefault() ?? repositorio.AdicionarSemPin("Professor");
 
         Sessao.Iniciar(repositorio, professor);
         Sessao.CarregarSala();
