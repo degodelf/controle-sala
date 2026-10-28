@@ -13,6 +13,11 @@
             <TextBlock Text="Nome da sala (por exemplo, Laboratório de Informática 1)"/>
             <TextBox x:Name="CampoSala" MaxLength="60" Margin="0,4,0,12" Padding="6,4"/>
             <Button Content="Criar sala" Padding="22,7" HorizontalAlignment="Left" Click="Criar_Click"/>
+
+            <Border BorderBrush="{DynamicResource PincelBorda}" BorderThickness="0,1,0,0" Margin="0,18,0,14"/>
+            <TextBlock TextWrapping="Wrap" Foreground="{DynamicResource PincelTextoFraco}" Margin="0,0,0,8"
+                       Text="Já tem esta sala em OUTRO computador do professor? Não crie de novo — restaure a mesma chave a partir do pacote .controlesala (com a senha)."/>
+            <Button Content="Restaurar de um pacote..." Padding="14,7" HorizontalAlignment="Left" Click="Restaurar_Click"/>
         </StackPanel>
 
         <StackPanel x:Name="PainelPronta">
