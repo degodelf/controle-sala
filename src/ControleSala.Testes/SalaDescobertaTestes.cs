@@ -28,6 +28,26 @@ public sealed class SalaTestes : IDisposable
         Assert.Equal(5000, depois[1].Porta);
     }
 
+    [Fact]
+    public void Ordenar_por_nome_usa_ordem_natural()
+    {
+        var sala = new RepositorioSala(Arquivo);
+        foreach (var n in new[] { "PC10", "PC2", "PC1", "Sala", "PC20" })
+            sala.Adicionar(n, "10.0.0." + sala.Computadores.Count);
+        sala.OrdenarPorNome();
+        Assert.Equal(["PC1", "PC2", "PC10", "PC20", "Sala"], sala.Computadores.Select(c => c.Nome));
+    }
+
+    [Fact]
+    public void Numerar_renomeia_em_ordem_com_dois_digitos()
+    {
+        var sala = new RepositorioSala(Arquivo);
+        for (int i = 0; i < 3; i++) sala.Adicionar("qualquer-" + i, "10.0.1." + i);
+        sala.Numerar("PC");
+        Assert.Equal(["PC 01", "PC 02", "PC 03"], sala.Computadores.Select(c => c.Nome));
+        Assert.Equal(["PC 01", "PC 02", "PC 03"], new RepositorioSala(Arquivo).Computadores.Select(c => c.Nome));
+    }
+
     [Theory]
     [InlineData("", "192.168.0.1", 47810)]
     [InlineData("Mesa", "", 47810)]

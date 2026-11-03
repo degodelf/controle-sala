@@ -62,6 +62,15 @@ public partial class JanelaComputadores : Window
         Atualizar();
     }
 
+    void Ordenar_Click(object sender, RoutedEventArgs e)
+    {
+        TextoMensagem.Text = "";
+        if (_sala.Computadores.Count == 0) { TextoMensagem.Text = "Não há computadores para ordenar."; return; }
+        _sala.OrdenarPorNome();
+        Atualizar();
+        TextoMensagem.Text = "Lista ordenada por nome.";
+    }
+
     void Numerar_Click(object sender, RoutedEventArgs e)
     {
         TextoMensagem.Text = "";

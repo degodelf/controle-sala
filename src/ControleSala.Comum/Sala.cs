@@ -77,6 +77,41 @@ public sealed class RepositorioSala
         Salvar();
     }
 
+    /// <summary>Coloca os computadores em ordem pelo nome (PC 01, PC 02... PC 10 na ordem certa).</summary>
+    public void OrdenarPorNome()
+    {
+        _computadores.Sort((a, b) => CompararNatural(a.Nome, b.Nome));
+        Salvar();
+    }
+
+    /// <summary>Compara nomes tratando números embutidos como número (PC 2 antes de PC 10).</summary>
+    static int CompararNatural(string a, string b)
+    {
+        int i = 0, j = 0;
+        while (i < a.Length && j < b.Length)
+        {
+            if (char.IsDigit(a[i]) && char.IsDigit(b[j]))
+            {
+                int ia = i, jb = j;
+                while (i < a.Length && char.IsDigit(a[i])) i++;
+                while (j < b.Length && char.IsDigit(b[j])) j++;
+                var na = a.AsSpan(ia, i - ia).TrimStart('0');
+                var nb = b.AsSpan(jb, j - jb).TrimStart('0');
+                if (na.Length != nb.Length) return na.Length - nb.Length;
+                int c = na.SequenceCompareTo(nb);
+                if (c != 0) return c;
+            }
+            else
+            {
+                int c = char.ToUpperInvariant(a[i]).CompareTo(char.ToUpperInvariant(b[j]));
+                if (c != 0) return c;
+                i++;
+                j++;
+            }
+        }
+        return (a.Length - i) - (b.Length - j);
+    }
+
     /// <summary>Renomeia todos na ordem da lista como "PC 01", "PC 02"... Ajuda a identificar cada máquina na grade.</summary>
     public void Numerar(string prefixo = "PC")
     {

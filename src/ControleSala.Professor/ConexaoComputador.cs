@@ -22,8 +22,8 @@ sealed unsafe partial class ConexaoComputador : IDisposable
     public delegate void UsarQuadro(IntPtr bgra, int largura, int altura, int stride, long momentoRecebido, int usAgente);
 
     static readonly TimeSpan EsperaEntreTentativas = TimeSpan.FromSeconds(3);
-    static readonly TimeSpan EsperaQuandoOffline = TimeSpan.FromSeconds(10);
-    const int TentativasAntesDeOffline = 3; // só declara "Offline" (e espaça as tentativas) após algumas falhas seguidas
+    static readonly TimeSpan EsperaQuandoOffline = TimeSpan.FromSeconds(5);
+    const int TentativasAntesDeOffline = 4; // só declara "Offline" (e espaça as tentativas) após algumas falhas seguidas
 
     readonly byte[]? _chave;
     readonly CancellationTokenSource _cancelar = new();
