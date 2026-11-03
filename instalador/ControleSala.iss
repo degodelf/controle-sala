@@ -122,6 +122,7 @@ var
   TipoAnterior: String;             { 'professor' ou 'aluno' da instalação anterior; vazio = primeira instalação }
   AtualEscola, AtualNome: String;   { sala já gravada neste PC de aluno (atualização) }
   WndProcAntigo: LongInt;           { procedimento de janela original, para o arrastar-e-soltar }
+  PrecisaReiniciar: Boolean;        { True quando o agente não conseguiu abrir a porta na hora (10013): pede para reiniciar }
 
 { Recebe um arquivo arrastado para a janela: se for .controlesala, preenche o campo da sala. }
 procedure TratarArquivoSoltado(Arquivo: String);
@@ -531,6 +532,24 @@ begin
     PararAgente; { atualização: solta os arquivos do agente antigo }
 end;
 
+{ Espera o agente subir e confere se ele abriu a porta 47810. Se não abrir, é a porta bloqueada pelo Windows (10013). }
+function AgenteEscutando: Boolean;
+var
+  i: Integer;
+begin
+  Result := False;
+  for i := 1 to 12 do
+  begin
+    if Executar(ExpandConstant('{sys}\cmd.exe'),
+        '/c netstat -an -p tcp | findstr ":' + PortaVideo + '" | findstr "LISTENING" >nul') = 0 then
+    begin
+      Result := True;
+      Exit;
+    end;
+    Sleep(1000);
+  end;
+end;
+
 procedure ConfigurarAluno;
 var
   Exe: String;
@@ -583,6 +602,10 @@ begin
   Sc('description ' + NomeServico + ' "Permite ao professor da sala ver a tela deste computador. ControleSala, criado pelo professor {#Autor}."');
   Sc('failure ' + NomeServico + ' reset= 86400 actions= restart/5000/restart/5000/restart/30000');
   Sc('start ' + NomeServico);
+
+  { Se o agente não conseguiu abrir a porta (Windows a bloqueou, erro 10013), a reserva só vale após reiniciar. }
+  if not AgenteEscutando then
+    PrecisaReiniciar := True;
 end;
 
 { O programa do professor manda esta cópia aos alunos para atualizá-los (Computadores > Atualizar o ControleSala dos alunos). }
@@ -607,6 +630,12 @@ begin
   Netsh('advfirewall firewall delete rule name="' + RegraProfessor + '"');
   Netsh('advfirewall firewall add rule name="' + RegraProfessor + '" dir=in action=allow program="' +
         ExpandConstant('{app}\{#ExeProfessor}') + '" protocol=UDP localport=' + PortaBusca + ' remoteip=localsubnet profile=any enable=yes');
+end;
+
+{ O Inno chama isto no fim: se True, oferece reiniciar o computador (ou reinicia, numa instalação silenciosa sem /NORESTART). }
+function NeedRestart(): Boolean;
+begin
+  Result := PrecisaReiniciar;
 end;
 
 procedure CurStepChanged(CurStep: TSetupStep);
