@@ -50,7 +50,13 @@ static class Tema
         Atual = modo;
         var recursos = Application.Current.Resources;
         foreach (var (nome, claro, escuro) in Paleta)
-            recursos[nome] = (Color)ColorConverter.ConvertFromString(modo == ModoTema.Claro ? claro : escuro)!;
+        {
+            var cor = (Color)ColorConverter.ConvertFromString(modo == ModoTema.Claro ? claro : escuro)!;
+            recursos[nome] = cor;                                        // para quem usa a cor direto (ex.: CorRealce)
+            // Troca o pincel por um novo: garante que todas as janelas repintem na hora
+            // (depender só do DynamicResource da cor dentro do pincel às vezes não repintava).
+            recursos["Pincel" + nome[3..]] = new SolidColorBrush(cor);
+        }
         if (salvar) Salvar(modo);
     }
 
