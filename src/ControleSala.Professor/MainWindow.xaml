@@ -87,6 +87,9 @@
                 </MenuItem>
             </MenuItem>
             <MenuItem Header="E_xibir">
+                <MenuItem Header="Atualizar as telas" InputGestureText="F5" Click="AtualizarTelas_Click"/>
+                <MenuItem Header="Atalhos do teclado..." Click="Atalhos_Click"/>
+                <Separator/>
                 <MenuItem Header="Tema claro ou escuro" Click="BotaoTema_Click">
                     <MenuItem.Icon><Path Style="{StaticResource Icone}" Data="{StaticResource IconeTema}"/></MenuItem.Icon>
                 </MenuItem>

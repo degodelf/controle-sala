@@ -12,6 +12,7 @@ public partial class MainWindow : Window
     readonly RepositorioSala _sala = new();
     readonly ObservableCollection<TileVm> _tiles = [];
     readonly Dictionary<ConexaoComputador, JanelaTelaCheia> _telasAbertas = [];
+    readonly RepositorioAtalhos _atalhos = new();
     string _ultimoTextoEstado = "";
 
     public MainWindow()
@@ -124,7 +125,10 @@ public partial class MainWindow : Window
         foreach (var c in _sala.Computadores)
         {
             if (porDados.Remove(c, out var existente))
+            {
+                existente.AtualizarNome(); // reflete um rename (ex.: renumerar) sem recriar a conexão
                 novos.Add(existente);
+            }
             else
                 novos.Add(new TileVm(new ConexaoComputador(c, Sessao.Sala?.Chave)) { Largura = DeslizeTamanho.Value });
         }
@@ -491,19 +495,53 @@ public partial class MainWindow : Window
 
     void Window_KeyDown(object sender, KeyEventArgs e)
     {
-        if (e.Key == Key.A && Keyboard.Modifiers == ModifierKeys.Control)
-        {
-            foreach (var t in _tiles) t.Selecionado = true;
-            _ancora = _tiles.Count > 0 ? 0 : -1;
-            AtualizarContagemSelecao();
-            e.Handled = true;
-        }
-        else if (e.Key == Key.Escape)
+        if (e.Key == Key.Escape)   // limpar a seleção é fixo (não é um atalho configurável)
         {
             foreach (var t in _tiles) t.Selecionado = false;
             AtualizarContagemSelecao();
+            return;
+        }
+        var mod = Keyboard.Modifiers & (ModifierKeys.Control | ModifierKeys.Shift | ModifierKeys.Alt);
+        var gesto = RepositorioAtalhos.Formatar(mod, RepositorioAtalhos.TeclaReal(e));
+        if (_atalhos.Acao(gesto) is { } acao)
+        {
+            ExecutarAtalho(acao);
+            e.Handled = true;
         }
     }
+
+    /// <summary>Atualiza (reconecta) todas as telas — ligado ao F5 por padrão.</summary>
+    void ReconectarTudo()
+    {
+        foreach (var t in _tiles) t.Conexao.Reconectar();
+        MostrarAviso("Atualizando as telas...");
+    }
+
+    void ExecutarAtalho(AcaoAtalho acao)
+    {
+        switch (acao)
+        {
+            case AcaoAtalho.AtualizarTelas: ReconectarTudo(); break;
+            case AcaoAtalho.SelecionarTodos:
+                foreach (var t in _tiles) t.Selecionado = true;
+                _ancora = _tiles.Count > 0 ? 0 : -1;
+                AtualizarContagemSelecao();
+                break;
+            case AcaoAtalho.BloquearTela: ComandoBloquear_Click(this, new RoutedEventArgs()); break;
+            case AcaoAtalho.DesbloquearTela: ComandoDesbloquear_Click(this, new RoutedEventArgs()); break;
+            case AcaoAtalho.Mensagem: ComandoMensagem_Click(this, new RoutedEventArgs()); break;
+            case AcaoAtalho.AbrirLink: ComandoLink_Click(this, new RoutedEventArgs()); break;
+            case AcaoAtalho.EnviarArquivos: BotaoEnviarArquivos_Click(this, new RoutedEventArgs()); break;
+            case AcaoAtalho.SilenciarSom: ComandoSilenciar_Click(this, new RoutedEventArgs()); break;
+            case AcaoAtalho.LimparAgora: LimparAgora_Click(this, new RoutedEventArgs()); break;
+            case AcaoAtalho.Desligar: ComandoDesligar_Click(this, new RoutedEventArgs()); break;
+        }
+    }
+
+    void AtualizarTelas_Click(object sender, RoutedEventArgs e) => ReconectarTudo();
+
+    void Atalhos_Click(object sender, RoutedEventArgs e)
+        => new JanelaAtalhos(_atalhos) { Owner = this }.ShowDialog();
 
     static TileVm? AcharTile(DependencyObject? d)
     {

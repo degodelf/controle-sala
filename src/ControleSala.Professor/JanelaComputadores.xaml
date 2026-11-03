@@ -31,7 +31,9 @@
             <Button Content="Editar..." Padding="12,6" Margin="0,0,8,6" Click="Editar_Click"/>
             <Button Content="Remover" Padding="12,6" Margin="0,0,8,6" Click="Remover_Click"/>
             <Button Content="▲" Padding="12,6" Margin="0,0,4,6" ToolTip="Subir" Click="Subir_Click"/>
-            <Button Content="▼" Padding="12,6" Margin="0,0,0,6" ToolTip="Descer" Click="Descer_Click"/>
+            <Button Content="▼" Padding="12,6" Margin="0,0,8,6" ToolTip="Descer" Click="Descer_Click"/>
+            <Button Content="Numerar (PC 01, 02…)" Padding="12,6" Margin="0,0,0,6"
+                    ToolTip="Renomeia todos na ordem da lista: PC 01, PC 02, PC 03..." Click="Numerar_Click"/>
         </WrapPanel>
 
         <DockPanel Grid.Row="3" Margin="0,8,0,0">

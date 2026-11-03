@@ -34,6 +34,7 @@ sealed unsafe partial class ConexaoComputador : IDisposable
     volatile Stream? _fluxo; // o canal criptografado (ou o fluxo puro, só no teste local sem chave)
     volatile EstadoConexao _estado = EstadoConexao.Conectando;
     volatile string _detalhe = "";
+    volatile int _falhas; // tentativas seguidas sem sucesso: controla o recuo e evita ficar piscando "Conectando"
     int _modo = (int)ModoVideo.Miniatura;
     volatile object? _ola; // Ola em caixa: a referência é lida/gravada de uma vez só entre threads
 
@@ -93,6 +94,7 @@ sealed unsafe partial class ConexaoComputador : IDisposable
     /// <summary>Derruba a conexão atual (se houver) e tenta de novo agora, sem esperar os 3 s.</summary>
     public void Reconectar()
     {
+        _falhas = 0; // volta a tentar já e a mostrar "Conectando" (foi um pedido do professor, ex.: F5)
         _tentarJa.Set();
         try { _tcp?.Dispose(); } catch (ObjectDisposedException) { }
     }
@@ -101,10 +103,12 @@ sealed unsafe partial class ConexaoComputador : IDisposable
     {
         while (!_cancelar.IsCancellationRequested)
         {
+            bool conectou = false;
             var tcp = new TcpClient { NoDelay = true, ReceiveBufferSize = 1 << 20 };
             try
             {
-                _estado = EstadoConexao.Conectando;
+                // Só mostra "Conectando" na 1ª tentativa (ou após um pedido). PC desligado fica "Offline" firme.
+                _estado = _falhas == 0 ? EstadoConexao.Conectando : EstadoConexao.Offline;
                 _tentarJa.Reset();
                 using (var limite = CancellationTokenSource.CreateLinkedTokenSource(_cancelar.Token))
                 {
@@ -120,6 +124,7 @@ sealed unsafe partial class ConexaoComputador : IDisposable
                 VersaoAgente = null; // pode ter sido atualizado desde a última conexão: o agente informa de novo
                 _estado = EstadoConexao.Online;
                 _detalhe = "";
+                conectou = true;
                 if (Sessao.Atual is { } professor)
                     Enviar(Protocolo.MontarIdentificacao(professor.Nome)); // o aluno vê quem está olhando
                 EnviarConfigLimpeza(); // manda a configuração/imagens de limpeza para este PC
@@ -145,6 +150,8 @@ sealed unsafe partial class ConexaoComputador : IDisposable
             }
             finally
             {
+                // Conectou e caiu: zera (tenta de novo rápido). Nunca conectou: conta a falha (recuo + sem piscar).
+                _falhas = conectou ? 0 : Math.Min(_falhas + 1, 100);
                 _estado = EstadoConexao.Offline;
                 _tcp = null;
                 _fluxo = null;
@@ -156,8 +163,11 @@ sealed unsafe partial class ConexaoComputador : IDisposable
                     canal.Writer.TryWrite(new RespostaComando(0, false, "a conexão com o computador caiu"));
             }
 
-            // Espera 3 s (ou até pedirem para tentar já, ou o programa fechar).
-            WaitHandle.WaitAny([_cancelar.Token.WaitHandle, _tentarJa.WaitHandle], EsperaEntreTentativas);
+            // Espera antes de tentar de novo: 3 s na 1ª falha, dobrando até 30 s para PC desligado
+            // (menos tráfego na rede). Um pedido do professor (Reconectar/F5) ou fechar interrompe a espera.
+            var espera = _falhas <= 1 ? EsperaEntreTentativas
+                : TimeSpan.FromSeconds(Math.Min(30, 3 * Math.Pow(2, Math.Min(_falhas - 1, 10))));
+            WaitHandle.WaitAny([_cancelar.Token.WaitHandle, _tentarJa.WaitHandle], espera);
         }
     }
 

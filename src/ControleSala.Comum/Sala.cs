@@ -77,6 +77,14 @@ public sealed class RepositorioSala
         Salvar();
     }
 
+    /// <summary>Renomeia todos na ordem da lista como "PC 01", "PC 02"... Ajuda a identificar cada máquina na grade.</summary>
+    public void Numerar(string prefixo = "PC")
+    {
+        for (int i = 0; i < _computadores.Count; i++)
+            _computadores[i].Nome = $"{prefixo} {i + 1:00}";
+        Salvar();
+    }
+
     public bool Mover(ComputadorSala c, int delta)
     {
         int de = _computadores.IndexOf(c), para = de + delta;

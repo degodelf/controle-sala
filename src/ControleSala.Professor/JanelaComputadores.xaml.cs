@@ -62,6 +62,20 @@ public partial class JanelaComputadores : Window
         Atualizar();
     }
 
+    void Numerar_Click(object sender, RoutedEventArgs e)
+    {
+        TextoMensagem.Text = "";
+        int n = _sala.Computadores.Count;
+        if (n == 0) { TextoMensagem.Text = "Não há computadores para numerar."; return; }
+        if (MessageBox.Show(this,
+                $"Renomear os {n} computadores na ordem da lista como PC 01, PC 02, PC 03...?\n\n" +
+                "Dica: use ▲ ▼ para deixar a ordem igual à das mesas antes de numerar.",
+                "Numerar computadores", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
+        _sala.Numerar("PC");
+        Atualizar();
+        TextoMensagem.Text = "Pronto: renomeados como PC 01, PC 02...";
+    }
+
     void Subir_Click(object sender, RoutedEventArgs e) => Mover(-1);
     void Descer_Click(object sender, RoutedEventArgs e) => Mover(+1);
 
