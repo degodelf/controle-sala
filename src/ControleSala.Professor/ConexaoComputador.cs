@@ -22,6 +22,8 @@ sealed unsafe partial class ConexaoComputador : IDisposable
     public delegate void UsarQuadro(IntPtr bgra, int largura, int altura, int stride, long momentoRecebido, int usAgente);
 
     static readonly TimeSpan EsperaEntreTentativas = TimeSpan.FromSeconds(3);
+    static readonly TimeSpan EsperaQuandoOffline = TimeSpan.FromSeconds(10);
+    const int TentativasAntesDeOffline = 3; // só declara "Offline" (e espaça as tentativas) após algumas falhas seguidas
 
     readonly byte[]? _chave;
     readonly CancellationTokenSource _cancelar = new();
@@ -107,8 +109,8 @@ sealed unsafe partial class ConexaoComputador : IDisposable
             var tcp = new TcpClient { NoDelay = true, ReceiveBufferSize = 1 << 20 };
             try
             {
-                // Só mostra "Conectando" na 1ª tentativa (ou após um pedido). PC desligado fica "Offline" firme.
-                _estado = _falhas == 0 ? EstadoConexao.Conectando : EstadoConexao.Offline;
+                // Reconexão rápida (blip/reboot) fica "Conectando"; só vira "Offline" após várias falhas seguidas.
+                _estado = _falhas <= TentativasAntesDeOffline ? EstadoConexao.Conectando : EstadoConexao.Offline;
                 _tentarJa.Reset();
                 using (var limite = CancellationTokenSource.CreateLinkedTokenSource(_cancelar.Token))
                 {
@@ -150,9 +152,9 @@ sealed unsafe partial class ConexaoComputador : IDisposable
             }
             finally
             {
-                // Conectou e caiu: zera (tenta de novo rápido). Nunca conectou: conta a falha (recuo + sem piscar).
+                // Conectou e caiu: zera (reconecta rápido, ainda como "Conectando"). Nunca conectou: conta a falha.
                 _falhas = conectou ? 0 : Math.Min(_falhas + 1, 100);
-                _estado = EstadoConexao.Offline;
+                _estado = _falhas <= TentativasAntesDeOffline ? EstadoConexao.Conectando : EstadoConexao.Offline;
                 _tcp = null;
                 _fluxo = null;
                 tcp.Dispose();
@@ -163,10 +165,9 @@ sealed unsafe partial class ConexaoComputador : IDisposable
                     canal.Writer.TryWrite(new RespostaComando(0, false, "a conexão com o computador caiu"));
             }
 
-            // Espera antes de tentar de novo: 3 s na 1ª falha, dobrando até 30 s para PC desligado
-            // (menos tráfego na rede). Um pedido do professor (Reconectar/F5) ou fechar interrompe a espera.
-            var espera = _falhas <= 1 ? EsperaEntreTentativas
-                : TimeSpan.FromSeconds(Math.Min(30, 3 * Math.Pow(2, Math.Min(_falhas - 1, 10))));
+            // Reconecta rápido (3 s) enquanto pode ser um blip; só espaça para 10 s quando o PC está mesmo offline.
+            // Um pedido do professor (Reconectar/F5) ou fechar o programa interrompe a espera.
+            var espera = _falhas <= TentativasAntesDeOffline ? EsperaEntreTentativas : EsperaQuandoOffline;
             WaitHandle.WaitAny([_cancelar.Token.WaitHandle, _tentarJa.WaitHandle], espera);
         }
     }
