@@ -628,7 +628,42 @@ public partial class MainWindow : Window
     void BotaoSobre_Click(object sender, RoutedEventArgs e) => new JanelaSobre { Owner = this }.ShowDialog();
 
     void BotaoPapelDeParede_Click(object sender, RoutedEventArgs e)
-        => new JanelaPapelDeParede { Owner = this }.ShowDialog();
+    {
+        new JanelaPapelDeParede { Owner = this }.ShowDialog();
+        // Depois de editar, manda o papel novo para quem está online (fica guardado; aplica com "Aplicar papel de parede agora").
+        foreach (var t in _tiles.Where(t => t.Conexao.Estado == EstadoConexao.Online))
+            t.Conexao.ReenviarConfigLimpeza();
+    }
+
+    /// <summary>Aplica o papel de parede escolhido imediatamente nos computadores (selecionados, ou todos os online).</summary>
+    async void ComandoPapel_Click(object sender, RoutedEventArgs e)
+    {
+        if (Sessao.PacoteLimpeza?.PapelDeParede == null)
+        {
+            MessageBox.Show(this, "Escolha um papel de parede primeiro em \"Papel de parede...\".",
+                "Aplicar papel de parede", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+        var alvos = _tiles.Where(t => (!HaSelecao || t.Selecionado) && t.Conexao.Estado == EstadoConexao.Online)
+                          .Select(t => t.Conexao).ToList();
+        if (alvos.Count == 0) { MostrarAviso("Nenhum computador online para aplicar o papel de parede."); return; }
+
+        MostrarAviso($"Aplicando papel de parede em {alvos.Count}...");
+        int falhas = 0;
+        await Task.WhenAll(alvos.Select(async c =>
+        {
+            try
+            {
+                c.ReenviarConfigLimpeza(); // garante que o agente tem o papel atual antes de aplicar
+                var (ok, _) = await c.EnviarComandoAsync(AcaoComando.DefinirPapel, "", CancellationToken.None);
+                if (!ok) Interlocked.Increment(ref falhas);
+            }
+            catch { Interlocked.Increment(ref falhas); }
+        }));
+        MostrarAviso(falhas == 0
+            ? $"Papel de parede aplicado em {alvos.Count} computador{(alvos.Count == 1 ? "" : "es")} ✓"
+            : $"Papel de parede: {alvos.Count - falhas} ok, {falhas} com erro.");
+    }
 
     void Window_Closed(object? sender, EventArgs e)
     {

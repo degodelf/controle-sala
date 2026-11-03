@@ -105,6 +105,14 @@ static partial class LimpezaExecutor
         }
     }
 
+    /// <summary>Aplica agora o papel de parede já recebido (se houver). Chamado pelo comando "aplicar papel de parede" do professor.</summary>
+    public static (bool, string) AplicarPapelGuardado()
+    {
+        if (!File.Exists(CaminhoPapel)) return (false, "Nenhum papel de parede foi enviado a este computador.");
+        RestaurarPapel(CaminhoPapel);
+        return (true, "Papel de parede aplicado.");
+    }
+
     /// <summary>Define o papel de parede. Como o agente é SYSTEM, abre um processo na conta do aluno para aplicar nele.</summary>
     static void RestaurarPapel(string caminho)
     {

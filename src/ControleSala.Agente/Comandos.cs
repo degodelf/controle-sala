@@ -39,6 +39,7 @@ static class Comandos
                 AcaoComando.BloquearInternet => BloquearInternet(comando.Argumento),
                 AcaoComando.LiberarInternet => LiberarInternet(),
                 AcaoComando.Limpeza => Limpeza(comando.Argumento),
+                AcaoComando.DefinirPapel => LimpezaExecutor.AplicarPapelGuardado(),
                 _ => (false, "Este comando ainda não está disponível nesta versão."),
             };
         }

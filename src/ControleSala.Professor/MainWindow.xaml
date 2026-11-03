@@ -19,6 +19,8 @@
                 <MenuItem Header="Papel de parede..." Click="BotaoPapelDeParede_Click">
                     <MenuItem.Icon><Path Style="{StaticResource Icone}" Data="{StaticResource IconePapel}"/></MenuItem.Icon>
                 </MenuItem>
+                <MenuItem Header="Aplicar papel de parede agora" Click="ComandoPapel_Click"
+                          ToolTip="Coloca o papel de parede escolhido nos computadores agora (selecionados, ou todos os online)."/>
                 <Separator/>
                 <MenuItem Header="Sair" Click="MenuSair_Click"/>
             </MenuItem>
