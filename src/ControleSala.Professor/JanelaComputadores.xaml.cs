@@ -101,8 +101,11 @@ public partial class JanelaComputadores : Window
         TextoMensagem.Text = "";
         var janela = new JanelaProcurar(_sala) { Owner = this };
         janela.ShowDialog();
-        Atualizar();
         if (janela.Adicionados > 0)
-            TextoMensagem.Text = $"{janela.Adicionados} computador{(janela.Adicionados == 1 ? "" : "es")} adicionado{(janela.Adicionados == 1 ? "" : "s")}.";
+        {
+            _sala.OrdenarPorNome();   // os computadores achados já entram em ordem (PC 01, PC 02, PC 03...)
+            TextoMensagem.Text = $"{janela.Adicionados} computador{(janela.Adicionados == 1 ? "" : "es")} adicionado{(janela.Adicionados == 1 ? "" : "s")}, em ordem por nome.";
+        }
+        Atualizar();
     }
 }
