@@ -29,6 +29,9 @@ public static class Programas
         new("Bloco de Notas", "notepad.exe"),
         new("Paint", "mspaint.exe"),
         new("Explorador de Arquivos", "explorer.exe"),
+        new("Word", "winword.exe"),
+        new("Excel", "excel.exe"),
+        new("PowerPoint", "powerpnt.exe"),
     ];
 
     /// <summary>Mensagem de erro, ou null se o programa pode entrar na lista / ser aberto.</summary>

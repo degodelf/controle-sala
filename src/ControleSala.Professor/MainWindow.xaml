@@ -57,6 +57,8 @@
                 </MenuItem>
                 <MenuItem Header="Fechar programa..." Click="ComandoFecharPrograma_Click"/>
                 <MenuItem Header="Programas permitidos..." Click="GerenciarProgramas_Click"/>
+                <MenuItem Header="Iniciar aplicativo ou comando..." Click="ComandoIniciarApp_Click"
+                          ToolTip="Roda qualquer programa ou comando nos computadores (na conta do aluno). Ex.: winword, ou cmd /c ..."/>
                 <Separator/>
                 <MenuItem Header="Silenciar o som..." Click="ComandoSilenciar_Click">
                     <MenuItem.Icon><Path Style="{StaticResource Icone}" Data="{StaticResource IconeSom}"/></MenuItem.Icon>

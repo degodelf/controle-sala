@@ -40,6 +40,7 @@ static class Comandos
                 AcaoComando.LiberarInternet => LiberarInternet(),
                 AcaoComando.Limpeza => Limpeza(comando.Argumento),
                 AcaoComando.DefinirPapel => LimpezaExecutor.AplicarPapelGuardado(),
+                AcaoComando.IniciarAplicativo => IniciarAplicativo(comando.Argumento),
                 _ => (false, "Este comando ainda não está disponível nesta versão."),
             };
         }
@@ -74,19 +75,60 @@ static class Comandos
     static (bool, string) AbrirPrograma(string comando)
     {
         if (Programas.ValidarComando(comando) is { } erro) return (false, erro);
-        comando = comando.Trim();
+        return Iniciar(ResolverPrograma(comando.Trim()), "", "Programa aberto.");
+    }
 
+    /// <summary>"Iniciar aplicativo" (estilo Veyon): roda o programa OU comando digitado, sem lista de permitidos.
+    /// Roda na conta do aluno (sem admin). Ex.: "winword", "winword C:\arquivo.docx", "cmd /c ...".</summary>
+    static (bool, string) IniciarAplicativo(string linha)
+    {
+        linha = (linha ?? "").Trim();
+        if (linha.Length == 0) return (false, "Digite o programa ou comando a iniciar.");
+        var (programa, args) = SepararComando(linha);
+        return Iniciar(ResolverPrograma(programa), args, "Aplicativo iniciado.");
+    }
+
+    static (bool, string) Iniciar(string programa, string args, string okMsg)
+    {
         if (EhSystem)
         {
-            if (!LancadorNaSessao.IniciarComoUsuario(comando, "", out string e))
-                return (false, $"Não foi possível abrir o programa: {e}.");
+            if (!LancadorNaSessao.IniciarComoUsuario(programa, args, out string e))
+                return (false, $"Não foi possível iniciar: {e}.");
         }
         else
         {
-            // Modo de teste (console): abre na própria conta.
-            Process.Start(new ProcessStartInfo(comando) { UseShellExecute = true });
+            // Modo de teste (console): inicia na própria conta.
+            Process.Start(new ProcessStartInfo(programa, args) { UseShellExecute = true });
         }
-        return (true, "Programa aberto.");
+        return (true, okMsg);
+    }
+
+    /// <summary>Separa o primeiro item (programa, podendo vir entre aspas) do resto (argumentos).</summary>
+    static (string programa, string args) SepararComando(string linha)
+    {
+        if (linha.StartsWith('"'))
+        {
+            int fim = linha.IndexOf('"', 1);
+            if (fim > 0) return (linha[1..fim], linha[(fim + 1)..].Trim());
+        }
+        int esp = linha.IndexOf(' ');
+        return esp < 0 ? (linha, "") : (linha[..esp], linha[(esp + 1)..].Trim());
+    }
+
+    /// <summary>Resolve o caminho de um programa registrado no "App Paths" (Word, Excel, navegadores...) quando vem só o nome.</summary>
+    static string ResolverPrograma(string programa)
+    {
+        if (Path.IsPathRooted(programa)) return programa;
+        string nome = programa.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) ? programa : programa + ".exe";
+        try
+        {
+            using var k = Microsoft.Win32.Registry.LocalMachine.OpenSubKey(
+                @"SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\" + nome);
+            if (k?.GetValue(null) is string caminho && caminho.Trim().Trim('"') is { Length: > 0 } c)
+                return c;
+        }
+        catch (Exception ex) when (ex is System.Security.SecurityException or UnauthorizedAccessException) { }
+        return programa; // deixa o Windows procurar no PATH
     }
 
     static (bool, string) FecharPrograma(string nomeProcesso)

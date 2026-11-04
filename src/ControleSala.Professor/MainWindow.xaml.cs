@@ -265,6 +265,11 @@ public partial class MainWindow : Window
     void GerenciarProgramas_Click(object sender, RoutedEventArgs e)
         => new JanelaProgramas { Owner = this }.ShowDialog();
 
+    void ComandoIniciarApp_Click(object sender, RoutedEventArgs e)
+        => AbrirComando(AcaoComando.IniciarAplicativo, "Iniciar aplicativo ou comando",
+            "Programa ou comando (ex.: winword · winword C:\\arquivo.docx · cmd /c ...)",
+            texto => string.IsNullOrWhiteSpace(texto) ? (false, "Digite o programa ou comando.") : (true, texto.Trim()));
+
     void ComandoDesligar_Click(object sender, RoutedEventArgs e)
         => Comando(AcaoComando.Desligar, "Desligar os computadores",
             confirmar: "Desligar os computadores selecionados? Os alunos verão um aviso de 20 segundos antes.");

@@ -83,6 +83,7 @@ public enum AcaoComando : byte
     Logoff = 13,
     Limpeza = 14,
     DefinirPapel = 15,
+    IniciarAplicativo = 16,
 }
 
 public readonly record struct Comando(uint Id, AcaoComando Acao, string Argumento);
