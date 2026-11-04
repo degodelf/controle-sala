@@ -290,12 +290,13 @@
                                               VerticalAlignment="Center"/>
                     </Border>
                     <ControlTemplate.Triggers>
+                        <!-- O passar do mouse vem ANTES, para a seleção (azul) vencer quando o item está selecionado E com o cursor em cima. -->
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="b" Property="Background" Value="{DynamicResource PincelSuperficie2}"/>
+                        </Trigger>
                         <Trigger Property="IsSelected" Value="True">
                             <Setter TargetName="b" Property="Background" Value="{DynamicResource PincelRealce}"/>
                             <Setter Property="Foreground" Value="{DynamicResource PincelRealceTexto}"/>
-                        </Trigger>
-                        <Trigger Property="IsMouseOver" Value="True">
-                            <Setter TargetName="b" Property="Background" Value="{DynamicResource PincelSuperficie2}"/>
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>

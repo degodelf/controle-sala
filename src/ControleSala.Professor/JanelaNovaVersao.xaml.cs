@@ -22,7 +22,7 @@ public partial class JanelaNovaVersao : Window
         InitializeComponent();
         Title = $"Nova versão {nova.Versao}";
         TextoTitulo.Text = $"Nova versão disponível: {nova.Versao}";
-        TextoSub.Text = $"Você tem a versão {Versoes.Atual}. \"Atualizar tudo\" atualiza os alunos e este PC; só aparece uma permissão do Windows. A sala e as configurações continuam.";
+        TextoSub.Text = $"Você tem a versão {Versoes.Atual}. Atualizar mantém a sala e as configurações.";
         TextoNotas.Text = string.IsNullOrWhiteSpace(nova.Notas) ? "(sem descrição)" : nova.Notas;
         BotaoAlunos.IsEnabled = _computadores.Count > 0;
     }

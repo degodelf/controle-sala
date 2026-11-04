@@ -57,10 +57,6 @@ jobs:
           name: ControleSala ${{ steps.versao.outputs.versao }}
           files: instalador/saida/ControleSala-Setup-*.exe
           body: |
-            Instalador do ControleSala ${{ steps.versao.outputs.versao }}.
+            ControleSala ${{ steps.versao.outputs.versao }}
 
-            **Este instalador não está assinado** — e não precisa ser para instalar num PC novo (pendrive)
-            nem para o professor usar o botão **"Atualizar agora"** no próprio PC (o download vem por HTTPS deste repositório).
-
-            Só para **enviar a atualização aos alunos** pela rede é preciso assiná-lo no seu PC do professor e reenviá-lo a esta Release:
-            `ControleSala.Assinador assinar ControleSala-Setup-${{ steps.versao.outputs.versao }}.exe ${{ steps.versao.outputs.versao }}`
+            No computador do professor, abra o programa: ele avisa quando há versão nova e atualiza tudo com um clique.

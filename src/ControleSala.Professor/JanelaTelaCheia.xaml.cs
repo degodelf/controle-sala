@@ -30,6 +30,8 @@ public partial class JanelaTelaCheia : Window
         TextoMensagem.Text = "Aguardando imagem...";
         _bytesAntes = conexao.BytesRecebidos;
         conexao.Modo = ModoVideo.Completo;
+        _controlando = true; // ao abrir a tela já se controla o computador (sem botão "Controlar")
+        Loaded += (_, _) => { Activate(); Keyboard.Focus(this); }; // garante que mouse e teclado cheguem a esta janela
         CompositionTarget.Rendering += AoRenderizar;
     }
 
@@ -80,26 +82,6 @@ public partial class JanelaTelaCheia : Window
     static readonly long IntervaloMove = Stopwatch.Frequency / 120; // no máximo ~120 envios de movimento por segundo
 
     DispatcherTimer? _relogioTrava; // reenvia "travar" a cada 2 s enquanto a trava está ligada
-
-    void Controlar_Checked(object sender, RoutedEventArgs e)
-    {
-        _controlando = true;
-        TextoDica.Visibility = Visibility.Visible;
-        Tela.Cursor = Cursors.Arrow; // cursor normal (o antigo "+" confundia); o modo é indicado pelo botão azul e a dica
-        BotaoTravar.IsEnabled = true;
-        Activate();
-        Keyboard.Focus(this); // garante que as teclas cheguem a esta janela
-    }
-
-    void Controlar_Unchecked(object sender, RoutedEventArgs e)
-    {
-        _controlando = false;
-        TextoDica.Visibility = Visibility.Collapsed;
-        Tela.Cursor = Cursors.Arrow;
-        if (Tela.IsMouseCaptured) Tela.ReleaseMouseCapture();
-        BotaoTravar.IsChecked = false; // solta a trava ao sair do controle
-        BotaoTravar.IsEnabled = false;
-    }
 
     void Travar_Checked(object sender, RoutedEventArgs e)
     {
@@ -184,19 +166,13 @@ public partial class JanelaTelaCheia : Window
 
     void Window_PreviewKeyDown(object sender, KeyEventArgs e)
     {
-        if (!_controlando)
-        {
-            if (e.Key == Key.Escape) Close();
-            return;
-        }
-        if (e.Key == Key.Escape) { BotaoControlar.IsChecked = false; e.Handled = true; return; } // Esc sai do controle
+        if (e.Key == Key.Escape) { Close(); return; } // Esc fecha a janela (e encerra o controle)
         EnviarTecla(e, pressionado: true);
         e.Handled = true;
     }
 
     void Window_PreviewKeyUp(object sender, KeyEventArgs e)
     {
-        if (!_controlando) return;
         if (e.Key != Key.Escape) EnviarTecla(e, pressionado: false);
         e.Handled = true;
     }
