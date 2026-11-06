@@ -207,11 +207,12 @@ os sites de **Sites bloqueados...** (ex.: redes sociais), via arquivo hosts, dei
 aluno (Downloads, Área de Trabalho, Documentos, histórico/cache/cookies dos navegadores, Lixeira, %TEMP%), exceções
 (pastas/arquivos a preservar), se **restaura o papel de parede** (fundo+logo) e a **agenda** (dias da semana + horário).
 A tela de limpeza mostra o **logotipo da escola** escolhido em Papel de parede (sem logotipo, o ícone do programa).
-Também pode **atualizar o Windows Defender** e **fazer uma verificação** (rápida ou completa) como parte da limpeza — o
-Defender roda em segundo plano, sem travar o aluno. **Pausar** / **Retomar**, no alto da janela, vale na hora para os
+Também pode **atualizar o Windows Defender** e **fazer uma verificação** (rápida ou completa) depois da limpeza: o Defender
+roda em segundo plano, a verificação acontece mesmo se a atualização falhar, e o resultado de cada PC aparece em
+**Computadores > Situação do Windows Defender**. **Pausar** / **Retomar**, no alto da janela, vale na hora para os
 computadores online e guarda a agenda; PC desligado só recebe a pausa quando conectar ao professor. A configuração e as
 imagens são enviadas aos computadores quando ficam online, e o próprio agente roda a agenda, mesmo sem o professor
-conectado. Também há **Limpar agora** (com confirmação), que funciona mesmo com a agenda pausada. **A limpeza nunca roda
+conectado. Também há **Limpar agora**, que funciona mesmo com a agenda pausada: pede confirmação ao professor e dá 30 segundos de aviso ao aluno. **A limpeza nunca roda
 no PC do professor** (ele só tem o console, não o agente) e nunca mexe na conta de administrador.
 
 ## Licença
@@ -230,8 +231,8 @@ O programa mostra telas de alunos, muitos deles crianças e adolescentes. O que 
 - **Registro de atividades (Ajuda):** quem fez o quê, quando e em qual computador, só no PC do professor
   (`%AppData%\ControleSala\atividades`), por 6 meses, com exportação para planilha. Não guarda imagens, texto de mensagens
   nem a configuração da limpeza.
-- **O aluno sabe:** ao entrar no Windows aparece um aviso em linguagem simples; o ícone perto do relógio fica vermelho com
-  o nome do professor; com a tela aberta em tamanho grande, ou sob controle, aparece uma faixa no topo.
+- **O aluno sabe:** o ícone perto do relógio fica vermelho com o nome do professor; com a tela aberta em tamanho grande, ou
+  sob controle, aparece uma faixa no topo.
 - **Tentativas:** 5 erros seguidos de chave da sala bloqueiam aquele endereço por 1 minuto.
 - **O que o programa não faz:** não grava tela nem áudio, não usa câmera nem microfone, não registra o que é digitado e não
   tem cadastro de aluno. As telas não saem da rede da escola.

@@ -34,6 +34,8 @@ public partial class MainWindow : Window
         }
     }
 
+    void MenuDefender_Click(object sender, RoutedEventArgs e) => new JanelaDefender(Conexoes) { Owner = this }.ShowDialog();
+
     void MenuRegras_Click(object sender, RoutedEventArgs e) =>
         new JanelaRegrasDeUso(pedirAceite: false) { Owner = this, WindowStartupLocation = WindowStartupLocation.CenterOwner }.ShowDialog();
 
@@ -377,7 +379,7 @@ public partial class MainWindow : Window
 
     void LimparAgora_Click(object sender, RoutedEventArgs e)
         => Comando(AcaoComando.Limpeza, "Limpar agora", LimpezaConfig.Carregar().Serializar(),
-            confirmar: "Limpar agora os computadores selecionados? Serão apagados os arquivos marcados na configuração da limpeza (a conta de administrador não é tocada).");
+            confirmar: "Limpar agora os computadores selecionados? O aluno recebe um aviso de 30 segundos para salvar o trabalho. Depois, serão apagados os arquivos marcados na configuração da limpeza (a conta de administrador não é tocada).");
 
     void AoRenderizar(object? sender, EventArgs e)
     {

@@ -23,13 +23,18 @@ static partial class LimpezaExecutor
         return EhSystem ? LancadorNaSessao.PerfilDaSessao() : null;
     }
 
-    public static (bool Ok, string Mensagem) Executar(LimpezaConfig c)
+    /// <summary>Por que a limpeza não pode rodar agora; null se pode.</summary>
+    public static string? Impedimento()
     {
         string? perfil = Perfil();
-        if (perfil == null)
-            return (false, "A limpeza só funciona pelo serviço (com um aluno usando o PC).");
-        if (!Directory.Exists(perfil))
-            return (false, "Não foi possível encontrar a pasta do aluno.");
+        if (perfil == null) return "A limpeza só funciona pelo serviço (com um aluno usando o PC).";
+        return Directory.Exists(perfil) ? null : "Não foi possível encontrar a pasta do aluno.";
+    }
+
+    public static (bool Ok, string Mensagem) Executar(LimpezaConfig c)
+    {
+        if (Impedimento() is { } motivo) return (false, motivo);
+        string perfil = Perfil()!;
 
         bool temTela = InterfaceAgenteDisponivel();
         if (temTela) InterfaceAgente.NaInterface(() => JanelasAluno.MostrarLimpeza(
@@ -49,7 +54,7 @@ static partial class LimpezaExecutor
             if (c.Lixeira) EsvaziarLixeira();
             if (c.RestaurarPapelDeParede && File.Exists(CaminhoPapel)) RestaurarPapel(CaminhoPapel);
 
-            string extra = Defender(c);
+            string extra = AgenteDefender.Iniciar(c);
             return (true, $"Limpeza concluída ({itens} itens removidos).{extra}");
         }
         finally
@@ -77,32 +82,6 @@ static partial class LimpezaExecutor
     {
         try { SHEmptyRecycleBin(0, null, 0x7 /* sem confirmação, som, progresso */); }
         catch (Exception) { }
-    }
-
-    /// <summary>
-    /// Atualiza o Windows Defender e/ou faz uma verificação, em segundo plano (não trava a tela do aluno).
-    /// A varredura pode demorar; o Defender mostra o próprio andamento.
-    /// </summary>
-    static string Defender(LimpezaConfig c)
-    {
-        var passos = new List<string>();
-        if (c.AtualizarDefender) passos.Add("Update-MpSignature");
-        if (c.VerificarDefender) passos.Add($"Start-MpScan -ScanType {(c.DefenderVarreduraCompleta ? "FullScan" : "QuickScan")}");
-        if (passos.Count == 0) return "";
-
-        try
-        {
-            // -WindowStyle Hidden + sem esperar: roda por trás; o aluno não fica preso.
-            Process.Start(new ProcessStartInfo(
-                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "WindowsPowerShell", "v1.0", "powershell.exe"),
-                $"-NoProfile -WindowStyle Hidden -Command \"try {{ {string.Join("; ", passos)} }} catch {{ }}\"")
-            { UseShellExecute = false, CreateNoWindow = true });
-            return c.VerificarDefender ? " Windows Defender atualizando/verificando em segundo plano." : " Windows Defender atualizando em segundo plano.";
-        }
-        catch (Exception)
-        {
-            return " (não foi possível iniciar o Windows Defender).";
-        }
     }
 
     /// <summary>Aplica agora o papel de parede já recebido (se houver). Chamado pelo comando "aplicar papel de parede" do professor.</summary>

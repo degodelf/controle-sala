@@ -38,6 +38,8 @@ sealed class ServidorVideo : IDisposable
     public byte[]? MacMsg { get; set; }
     /// <summary>Mensagem com o nome escolhido para este PC na instalação; null se nenhum foi escolhido.</summary>
     public byte[]? NomeMsg { get; set; }
+    /// <summary>Mensagem com o último resultado do Windows Defender, enviada a quem conecta.</summary>
+    public byte[]? DefenderMsg { get; set; }
 
     public ManualResetEventSlim TemProfessores { get; } = new(false);
 
@@ -134,6 +136,8 @@ sealed class ServidorVideo : IDisposable
                 conexao.EnfileirarControle(MacMsg);
             if (NomeMsg != null)
                 conexao.EnfileirarControle(NomeMsg);
+            if (DefenderMsg != null)
+                conexao.EnfileirarControle(DefenderMsg);
             conexao.EnfileirarControle(Protocolo.MontarVersaoAgente(Versoes.Atual)); // o professor vê quem precisa atualizar
             conexao.Iniciar();
             AvisarMudanca();

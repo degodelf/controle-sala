@@ -137,3 +137,92 @@ public class LimiteTentativasTestes
         Assert.False(limite.Bloqueado("10.0.0.9"));
     }
 }
+
+public class ResultadoDefenderTestes
+{
+    static readonly DateTimeOffset Inicio = new(2026, 11, 5, 18, 0, 0, TimeSpan.Zero);
+    static readonly DateTimeOffset Fim = Inicio.AddMinutes(9);
+
+    [Fact]
+    public void Script_tem_um_try_por_etapa_e_nao_usa_aspas_duplas()
+    {
+        string s = ResultadoDefender.Script(atualizar: true, verificar: true, varreduraCompleta: false);
+        Assert.Contains("try { Update-MpSignature -ErrorAction Stop;", s);
+        Assert.Contains("try { Start-MpScan -ScanType QuickScan -ErrorAction Stop;", s);
+        Assert.DoesNotContain("\"", s); // vai entre aspas duplas na linha de comando
+        Assert.True(s.IndexOf("Update-MpSignature", StringComparison.Ordinal) < s.IndexOf("Start-MpScan", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Script_so_tem_o_que_foi_pedido()
+    {
+        string s = ResultadoDefender.Script(atualizar: false, verificar: true, varreduraCompleta: true);
+        Assert.DoesNotContain("Update-MpSignature", s);
+        Assert.Contains("FullScan", s);
+    }
+
+    [Fact]
+    public void Tudo_certo()
+    {
+        var r = ResultadoDefender.Iniciado(true, true, Inicio).Concluido(
+            "CS_ATUALIZACAO=ok\r\nCS_VERIFICACAO=ok\r\nCS_ATIVO=True\r\nCS_DEFINICOES=2026-11-05T17:58:00.0000000Z\r\n", Fim);
+        Assert.Equal(EtapaDefender.Ok, r.Atualizacao);
+        Assert.Equal(EtapaDefender.Ok, r.Verificacao);
+        Assert.True(r.AntivirusAtivo);
+        Assert.Equal(new DateTimeOffset(2026, 11, 5, 17, 58, 0, TimeSpan.Zero), r.Definicoes);
+        Assert.False(r.EmAndamento);
+        Assert.Equal("atualização ok, verificação ok", r.Resumo());
+    }
+
+    [Fact]
+    public void Verificacao_vale_mesmo_com_a_atualizacao_falhando()
+    {
+        var r = ResultadoDefender.Iniciado(true, true, Inicio).Concluido("CS_ATUALIZACAO=erro:sem internet\nCS_VERIFICACAO=ok\n", Fim);
+        Assert.Equal(EtapaDefender.Falhou, r.Atualizacao);
+        Assert.Equal(EtapaDefender.Ok, r.Verificacao);
+        Assert.Equal("Atualização: sem internet", r.Detalhe);
+    }
+
+    [Fact]
+    public void Etapa_que_nao_respondeu_conta_como_falha()
+    {
+        var r = ResultadoDefender.Iniciado(true, true, Inicio).Concluido("", Fim);
+        Assert.Equal(EtapaDefender.Falhou, r.Atualizacao);
+        Assert.Equal(EtapaDefender.Falhou, r.Verificacao);
+    }
+
+    [Fact]
+    public void Etapa_nao_pedida_continua_nao_pedida()
+    {
+        var r = ResultadoDefender.Iniciado(false, true, Inicio).Concluido("CS_VERIFICACAO=ok\n", Fim);
+        Assert.Equal(EtapaDefender.NaoPedida, r.Atualizacao);
+        Assert.Equal(EtapaDefender.Ok, r.Verificacao);
+    }
+
+    [Fact]
+    public void Pc_desligado_no_meio_aparece_como_interrompida()
+    {
+        var r = ResultadoDefender.Iniciado(true, true, Inicio) with { Atualizacao = EtapaDefender.Ok };
+        var depois = r.Interrompido(Fim);
+        Assert.Equal(EtapaDefender.Ok, depois.Atualizacao);
+        Assert.Equal(EtapaDefender.Interrompida, depois.Verificacao);
+    }
+
+    [Fact]
+    public void Resultado_terminado_nao_muda_ao_reabrir()
+    {
+        var r = ResultadoDefender.Iniciado(true, false, Inicio).Concluido("CS_ATUALIZACAO=ok\n", Fim);
+        Assert.Same(r, r.Interrompido(Fim.AddDays(1)));
+    }
+
+    [Fact]
+    public void Chega_inteiro_pelo_protocolo()
+    {
+        var r = ResultadoDefender.Iniciado(true, true, Inicio).Concluido("CS_ATUALIZACAO=erro:sem acesso à rede\nCS_VERIFICACAO=ok\nCS_ATIVO=False\n", Fim);
+        using var fluxo = new MemoryStream(Protocolo.MontarResultadoDefender(r.Serializar()));
+        var buffer = new byte[1024];
+        var msg = Protocolo.Ler(fluxo, ref buffer);
+        Assert.Equal(TipoMensagem.ResultadoDefender, msg!.Value.Tipo);
+        Assert.Equal(r, ResultadoDefender.Desserializar(Protocolo.LerResultadoDefender(buffer.AsSpan(0, msg.Value.Tamanho))));
+    }
+}

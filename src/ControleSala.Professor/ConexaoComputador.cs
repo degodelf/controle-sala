@@ -69,6 +69,8 @@ sealed unsafe partial class ConexaoComputador : IDisposable
     public volatile string? VersaoAgente;
     /// <summary>Nome escolhido na instalação daquele PC; null até chegar (ou se ninguém escolheu).</summary>
     public volatile string? NomeEscolhido;
+    /// <summary>Último resultado do Windows Defender informado pelo agente; null se ainda não rodou.</summary>
+    public volatile ResultadoDefender? Defender;
     public long BytesRecebidos => Interlocked.Read(ref _bytes);
 
     /// <summary>O que o professor quer receber. Muda na hora, também com a conexão já aberta.</summary>
@@ -199,6 +201,9 @@ sealed unsafe partial class ConexaoComputador : IDisposable
                     break;
                 case TipoMensagem.VersaoAgente:
                     VersaoAgente = Protocolo.LerVersaoAgente(buffer.AsSpan(0, msg.Tamanho));
+                    break;
+                case TipoMensagem.ResultadoDefender:
+                    Defender = ResultadoDefender.Desserializar(Protocolo.LerResultadoDefender(buffer.AsSpan(0, msg.Tamanho)));
                     break;
                 case TipoMensagem.NomeEscolhido:
                     NomeEscolhido = NomeDoPc.Validar(Protocolo.LerNomeEscolhido(buffer.AsSpan(0, msg.Tamanho)));

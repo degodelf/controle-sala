@@ -315,6 +315,7 @@ public partial class App : Application
             "sobre" => new JanelaSobre(),
             "regras" => new JanelaRegrasDeUso(pedirAceite: true),
             "atividades" => new JanelaAtividades(),
+            "defender" => new JanelaDefender(sala.Computadores.Select(c => new ConexaoComputador(c, Sessao.Sala?.Chave)).ToList()),
             "sala" => new JanelaSala(),
             "enviar" => new JanelaEnviarArquivos(sala.Computadores.Select(c => new ConexaoComputador(c, Sessao.Sala?.Chave)).ToList()),
             "atualizar" => new JanelaAtualizarAlunos(sala.Computadores.Select(c => new ConexaoComputador(c, Sessao.Sala?.Chave)).ToList()),

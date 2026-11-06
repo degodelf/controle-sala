@@ -35,6 +35,7 @@
                     <MenuItem.Icon><Path Style="{StaticResource Icone}" Data="{StaticResource IconeEnviar}"/></MenuItem.Icon>
                 </MenuItem>
                 <Separator/>
+                <MenuItem Header="Situação do Windows Defender..." Click="MenuDefender_Click"/>
                 <MenuItem Header="Atualizar o ControleSala dos alunos..." Click="AtualizarAlunos_Click">
                     <MenuItem.Icon><Path Style="{StaticResource Icone}" Data="{StaticResource IconeAtualizar}"/></MenuItem.Icon>
                 </MenuItem>

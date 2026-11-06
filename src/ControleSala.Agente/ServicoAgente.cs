@@ -215,7 +215,7 @@ static partial class LancadorNaSessao
 {
     const uint TokenDuplicate = 0x0002, TokenQuery = 0x0008;
     const uint MaximumAllowed = 0x02000000, CreateNoWindow = 0x08000000, CreateUnicodeEnvironment = 0x00000400;
-    const int SecurityImpersonation = 2, TokenPrimary = 1, TokenSessionId = 12, WtsUserName = 5;
+    const int SecurityImpersonation = 2, TokenPrimary = 1, TokenSessionId = 12;
 
     [StructLayout(LayoutKind.Sequential)]
     struct StartupInfo
@@ -257,11 +257,6 @@ static partial class LancadorNaSessao
     [LibraryImport("wtsapi32.dll", SetLastError = true)] [return: MarshalAs(UnmanagedType.Bool)]
     private static partial bool WTSLogoffSession(nint servidor, uint sessao, [MarshalAs(UnmanagedType.Bool)] bool esperar);
 
-    [LibraryImport("wtsapi32.dll", EntryPoint = "WTSQuerySessionInformationW", SetLastError = true)] [return: MarshalAs(UnmanagedType.Bool)]
-    private static partial bool WTSQuerySessionInformation(nint servidor, uint sessao, int classe, out nint texto, out uint tamanho);
-
-    [LibraryImport("wtsapi32.dll")] private static partial void WTSFreeMemory(nint memoria);
-
     [LibraryImport("userenv.dll", SetLastError = true)] [return: MarshalAs(UnmanagedType.Bool)]
     private static partial bool CreateEnvironmentBlock(out nint ambiente, nint token, [MarshalAs(UnmanagedType.Bool)] bool herdar);
 
@@ -290,21 +285,6 @@ static partial class LancadorNaSessao
         finally
         {
             if (token != 0) CloseHandle(token);
-        }
-    }
-
-    /// <summary>Quem entrou no Windows nesta sessão; vazio ou null na tela de login.</summary>
-    public static string? UsuarioDaSessao()
-    {
-        uint sessao = WTSGetActiveConsoleSessionId();
-        if (sessao == uint.MaxValue || !WTSQuerySessionInformation(0, sessao, WtsUserName, out nint texto, out _)) return null;
-        try
-        {
-            return Marshal.PtrToStringUni(texto);
-        }
-        finally
-        {
-            WTSFreeMemory(texto);
         }
     }
 

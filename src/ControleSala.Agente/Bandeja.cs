@@ -8,8 +8,7 @@ namespace ControleSala.Agente;
 
 /// <summary>
 /// Ícone perto do relógio do PC do aluno. Sempre visível; ao clicar mostra só um cartão informativo
-/// (sala, quem está vendo a tela, crédito) e avisa quem entra no Windows sobre o que o professor pode ver.
-/// Não tem menu nem botões: o aluno não configura nem encerra nada.
+/// (sala, quem está vendo a tela, crédito). Não tem menu nem botões: o aluno não configura nem encerra nada.
 /// </summary>
 sealed class Bandeja : IDisposable
 {
@@ -19,10 +18,6 @@ sealed class Bandeja : IDisposable
     readonly Control _ponte = new();
     readonly string _nomeSala;
     readonly ServidorVideo _servidor;
-    readonly System.Windows.Forms.Timer _vigiaLogin = new() { Interval = 5000 };
-    AvisoAlunoForm? _avisoAluno;
-    string? _ultimoUsuario;
-    int _checagensAteAvisar;
 
     public Bandeja(ConfigSala? sala, ServidorVideo servidor)
     {
@@ -43,21 +38,6 @@ sealed class Bandeja : IDisposable
             _icone.ShowBalloonTip(6000, "ControleSala",
                 $"{professor} enviou: {arquivo}\nEstá na pasta \"{PastaRecebidos.Nome}\", na área de trabalho.", ToolTipIcon.Info));
         Atualizar(servidor.Professores);
-        _vigiaLogin.Tick += (_, _) => VigiarLogin();
-        _vigiaLogin.Start();
-    }
-
-    /// <summary>Avisa quem acabou de entrar no Windows, cerca de 15 s depois, quando a área de trabalho já carregou.</summary>
-    void VigiarLogin()
-    {
-        string? usuario = LancadorNaSessao.UsuarioDaSessao();
-        if (usuario != _ultimoUsuario)
-        {
-            _ultimoUsuario = usuario;
-            _checagensAteAvisar = string.IsNullOrEmpty(usuario) ? 0 : 3;
-        }
-        if (_checagensAteAvisar > 0 && --_checagensAteAvisar == 0)
-            (_avisoAluno ??= new AvisoAlunoForm()).Mostrar();
     }
 
     void Atualizar(string[] professores)
@@ -97,15 +77,11 @@ sealed class Bandeja : IDisposable
         using var cartao = new CartaoForm(new ConfigSala("Escola Estadual Exemplo", "Laboratório de Informática 1", new byte[ConfigSala.TamanhoChave]));
         cartao.Atualizar(["Prof. Diego"]);
         cartao.SalvarImagem(saida);
-        using var aviso = new AvisoAlunoForm();
-        aviso.SalvarImagem(Path.ChangeExtension(saida, ".aviso.png"));
         return 0;
     }
 
     public void Dispose()
     {
-        _vigiaLogin.Dispose();
-        _avisoAluno?.Dispose();
         _icone.Visible = false;
         _icone.Dispose();
         _cartao.Dispose();

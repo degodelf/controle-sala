@@ -54,12 +54,12 @@ static class JanelasAluno
     /// Mostra o aviso de limpeza automática (contagem regressiva + "Limpar agora" / "Adiar 1 hora") e espera a escolha.
     /// Chame de uma thread fora da interface: bloqueia até o aluno decidir (ou o tempo acabar = Proceder).
     /// </summary>
-    public static ResultadoAviso PerguntarLimpeza(int segundos, string? imagem)
+    public static ResultadoAviso PerguntarLimpeza(int segundos, string? imagem, bool podeAdiar = true)
     {
         var escolha = ResultadoAviso.Proceder;
         InterfaceAgente.NaInterface(() =>
         {
-            using var f = new AvisoLimpezaForm(segundos, imagem);
+            using var f = new AvisoLimpezaForm(segundos, imagem, podeAdiar);
             f.ShowDialog();
             escolha = f.Resultado;
         });
@@ -189,7 +189,7 @@ sealed class AvisoLimpezaForm : TelaCheiaEscura
     readonly Label _contagem;
     readonly Panel _cartao;
 
-    public AvisoLimpezaForm(int segundos, string? caminhoImagem)
+    public AvisoLimpezaForm(int segundos, string? caminhoImagem, bool podeAdiar = true)
     {
         _restante = Math.Max(5, segundos);
         _imagem = CarregarImagem(caminhoImagem);
@@ -199,9 +199,10 @@ sealed class AvisoLimpezaForm : TelaCheiaEscura
         _cartao.Paint += DesenharCartao;
 
         int y = _imagem != null ? 150 : 40;
-        var titulo = Rotulo("Limpeza automática", 21f, FontStyle.Bold, CorRealce, y, lw); _cartao.Controls.Add(titulo);
+        var titulo = Rotulo(podeAdiar ? "Limpeza automática" : "Limpeza", 21f, FontStyle.Bold, CorRealce, y, lw); _cartao.Controls.Add(titulo);
         y += 48;
-        var msg = Rotulo("A limpeza automática deste computador vai começar.\nSeus arquivos pessoais serão apagados. Salve o que precisar.",
+        string aviso = podeAdiar ? "A limpeza automática deste computador vai começar." : "O professor pediu a limpeza deste computador.";
+        var msg = Rotulo($"{aviso}\nSeus arquivos pessoais serão apagados. Salve o que precisar.",
             12f, FontStyle.Regular, CorTexto, y, lw, 60); _cartao.Controls.Add(msg);
         y += 74;
         _contagem = Rotulo("", 15f, FontStyle.Bold, CorTextoFraco, y, lw); _cartao.Controls.Add(_contagem);
@@ -212,10 +213,10 @@ sealed class AvisoLimpezaForm : TelaCheiaEscura
         var adiar = Botao("Adiar 1 hora", Color.FromArgb(0x33, 0x33, 0x37), CorTexto);
         adiar.Click += (_, _) => Escolher(ResultadoAviso.Adiar);
         int bw = 170, bh = 44, gap = 18, totalBtn = bw * 2 + gap;
-        limpar.SetBounds((lw - totalBtn) / 2, y, bw, bh);
+        limpar.SetBounds(podeAdiar ? (lw - totalBtn) / 2 : (lw - bw) / 2, y, bw, bh);
         adiar.SetBounds((lw - totalBtn) / 2 + bw + gap, y, bw, bh);
         _cartao.Controls.Add(limpar);
-        _cartao.Controls.Add(adiar);
+        if (podeAdiar) _cartao.Controls.Add(adiar);
 
         Controls.Add(_cartao);
         AtualizarContagem();

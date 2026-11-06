@@ -167,8 +167,34 @@ static class Comandos
             ? LimpezaConfig.Carregar(Path.Combine(LimpezaExecutor.PastaDados, "limpeza.json"))
             : LimpezaConfig.Desserializar(argumento);
         if (config == null) return (false, "Configuração de limpeza inválida.");
-        return LimpezaExecutor.Executar(config);
+        if (LimpezaExecutor.Impedimento() is { } motivo) return (false, motivo);
+        if (Interlocked.Exchange(ref _limpando, 1) == 1) return (false, "Já há uma limpeza em andamento neste computador.");
+
+        // Responde na hora: o professor não fica esperando a contagem nem a limpeza terminar.
+        _ = Task.Run(() =>
+        {
+            try
+            {
+                JanelasAluno.PerguntarLimpeza(SegundosAvisoLimpeza, ImagemDaLimpeza(), podeAdiar: false);
+                var (_, mensagem) = LimpezaExecutor.Executar(config);
+                Programa.Log($"Limpar agora: {mensagem}");
+            }
+            catch (Exception ex)
+            {
+                Programa.Log($"Limpar agora falhou: {ex.Message}");
+            }
+            finally
+            {
+                Interlocked.Exchange(ref _limpando, 0);
+            }
+        });
+        return (true, $"Aviso enviado ao aluno. A limpeza começa em {SegundosAvisoLimpeza} segundos.");
     }
+
+    const int SegundosAvisoLimpeza = 30;
+    static int _limpando;
+
+    static string? ImagemDaLimpeza() => File.Exists(LimpezaExecutor.CaminhoImagemLimpeza) ? LimpezaExecutor.CaminhoImagemLimpeza : null;
 
     const string RegraFirewall = "ControleSala Bloqueio Internet";
 

@@ -60,6 +60,8 @@ static partial class Programa
             string cfgLimpeza = Path.Combine(LimpezaExecutor.PastaDados, "limpeza.json");
             var (ok, msg) = LimpezaExecutor.Executar(LimpezaConfig.Carregar(cfgLimpeza));
             Console.WriteLine(msg);
+            AgenteDefender.EsperarTerminar();
+            if (AgenteDefender.Atual is { } resultado) Console.WriteLine($"Windows Defender: {resultado.Resumo()}");
             return ok ? 0 : 1;
         }
         if (opcoes.ImportarSala != null || opcoes.VerificarSala != null) return ComandoSala(opcoes);
@@ -133,6 +135,15 @@ static partial class Programa
         if (mac != null) { servidor.MacMsg = Protocolo.MontarEnderecoMac(mac); Log($"MAC deste PC: {mac}"); }
         string? nomeEscolhido = NomeDoPc.Ler();
         if (nomeEscolhido != null) { servidor.NomeMsg = Protocolo.MontarNomeEscolhido(nomeEscolhido); Log($"Nome deste PC na sala: {nomeEscolhido}"); }
+        AgenteDefender.Carregar();
+        if (AgenteDefender.Atual is { } defender) servidor.DefenderMsg = Protocolo.MontarResultadoDefender(defender.Serializar());
+        AgenteDefender.Mudou += r =>
+        {
+            byte[] msg = Protocolo.MontarResultadoDefender(r.Serializar());
+            servidor.DefenderMsg = msg;
+            servidor.TransmitirControle(msg);
+            Log($"Windows Defender: {r.Resumo()}");
+        };
         Log($"Versão {Versoes.Atual}");
         // O instalador de uma atualização ainda pode estar terminando quando este agente liga: apaga depois.
         _ = Task.Delay(TimeSpan.FromMinutes(3)).ContinueWith(_ => AtualizacaoAgente.LimparRestos());
@@ -444,7 +455,7 @@ static partial class Programa
         }
     }
 
-    static void Log(string mensagem)
+    internal static void Log(string mensagem)
     {
         string linha = $"[{DateTime.Now:HH:mm:ss}] {mensagem}";
         try { Console.WriteLine(linha); } catch (IOException) { /* sem console */ }

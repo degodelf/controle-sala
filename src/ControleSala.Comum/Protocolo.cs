@@ -53,6 +53,8 @@ public enum TipoMensagem : byte
     VersaoAgente = 36,
     /// <summary>Agente → professor: [string UTF-8] nome escolhido para este PC na instalação, enviado ao conectar.</summary>
     NomeEscolhido = 37,
+    /// <summary>Agente → professor: [string JSON] resultado do Windows Defender, ao conectar e quando muda.</summary>
+    ResultadoDefender = 38,
 }
 
 public enum ArquivoConfigTipo : byte { PapelDeParede = 0, ImagemLimpeza = 1 }
@@ -288,6 +290,11 @@ public static class Protocolo
         Montar(TipoMensagem.NomeEscolhido, Encoding.UTF8.GetBytes(nome));
 
     public static string LerNomeEscolhido(ReadOnlySpan<byte> corpo) => Encoding.UTF8.GetString(corpo);
+
+    public static byte[] MontarResultadoDefender(string json) =>
+        Montar(TipoMensagem.ResultadoDefender, Encoding.UTF8.GetBytes(json));
+
+    public static string LerResultadoDefender(ReadOnlySpan<byte> corpo) => Encoding.UTF8.GetString(corpo);
 
     public static byte[] MontarConfigLimpeza(string json) =>
         Montar(TipoMensagem.ConfigLimpeza, Encoding.UTF8.GetBytes(json));
