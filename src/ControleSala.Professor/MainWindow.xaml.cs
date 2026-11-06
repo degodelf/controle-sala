@@ -74,6 +74,9 @@ public partial class MainWindow : Window
 
     void MenuAtividades_Click(object sender, RoutedEventArgs e) => new JanelaAtividades { Owner = this }.ShowDialog();
 
+    /// <summary>Tempo para as telas conectarem antes de abrir o aviso de versão nova no meio da tela.</summary>
+    static readonly TimeSpan EsperaAvisoVersao = TimeSpan.FromSeconds(15);
+
     AtualizacaoDisponivel? _novaVersao;
     bool _avisouVersaoNova;
     readonly CancellationTokenSource _fimDasVigias = new();
@@ -171,20 +174,26 @@ public partial class MainWindow : Window
     /// <summary>Checa o GitHub, sem travar nada, e mostra o aviso se houver versão nova.</summary>
     async Task VerificarAtualizacaoAsync(bool abrirAviso)
     {
+        var espera = Task.Delay(abrirAviso ? EsperaAvisoVersao : TimeSpan.Zero);
         var nova = await VerificadorAtualizacao.VerificarAsync(Versoes.Atual);
         if (nova == null) return;
         _novaVersao = nova;
         TextoBanner.Text = $"Nova versão disponível: {nova.Versao} (você tem a {Versoes.Atual}).";
         BannerAtualizacao.Visibility = Visibility.Visible;
-        if (abrirAviso && !_avisouVersaoNova)   // aviso no meio da tela, só uma vez por abertura do programa
-        {
-            _avisouVersaoNova = true;
-            AbrirJanelaNovaVersao(nova);
-        }
+        if (!abrirAviso) return;
+
+        await espera;
+        while (OwnedWindows.Count > 0 && IsVisible)   // não abre por cima de outra janela
+            await Task.Delay(TimeSpan.FromSeconds(1));
+        // Só uma vez por abertura do programa, e não insiste se o professor já resolveu pela faixa do topo.
+        if (!_avisouVersaoNova && IsVisible) AbrirJanelaNovaVersao(nova);
     }
 
     void AbrirJanelaNovaVersao(AtualizacaoDisponivel nova)
-        => new JanelaNovaVersao(nova, Conexoes, _auto) { Owner = this }.ShowDialog();
+    {
+        _avisouVersaoNova = true;
+        new JanelaNovaVersao(nova, Conexoes, _auto) { Owner = this }.ShowDialog();
+    }
 
     /// <summary>Só para a ferramenta de captura: força o aviso de versão nova.</summary>
     internal void MostrarAvisoVersaoParaTeste(AtualizacaoDisponivel nova)
@@ -218,6 +227,7 @@ public partial class MainWindow : Window
     void DispensarBanner_Click(object sender, RoutedEventArgs e)
     {
         BannerAtualizacao.Visibility = Visibility.Collapsed;
+        _avisouVersaoNova = true; // dispensou a faixa: o aviso no meio da tela também não abre
         e.Handled = true; // não deixa o clique abrir a janela também
     }
 
@@ -245,8 +255,8 @@ public partial class MainWindow : Window
         foreach (var t in novos) _tiles.Add(t);
         TextoVazio.Visibility = _tiles.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         TextoVazio.Text = Sessao.Sala == null
-            ? "A sala ainda não foi criada.\nAbra o menu Sala, clique em \"Sala...\" e crie a sala para gerar o pacote dos alunos."
-            : "Nenhum computador na sala ainda.\nInstale o ControleSala nos PCs dos alunos com o pacote da sala: eles aparecem aqui sozinhos.";
+            ? "A sala ainda não foi criada.\nAbra o menu Sala, clique em \"Sala...\" e crie a sala para gerar a chave."
+            : "Nenhum computador na sala ainda.\nInstale o ControleSala nos PCs dos alunos com a chave da sala: eles aparecem aqui sozinhos.";
     }
 
     /// <summary>Abre a janela da sala e, se a chave mudou, reconecta tudo com a chave nova.</summary>

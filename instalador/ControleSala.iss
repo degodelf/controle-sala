@@ -301,12 +301,12 @@ begin
   Arquivo := ArquivoDaSala;
   if (Arquivo = '') or (not FileExists(Arquivo)) then
   begin
-    Erro := 'Escolha o arquivo da sala (.controlesala) gerado no computador do professor.';
+    Erro := 'Escolha o arquivo da chave (.controlesala) gerado no computador do professor.';
     Exit;
   end;
   if SenhaDoPacote = '' then
   begin
-    Erro := 'Digite a senha do pacote da sala.';
+    Erro := 'Digite a senha da chave da sala.';
     Exit;
   end;
 
@@ -317,7 +317,7 @@ begin
   try
     if not Exec(ProgramaTemporario, '--verificar-sala "' + Arquivo + '" --saida "' + Saida + '"', '', SW_HIDE, ewWaitUntilTerminated, Codigo) then
     begin
-      Erro := 'Não foi possível conferir o pacote da sala neste computador.';
+      Erro := 'Não foi possível conferir a chave da sala neste computador.';
       Exit;
     end;
   finally
@@ -333,10 +333,10 @@ begin
          end;
          Result := True;
        end;
-    3: Erro := 'Senha incorreta. Confira a senha escolhida ao gerar o pacote.';
-    4: Erro := 'Este arquivo não é um pacote de sala do ControleSala (ou está danificado).';
+    3: Erro := 'Senha incorreta. Confira a senha escolhida ao gerar a chave.';
+    4: Erro := 'Este arquivo não é uma chave de sala do ControleSala (ou está danificado).';
   else
-    Erro := 'Não foi possível ler o pacote da sala (código ' + IntToStr(Codigo) + ').';
+    Erro := 'Não foi possível ler a chave da sala (código ' + IntToStr(Codigo) + ').';
   end;
 end;
 
@@ -399,22 +399,22 @@ begin
     'Este computador já faz parte de uma sala.',
     'Na atualização, o normal é manter a sala. Escolha trocar só se este computador mudou de sala.', True, False);
   PaginaManter.Add('Manter a sala atual: "' + AtualNome + '" (' + AtualEscola + ')');
-  PaginaManter.Add('Trocar de sala (escolher outro pacote .controlesala)');
+  PaginaManter.Add('Trocar de sala (escolher outra chave .controlesala)');
   Pacote := ExpandConstant('{param:SALA|}');
   PaginaManter.Values[0] := Pacote = '';
   PaginaManter.Values[1] := Pacote <> '';
 
-  PaginaSala := CreateInputFilePage(PaginaManter.ID, 'Pacote da sala',
+  PaginaSala := CreateInputFilePage(PaginaManter.ID, 'Chave da sala',
     'Qual é a sala deste computador?',
-    'Escolha o arquivo da sala (.controlesala) que o professor gerou no programa dele (botão "Sala...").');
-  PaginaSala.Add('Arquivo da sala:', 'Pacote de sala do ControleSala|*.controlesala', '.controlesala');
+    'Escolha o arquivo da chave (.controlesala) que o professor gerou no programa dele.');
+  PaginaSala.Add('Arquivo da chave:', 'Chave da sala do ControleSala|*.controlesala', '.controlesala');
   if Pacote = '' then
     Pacote := PacoteNaPastaDoSetup;
   PaginaSala.Values[0] := Pacote;
 
-  PaginaSenha := CreateInputQueryPage(PaginaSala.ID, 'Senha do pacote',
-    'Digite a senha do pacote da sala',
-    'É a senha que o professor escolheu ao gerar o pacote.');
+  PaginaSenha := CreateInputQueryPage(PaginaSala.ID, 'Senha da chave',
+    'Digite a senha da chave da sala',
+    'É a senha que o professor escolheu ao gerar a chave.');
   PaginaSenha.Add('Senha:', True);
 
   { Arrastar e soltar o .controlesala na janela + uma dica visível na página da sala. }
@@ -502,8 +502,8 @@ begin
         ' quando a tela está sendo vista.'
     else
       WizardForm.FinishedLabel.Caption := 'O ControleSala foi instalado.' + #13#10#13#10 +
-        'Abra o programa, entre com o seu nome e clique em "Sala..." para criar a sala' +
-        ' e gerar o pacote dos computadores dos alunos.';
+        'Abra o programa, digite o seu nome e crie a sala. Depois, clique em "Gerar chave da sala"' +
+        ' para instalar nos computadores dos alunos.';
   end;
 end;
 

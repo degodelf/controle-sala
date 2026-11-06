@@ -75,12 +75,12 @@ static partial class Programa
         }
         catch (SenhaPacoteIncorretaException)
         {
-            Console.WriteLine("Senha do pacote da sala incorreta.");
+            Console.WriteLine("Senha da chave da sala incorreta.");
             return 3;
         }
         catch (Exception ex) when (ex is PacoteInvalidoException or IOException)
         {
-            Console.WriteLine($"Não foi possível ler o pacote da sala: {ex.Message}");
+            Console.WriteLine($"Não foi possível ler a chave da sala: {ex.Message}");
             return 4;
         }
 
@@ -269,7 +269,7 @@ static partial class Programa
             if (o.Saida != null) File.WriteAllText(o.Saida, sala.Escola + "\n" + sala.Sala);
             Console.WriteLine(o.ImportarSala != null
                 ? $"Sala \"{sala.Sala}\" ({sala.Escola}) configurada neste computador."
-                : $"Pacote da sala \"{sala.Sala}\" ({sala.Escola}) conferido.");
+                : $"Chave da sala \"{sala.Sala}\" ({sala.Escola}) conferida.");
             return 0;
         }
         catch (SenhaPacoteIncorretaException)

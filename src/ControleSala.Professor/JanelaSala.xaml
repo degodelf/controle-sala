@@ -16,8 +16,8 @@
 
             <Border BorderBrush="{DynamicResource PincelBorda}" BorderThickness="0,1,0,0" Margin="0,18,0,14"/>
             <TextBlock TextWrapping="Wrap" Foreground="{DynamicResource PincelTextoFraco}" Margin="0,0,0,8"
-                       Text="Já tem esta sala em OUTRO computador do professor? Não crie de novo — restaure a mesma chave a partir do pacote .controlesala (com a senha)."/>
-            <Button Content="Restaurar de um pacote..." Padding="14,7" HorizontalAlignment="Left" Click="Restaurar_Click"/>
+                       Text="Já tem esta sala em OUTRO computador do professor, ou este PC foi formatado? Não crie de novo: clique em Inserir chave e escolha o arquivo .controlesala (com a senha)."/>
+            <Button Content="Inserir chave..." Style="{StaticResource BotaoDiscreto}" HorizontalAlignment="Left" Click="Restaurar_Click"/>
         </StackPanel>
 
         <StackPanel x:Name="PainelPronta">
@@ -36,7 +36,7 @@
                 <TextBlock Text="Nome da sala"/>
                 <TextBox x:Name="CampoNovaSala" MaxLength="60" Margin="0,4,0,8" Padding="6,4"/>
                 <TextBlock TextWrapping="Wrap" Foreground="{DynamicResource PincelTextoFraco}" Margin="0,0,0,10"
-                           Text="Muda só os nomes. A chave da sala continua a mesma: os computadores seguem conectados e não precisa gerar outro pacote."/>
+                           Text="Muda só os nomes. A chave da sala continua a mesma: os computadores seguem conectados e não precisa gerar outro arquivo."/>
                 <WrapPanel>
                     <Button Content="Salvar nomes" Padding="14,7" Margin="0,0,8,0" Click="SalvarNomes_Click"/>
                     <Button Content="Cancelar" Padding="14,7" Click="CancelarNomes_Click"/>
@@ -44,12 +44,14 @@
             </StackPanel>
 
             <TextBlock TextWrapping="Wrap" Margin="0,0,0,10"
-                       Text="Para colocar um computador de aluno na sala: gere o pacote abaixo, copie para um pendrive e rode o ControleSala-Setup (opção Aluno) em cada PC. O instalador pede a senha do pacote."/>
-            <WrapPanel>
-                <Button Content="Gerar pacote para os alunos..." Padding="14,7" Margin="0,0,8,6" Click="GerarPacote_Click"/>
-                <Button Content="Restaurar de um pacote..." Padding="14,7" Margin="0,0,8,6" Click="Restaurar_Click"/>
-                <Button x:Name="BotaoRenomear" Content="Renomear..." Padding="14,7" Margin="0,0,0,6" Click="Renomear_Click"/>
-            </WrapPanel>
+                       Text="Para colocar um computador de aluno na sala: gere a chave abaixo, copie para um pendrive e rode o ControleSala-Setup (opção Aluno) em cada PC. O instalador pede a senha escolhida aqui."/>
+            <DockPanel LastChildFill="False">
+                <Button Content="Gerar chave da sala..." Style="{StaticResource BotaoPrincipal}" Padding="18,8" Click="GerarPacote_Click"/>
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Button Content="Inserir chave..." Style="{StaticResource BotaoDiscreto}" Click="Restaurar_Click"/>
+                    <Button x:Name="BotaoRenomear" Content="Renomear..." Style="{StaticResource BotaoDiscreto}" Margin="6,0,0,0" Click="Renomear_Click"/>
+                </StackPanel>
+            </DockPanel>
         </StackPanel>
 
         <TextBlock x:Name="TextoMensagem" Foreground="{DynamicResource PincelAviso}" TextWrapping="Wrap" MinHeight="20" Margin="0,10,0,0"/>

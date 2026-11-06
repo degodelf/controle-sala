@@ -54,7 +54,7 @@ As DLLs do FFmpeg (~107 MB) não ficam no git; o `terceiros/baixar-ffmpeg.ps1` a
 - Silencioso: `ControleSala-Setup-0.2.0.exe /VERYSILENT /TIPO=aluno /SALA="E:\Lab1.controlesala" /SENHA=... /NOME="PC 01"`
   (sem `/SALA` procura um `.controlesala` ao lado do Setup; sem `/SENHA` usa a variável `CONTROLESALA_SENHA`).
 - Teste sem administrador: `/CURRENTUSER` instala os arquivos mas **não** cria serviço nem regras de firewall.
-- Instalação silenciosa com pacote/senha errados não abre janela: encerra com código de saída diferente de 0
+- Instalação silenciosa com chave/senha erradas não abre janela: encerra com código de saída diferente de 0
   (veja o motivo com `/LOG=arquivo.log`).
 - Desinstalar (PC de aluno) também libera internet/sites que estavam bloqueados e remove a limpeza agendada
   (o desinstalador chama `ControleSala.Agente.exe --desfazer`).
@@ -70,7 +70,7 @@ Rode o Setup da versão nova **por cima** da instalada (mesmo `AppId`): os arqui
   os instaladores (`VerificadorAtualizacao.Repositorio`).
 - O instalador **lembra o tipo** do computador (professor/aluno) e não pergunta de novo. A 0.1.0 não guardava o
   tipo: nesse caso ele descobre pelo programa que está na pasta instalada.
-- **PC de aluno:** se já tem sala gravada, oferece **"Manter a sala atual"** (padrão) e não pede pacote nem senha;
+- **PC de aluno:** se já tem sala gravada, oferece **"Manter a sala atual"** (padrão) e não pede chave nem senha;
   escolha "Trocar de sala" só se o PC mudou de sala. O serviço é parado antes e religado depois.
 - **PC do professor:** sala, chave, professores, papel de parede, limpeza etc. ficam em `%AppData%\ControleSala` e não
   são tocados. Se o programa estiver aberto, o instalador pede para fechar.
@@ -116,10 +116,10 @@ gera sem assinatura (os alunos recusam esse Setup pela rede).
 
 1. No Professor, **Sala...** cria a sala (escola + nome) e uma **chave secreta** de 256 bits, guardada protegida
    pelo Windows (DPAPI) neste PC. **Renomear...** troca só os nomes: a chave continua a mesma, os computadores seguem
-   conectados e o pacote já gerado continua valendo.
-2. **Gerar pacote para os alunos...** grava um `.controlesala` protegido por uma **senha** escolhida na hora
+   conectados e o arquivo da chave já gerado continua valendo.
+2. **Gerar chave da sala...** grava um `.controlesala` protegido por uma **senha** escolhida na hora
    (PBKDF2-SHA256 600 mil voltas + AES-256-GCM). Leve no pendrive e apague depois.
-3. O instalador (opção Aluno) pede o pacote e a senha, confere e grava a chave em `%ProgramData%\ControleSala`
+3. O instalador (opção Aluno) pede o arquivo da chave e a senha, confere e grava a chave em `%ProgramData%\ControleSala`
    (só administrador e SYSTEM leem).
 4. Toda conexão faz um **aperto de mão** com a chave (HMAC-SHA256, nos dois sentidos: o professor também confere
    que o agente conhece a chave); depois o canal inteiro vai em **AES-256-GCM** (chaves derivadas com HKDF, uma
@@ -161,8 +161,8 @@ dotnet publish src/ControleSala.Professor -c Release -r win-x64 --self-contained
 
 No mesmo PC: abra `ControleSala.Agente.exe`, depois `ControleSala.Professor.exe` e clique em **Conectar**.
 
-Entre dois PCs (sem instalar): no Professor crie a sala e gere o pacote; no PC do aluno rode
-`ControleSala.Agente.exe --rede --sala <pacote> --senha <senha>` (o Windows vai pedir para liberar no firewall);
+Entre dois PCs (sem instalar): no Professor crie a sala e gere a chave; no PC do aluno rode
+`ControleSala.Agente.exe --rede --sala <arquivo.controlesala> --senha <senha>` (o Windows vai pedir para liberar no firewall);
 no Professor, **Computadores... → Procurar na rede...**. Feche o agente (Ctrl+C) ao terminar.
 
 Opções do agente: `--fps 30`, `--kbps 6000`, `--porta 47810`, `--encoder auto|h264_qsv|h264_mf|libopenh264`.

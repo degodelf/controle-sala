@@ -8,7 +8,7 @@ namespace ControleSala.Professor;
 /// <summary>Cria a sala (escola, nome e chave secreta) e gera o pacote protegido por senha que leva a chave aos PCs dos alunos.</summary>
 public partial class JanelaSala : Window
 {
-    const string FiltroPacote = "Pacote de sala do ControleSala|*.controlesala";
+    const string FiltroPacote = "Chave da sala do ControleSala|*.controlesala";
 
     public JanelaSala()
     {
@@ -102,14 +102,14 @@ public partial class JanelaSala : Window
         TextoMensagem.Text = "";
         if (Sessao.Sala is not { } sala) return;
 
-        var senha = new JanelaSenhaPacote("Senha do pacote",
-            "Escolha uma senha para proteger o pacote. Ela será pedida na instalação de cada computador de aluno. " +
-            "Anote em lugar seguro: sem ela o pacote não abre.", confirmar: true) { Owner = this };
+        var senha = new JanelaSenhaPacote("Senha da chave",
+            "Escolha uma senha para proteger a chave da sala. Ela será pedida na instalação de cada computador de aluno. " +
+            "Anote em lugar seguro: sem ela o arquivo não abre.", confirmar: true) { Owner = this };
         if (senha.ShowDialog() != true) return;
 
         var salvar = new SaveFileDialog
         {
-            Title = "Salvar pacote da sala",
+            Title = "Salvar chave da sala",
             Filter = FiltroPacote,
             FileName = NomeDeArquivo(sala.Sala) + ".controlesala",
         };
@@ -118,7 +118,7 @@ public partial class JanelaSala : Window
         try
         {
             File.WriteAllBytes(salvar.FileName, PacoteSala.Exportar(sala, senha.Senha));
-            TextoMensagem.Text = $"Pacote salvo em {salvar.FileName}. Leve no pendrive junto com o ControleSala-Setup e apague do pendrive depois de instalar. Guarde uma cópia em lugar seguro, com a senha anotada: ela traz a sala de volta se este PC for formatado.";
+            TextoMensagem.Text = $"Chave salva em {salvar.FileName}. Leve no pendrive junto com o ControleSala-Setup e apague do pendrive depois de instalar. Guarde uma cópia em lugar seguro, com a senha anotada: ela traz a sala de volta se este PC for formatado.";
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
@@ -129,10 +129,10 @@ public partial class JanelaSala : Window
     void Restaurar_Click(object sender, RoutedEventArgs e)
     {
         TextoMensagem.Text = "";
-        var abrir = new OpenFileDialog { Title = "Abrir pacote da sala", Filter = FiltroPacote };
+        var abrir = new OpenFileDialog { Title = "Abrir chave da sala", Filter = FiltroPacote };
         if (abrir.ShowDialog(this) != true) return;
 
-        var senha = new JanelaSenhaPacote("Senha do pacote", "Digite a senha que foi escolhida ao gerar o pacote.", confirmar: false) { Owner = this };
+        var senha = new JanelaSenhaPacote("Senha da chave", "Digite a senha que foi escolhida ao gerar a chave.", confirmar: false) { Owner = this };
         if (senha.ShowDialog() != true) return;
 
         ConfigSala nova;
@@ -153,7 +153,7 @@ public partial class JanelaSala : Window
 
         if (Sessao.Sala != null && Sessao.Sala.Impressao() != nova.Impressao()
             && MessageBox.Show(this,
-                $"Este computador já tem outra sala ({Sessao.Sala.Sala}).\n\nSubstituir pela sala \"{nova.Sala}\" do pacote? " +
+                $"Este computador já tem outra sala ({Sessao.Sala.Sala}).\n\nSubstituir pela sala \"{nova.Sala}\" desta chave? " +
                 "Os computadores de aluno que estão com a chave antiga deixarão de aceitar este professor.",
                 "Substituir a sala", MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes)
             return;

@@ -38,7 +38,7 @@ public partial class JanelaSenhaPacote : Window
         }
         else if (CampoSenha.Password.Length == 0)
         {
-            TextoErro.Text = "Digite a senha do pacote.";
+            TextoErro.Text = "Digite a senha.";
             return;
         }
         Senha = CampoSenha.Password;

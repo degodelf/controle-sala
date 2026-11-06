@@ -48,7 +48,7 @@ public static class PacoteSala
     public static byte[] Exportar(ConfigSala sala, string senha, int voltas = 600_000)
     {
         if (senha is null || senha.Length < SenhaMinima)
-            throw new ArgumentException($"A senha do pacote deve ter pelo menos {SenhaMinima} caracteres.");
+            throw new ArgumentException($"A senha da chave deve ter pelo menos {SenhaMinima} caracteres.");
 
         var cabecalho = new byte[TamCabecalho];
         Magia.CopyTo(cabecalho, 0);
@@ -68,11 +68,11 @@ public static class PacoteSala
     public static ConfigSala Importar(byte[] arquivo, string senha)
     {
         if (arquivo.Length < TamCabecalho + TamNonce + TamEtiqueta || !arquivo.AsSpan(0, Magia.Length).SequenceEqual(Magia))
-            throw new PacoteInvalidoException("Este arquivo não é um pacote de sala do ControleSala.");
+            throw new PacoteInvalidoException("Este arquivo não é uma chave de sala do ControleSala.");
 
         int voltas = System.Buffers.Binary.BinaryPrimitives.ReadInt32LittleEndian(arquivo.AsSpan(Magia.Length + TamSal));
         if (voltas is < 1 or > MaxVoltas)
-            throw new PacoteInvalidoException("Pacote de sala inválido.");
+            throw new PacoteInvalidoException("Chave de sala inválida.");
 
         var cabecalho = arquivo.AsSpan(0, TamCabecalho);
         var nonce = arquivo.AsSpan(TamCabecalho, TamNonce);
@@ -97,7 +97,7 @@ public static class PacoteSala
         }
         catch (Exception ex) when (ex is JsonException or FormatException)
         {
-            throw new PacoteInvalidoException("Pacote de sala danificado.");
+            throw new PacoteInvalidoException("Chave de sala danificada.");
         }
     }
 

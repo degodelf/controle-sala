@@ -22,7 +22,15 @@
                     <Border x:Name="b" CornerRadius="5" Background="{TemplateBinding Background}"
                             BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}">
                         <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
-                                          Margin="{TemplateBinding Padding}"/>
+                                          Margin="{TemplateBinding Padding}">
+                            <!-- O estilo geral de TextBlock fixa a cor do texto: aqui o texto segue a cor do botão. -->
+                            <ContentPresenter.Resources>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Foreground" Value="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                                    <Setter Property="TextOptions.TextFormattingMode" Value="Ideal"/>
+                                </Style>
+                            </ContentPresenter.Resources>
+                        </ContentPresenter>
                     </Border>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
@@ -40,6 +48,12 @@
                 </ControlTemplate>
             </Setter.Value>
         </Setter>
+    </Style>
+
+    <!-- Botão discreto: para as opções secundárias, ao lado da ação principal. Fundo e borda leves; o texto segue legível. -->
+    <Style x:Key="BotaoDiscreto" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+        <Setter Property="Background" Value="{DynamicResource PincelSuperficie}"/>
+        <Setter Property="Padding" Value="12,6"/>
     </Style>
 
     <!-- Botão principal (azul): para a ação mais importante de cada janela (Enviar, Entrar...). -->
