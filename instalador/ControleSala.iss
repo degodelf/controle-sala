@@ -6,6 +6,7 @@
 ;   Professor:  ControleSala-Setup-0.1.0.exe /VERYSILENT /TIPO=professor
 ;   Aluno:      ControleSala-Setup-0.1.0.exe /VERYSILENT /TIPO=aluno /SALA="E:\Laboratorio1.controlesala" /SENHA=senha-do-pacote
 ;               (sem /SALA, procura um .controlesala na pasta do Setup; sem /SENHA, usa a variável CONTROLESALA_SENHA)
+;               /NOME="PC 01" define como o PC aparece para o professor (sem ele, fica o nome que já estava, ou o do Windows)
 ; Atualizar (Setup novo por cima do antigo): ControleSala-Setup-x.y.z.exe /VERYSILENT
 ;   lembra se o PC é de professor ou de aluno e mantém a sala, os professores e as configurações.
 
@@ -38,6 +39,7 @@ ArchitecturesInstallIn64BitMode=x64compatible
 WizardStyle=modern
 SetupIconFile=controlesala.ico
 UninstallDisplayIcon={app}\controlesala.ico
+LicenseFile=..\LICENSE.txt
 OutputDir=saida
 OutputBaseFilename=ControleSala-Setup-{#Versao}
 Compression=lzma2/max
@@ -62,6 +64,7 @@ Name: "iconedesktop"; Description: "Criar um atalho na área de trabalho"; Check
 ; Bibliotecas de vídeo (FFmpeg, LGPL) e o ícone: valem para os dois tipos de computador.
 Source: "{#PastaFFmpeg}\*"; DestDir: "{app}"; Flags: ignoreversion
 Source: "controlesala.ico"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\LICENSE.txt"; DestDir: "{app}"; DestName: "LICENCA.txt"; Flags: ignoreversion
 
 ; Professor: o programa de controle (WPF) e as bibliotecas dele.
 Source: "{#PastaPublicar}\Professor\*"; DestDir: "{app}"; Excludes: "avcodec*.dll,avutil*.dll,swresample*.dll,swscale*.dll,LICENSE-FFmpeg-LGPL.txt"; Flags: ignoreversion recursesubdirs; Check: EhProfessor
@@ -85,6 +88,7 @@ Type: filesandordirs; Name: "{app}"
 [Code]
 const
   NomeServico = 'ControleSalaAgente';
+  TarefaVigia = 'ControleSala Vigia';
   RegraAgente = 'ControleSala Agente (video)';
   RegraProfessor = 'ControleSala Professor (busca na rede)';
   PortaVideo = '47810';
@@ -115,13 +119,17 @@ procedure DragFinish(hDrop: LongInt);
 
 var
   PaginaTipo: TInputOptionWizardPage;
+  PaginaNome: TInputQueryWizardPage;
   PaginaManter: TInputOptionWizardPage;
   PaginaSala: TInputFileWizardPage;
   PaginaSenha: TInputQueryWizardPage;
   SalaEscola, SalaNome: String;
   TipoAnterior: String;             { 'professor' ou 'aluno' da instalação anterior; vazio = primeira instalação }
   AtualEscola, AtualNome: String;   { sala já gravada neste PC de aluno (atualização) }
+  AtualPc: String;                  { nome deste PC já escolhido numa instalação anterior }
+  VigiaDesligada: Boolean;          { a tarefa vigia foi desligada para trocar os arquivos do agente }
   WndProcAntigo: LongInt;           { procedimento de janela original, para o arrastar-e-soltar }
+  JanelaAssistente: HWND;           { janela que recebeu o arrastar-e-soltar }
   PrecisaReiniciar: Boolean;        { True quando o agente não conseguiu abrir a porta na hora (10013): pede para reiniciar }
 
 { Recebe um arquivo arrastado para a janela: se for .controlesala, preenche o campo da sala. }
@@ -163,7 +171,17 @@ begin
   { O instalador roda elevado: sem isto o Windows (UIPI) bloqueia arquivos arrastados do Explorer comum. }
   ChangeWindowMessageFilterEx(WizardForm.Handle, WM_DROPFILES, MSGFLT_ALLOW, 0);
   ChangeWindowMessageFilterEx(WizardForm.Handle, WM_COPYGLOBALDATA, MSGFLT_ALLOW, 0);
-  WndProcAntigo := SetWindowLong(WizardForm.Handle, GWL_WNDPROC, CreateCallback(@WndProcHook));
+  JanelaAssistente := WizardForm.Handle;
+  WndProcAntigo := SetWindowLong(JanelaAssistente, GWL_WNDPROC, CreateCallback(@WndProcHook));
+end;
+
+{ Devolve a janela ao procedimento original. Sem isto, a janela chama o código do instalador depois que ele já foi
+  descarregado: o Setup fecha com erro (0xC000041D) e deixa a pasta temporária para trás. }
+procedure DesligarArrastarSoltar;
+begin
+  if WndProcAntigo = 0 then Exit;
+  SetWindowLong(JanelaAssistente, GWL_WNDPROC, WndProcAntigo);
+  WndProcAntigo := 0;
 end;
 
 { ---------- tipo de computador, arquivo e senha (assistente ou linha de comando) ---------- }
@@ -199,6 +217,15 @@ begin
     Result := Trim(PaginaSala.Values[0]);
   if Result = '' then
     Result := ExpandConstant('{param:SALA|}');
+end;
+
+{ O nome digitado no assistente, ou /NOME= na linha de comando. Vazio = fica o que já estava gravado. }
+function NomeDoComputador: String;
+begin
+  Result := ExpandConstant('{param:NOME|}');
+  if (Result = '') and (not WizardSilent) then
+    Result := Trim(PaginaNome.Values[0]);
+  StringChangeEx(Result, '"', '', True);
 end;
 
 function SenhaDoPacote: String;
@@ -247,6 +274,7 @@ var
 begin
   AtualEscola := '';
   AtualNome := '';
+  AtualPc := '';
   if (not IsAdminInstallMode) or (not FileExists(ExpandConstant('{commonappdata}\ControleSala\agente.json'))) then
     Exit;
   ExtrairAgenteTemporario;
@@ -257,6 +285,8 @@ begin
   begin
     AtualEscola := Linhas[0];
     AtualNome := Linhas[1];
+    if GetArrayLength(Linhas) >= 3 then
+      AtualPc := Linhas[2];
   end;
 end;
 
@@ -354,7 +384,18 @@ begin
 
   { Atualização de PC de aluno: oferece manter a sala que já está gravada. }
   LerSalaAtual;
-  PaginaManter := CreateInputOptionPage(PaginaTipo.ID, 'Sala deste computador',
+
+  PaginaNome := CreateInputQueryPage(PaginaTipo.ID, 'Nome deste computador',
+    'Como este computador vai aparecer para o professor?',
+    'O programa do professor usa este nome e deixa a lista em ordem. O nome do Windows não muda.');
+  PaginaNome.Add('Nome (exemplo: PC 01):', False);
+  PaginaNome.Edits[0].MaxLength := 40;
+  if AtualPc <> '' then
+    PaginaNome.Values[0] := AtualPc
+  else
+    PaginaNome.Values[0] := GetComputerNameString;
+
+  PaginaManter := CreateInputOptionPage(PaginaNome.ID, 'Sala deste computador',
     'Este computador já faz parte de uma sala.',
     'Na atualização, o normal é manter a sala. Escolha trocar só se este computador mudou de sala.', True, False);
   PaginaManter.Add('Manter a sala atual: "' + AtualNome + '" (' + AtualEscola + ')');
@@ -401,10 +442,13 @@ end;
 
 function ShouldSkipPage(PageID: Integer): Boolean;
 begin
-  Result := False;
+  { a licença foi aceita na primeira instalação }
+  Result := (PageID = wpLicense) and Atualizacao;
   { na atualização o tipo do computador já é conhecido (para trocar de tipo, desinstale antes) }
   if PageID = PaginaTipo.ID then
     Result := Atualizacao and (ExpandConstant('{param:TIPO|}') = '');
+  if PageID = PaginaNome.ID then
+    Result := not EhAluno;
   if PageID = PaginaManter.ID then
     Result := (not EhAluno) or (AtualNome = '');
   if (PageID = PaginaSala.ID) or (PageID = PaginaSenha.ID) then
@@ -416,6 +460,11 @@ var
   Erro: String;
 begin
   Result := True;
+  if (CurPageID = PaginaNome.ID) and ((Trim(PaginaNome.Values[0]) = '') or (Pos('"', PaginaNome.Values[0]) > 0)) then
+  begin
+    MsgBox('Digite o nome deste computador, sem aspas. Exemplo: PC 01', mbError, MB_OK);
+    Result := False;
+  end;
   if CurPageID = PaginaSenha.ID then
   begin
     WizardForm.Cursor := crHourGlass;
@@ -476,6 +525,11 @@ begin
   Result := Executar(ExpandConstant('{sys}\netsh.exe'), Parametros);
 end;
 
+function Schtasks(Parametros: String): Integer;
+begin
+  Result := Executar(ExpandConstant('{sys}\schtasks.exe'), Parametros);
+end;
+
 { Reserva a porta do agente para o ControleSala. Em alguns PCs o Windows (Hyper-V/virtualização) reserva faixas de
   portas e BLOQUEIA o "bind" do agente (erro de soquete 10013) — aí o agente não liga e o PC não aparece no professor.
   Se a reserva direta falhar (a porta está dentro de uma faixa dinâmica), solta o winnat, reserva e religa.
@@ -499,6 +553,8 @@ procedure PararAgente;
 var
   i: Integer;
 begin
+  { Sem isto a vigia religaria o agente no meio da troca de arquivos. }
+  VigiaDesligada := Schtasks('/change /tn "' + TarefaVigia + '" /disable') = 0;
   if ServicoExiste then
   begin
     Sc('stop ' + NomeServico);
@@ -552,7 +608,7 @@ end;
 
 procedure ConfigurarAluno;
 var
-  Exe: String;
+  Exe, Servico, Nome: String;
   Codigo: Integer;
   SalaGravada: Boolean;
 begin
@@ -587,6 +643,11 @@ begin
     Exit;
   end;
 
+  { 1b) o nome deste PC para o professor (na atualização pela rede não vem nome: fica o que já estava) }
+  Nome := NomeDoComputador;
+  if Nome <> '' then
+    Executar(Exe, '--definir-nome "' + Nome + '"');
+
   { 2) firewall: só a rede local (sub-rede) pode conectar no agente }
   Netsh('advfirewall firewall delete rule name="' + RegraAgente + '"');
   Netsh('advfirewall firewall add rule name="' + RegraAgente + '" dir=in action=allow program="' + Exe +
@@ -596,12 +657,22 @@ begin
   ReservarPorta;
 
   { 3) serviço do Windows: liga com o PC e reinicia sozinho se cair }
+  { Serviço que já existe é só reconfigurado: apagar e recriar falha (erro 1072) se algo estiver com o serviço aberto. }
+  Servico := NomeServico + ' binPath= "\"' + Exe + '\" --servico" start= auto DisplayName= "ControleSala (agente da sala)"';
   if ServicoExiste then
-    Sc('delete ' + NomeServico);
-  Sc('create ' + NomeServico + ' binPath= "\"' + Exe + '\" --servico" start= auto DisplayName= "ControleSala (agente da sala)"');
+    Sc('config ' + Servico)
+  else
+    Sc('create ' + Servico);
   Sc('description ' + NomeServico + ' "Permite ao professor da sala ver a tela deste computador. ControleSala, criado pelo professor {#Autor}."');
   Sc('failure ' + NomeServico + ' reset= 86400 actions= restart/5000/restart/5000/restart/30000');
+  Sc('failureflag ' + NomeServico + ' 1');
   Sc('start ' + NomeServico);
+
+  { 4) vigia: a cada minuto tenta ligar o serviço. O Windows não religa sozinho um serviço que demorou demais para subir
+       (pode acontecer em PC lento logo depois de ligar); para um serviço já ligado, o comando não faz nada. }
+  Schtasks('/create /tn "' + TarefaVigia + '" /sc minute /mo 1 /ru SYSTEM /rl HIGHEST /f /tr "\"' +
+           ExpandConstant('{sys}\sc.exe') + '\" start ' + NomeServico + '"');
+  VigiaDesligada := False;
 
   { Se o agente não conseguiu abrir a porta (Windows a bloqueou, erro 10013), a reserva só vale após reiniciar. }
   if not AgenteEscutando then
@@ -648,6 +719,14 @@ begin
   end;
 end;
 
+{ Instalação interrompida depois de parar o agente: a vigia volta a valer e religa o serviço. }
+procedure DeinitializeSetup;
+begin
+  DesligarArrastarSoltar;
+  if VigiaDesligada then
+    Schtasks('/change /tn "' + TarefaVigia + '" /enable');
+end;
+
 { ---------- desinstalação ---------- }
 
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
@@ -658,6 +737,7 @@ begin
   begin
     if IsAdminInstallMode then
     begin
+      Schtasks('/delete /tn "' + TarefaVigia + '" /f');
       { libera internet/sites bloqueados e tira a limpeza agendada, antes de apagar o agente }
       if FileExists(ExpandConstant('{app}\{#ExeAgente}')) then
         Executar(ExpandConstant('{app}\{#ExeAgente}'), '--desfazer');

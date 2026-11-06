@@ -139,8 +139,24 @@ abstract class TelaCheiaEscura : Form
 
     protected static Image? CarregarImagem(string? caminho)
     {
-        if (string.IsNullOrEmpty(caminho) || !File.Exists(caminho)) return null;
-        try { using var fs = File.OpenRead(caminho); return Image.FromStream(fs); }
+        if (string.IsNullOrEmpty(caminho) || !File.Exists(caminho)) return LogoDoPrograma();
+        try
+        {
+            using var fs = File.OpenRead(caminho);
+            using var lida = Image.FromStream(fs);
+            return new Bitmap(lida); // cópia: a imagem lida depende do arquivo aberto
+        }
+        catch (Exception) { return LogoDoPrograma(); }
+    }
+
+    /// <summary>Enquanto a escola não tem logotipo: o ícone do ControleSala, que o instalador deixa ao lado do agente.</summary>
+    static Image? LogoDoPrograma()
+    {
+        try
+        {
+            using var icone = new Icon(Path.Combine(AppContext.BaseDirectory, "controlesala.ico"), 256, 256);
+            return icone.ToBitmap();
+        }
         catch (Exception) { return null; }
     }
 

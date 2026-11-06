@@ -32,9 +32,11 @@ sealed class AutoAtualizadorAlunos(Func<IReadOnlyList<ConexaoComputador>> conexo
     public async Task RetomarAsync()
     {
         if (AtualizacaoPendente.Carregar() is not { } p) return;
-        try { _instalador = await Atualizacoes.PrepararAsync(p.Caminho, CancellationToken.None); }
-        catch (ArgumentException) { AtualizacaoPendente.Limpar(); }   // sem assinatura/arquivo: desiste em silêncio
-        catch (Exception e) when (e is IOException or UnauthorizedAccessException) { }
+        // Vale o instalador mais novo guardado aqui, não o anotado: este PC pode ter sido atualizado por outro caminho.
+        string? caminho = await Atualizacoes.InstaladorMaisNovoAsync(p.Caminho, Atualizacoes.CaminhoBaixado, Atualizacoes.CaminhoPadrao);
+        if (caminho == null) { AtualizacaoPendente.Limpar(); return; }   // sem assinatura/arquivo: desiste em silêncio
+        try { Ativar(await Atualizacoes.PrepararAsync(caminho, CancellationToken.None)); }
+        catch (Exception e) when (e is ArgumentException or IOException or UnauthorizedAccessException) { }
     }
 
     /// <summary>Chamado de tempos em tempos: envia a quem está online e ainda desatualizado; avisa quem já voltou atualizado.</summary>

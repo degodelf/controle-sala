@@ -36,8 +36,12 @@ sealed class TileVm : INotifyPropertyChanged
     public string Nome => Conexao.Dados.Nome;
     public string Endereco => $"{Conexao.Dados.Endereco}:{Conexao.Dados.Porta}";
 
-    /// <summary>Avisa a grade que o nome do computador mudou (ex.: após renumerar), sem recriar a conexão.</summary>
-    public void AtualizarNome() => Mudou(nameof(Nome));
+    /// <summary>Avisa a grade que o nome ou o endereço do computador mudou, sem recriar a conexão.</summary>
+    public void AtualizarDados()
+    {
+        Mudou(nameof(Nome));
+        Mudou(nameof(Endereco));
+    }
 
     public TileVm(ConexaoComputador conexao) => Conexao = conexao;
 

@@ -42,13 +42,22 @@ sealed class AgendadorLimpeza : IDisposable
         lock (_trava) { if (_ocupado || _encerrado) return; _ocupado = true; }
         try
         {
-            var config = LimpezaConfig.Carregar(Path.Combine(LimpezaExecutor.PastaDados, "limpeza.json"));
+            string caminhoConfig = Path.Combine(LimpezaExecutor.PastaDados, "limpeza.json");
+            var config = LimpezaConfig.Carregar(caminhoConfig);
             var estado = LerEstado();
+            if (!config.Agendada && estado.AdiadoPara != null)
+            {
+                estado.AdiadoPara = null; // pausada: esquece o adiamento, senão limparia fora de hora ao retomar
+                SalvarEstado(estado);
+            }
             if (!AgendaLimpeza.DeveRodar(config, DateTime.Now, estado.UltimaExecucao, estado.AdiadoPara)) return;
             if (LancadorNaSessao.SessaoAtiva() == uint.MaxValue) return; // ninguém usando o PC
 
             var escolha = JanelasAluno.PerguntarLimpeza(SegundosAviso,
                 File.Exists(LimpezaExecutor.CaminhoImagemLimpeza) ? LimpezaExecutor.CaminhoImagemLimpeza : null);
+
+            config = LimpezaConfig.Carregar(caminhoConfig); // o professor pode ter pausado com o aviso na tela
+            if (!config.Agendada) return;
 
             if (escolha == ResultadoAviso.Adiar)
             {

@@ -1,5 +1,7 @@
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using ControleSala.Comum;
 
@@ -28,14 +30,20 @@ static class Sessao
         Atual = professor;
     }
 
+    // Criado na primeira vez que é usado: a pasta de dados pode ser trocada por --dados ao abrir o programa.
+    static readonly Lazy<RegistroAtividades> _atividades = new(() => new RegistroAtividades());
+    public static RegistroAtividades Atividades => _atividades.Value;
+
+    /// <summary>Anota no registro de atividades o que o professor atual fez.</summary>
+    public static void Registrar(string acao, string computador = "", string detalhe = "") =>
+        Atividades.Registrar(Atual?.Nome ?? "(sem professor)", acao, computador, detalhe);
+
     // ---- limpeza: configuração + imagens enviadas aos agentes ----
 
     public sealed record PacoteLimpezaDados(string Json, byte[]? PapelDeParede, byte[]? ImagemLimpeza);
 
     /// <summary>Caminho do papel de parede composto (fundo + logo) que vai para os alunos.</summary>
     public static string CaminhoPapelComposto => System.IO.Path.Combine(Pastas.Dados, "papel-de-parede.png");
-    /// <summary>Caminho da imagem mostrada durante a limpeza.</summary>
-    public static string CaminhoImagemLimpeza => System.IO.Path.Combine(Pastas.Dados, "imagem-limpeza.png");
 
     public static PacoteLimpezaDados? PacoteLimpeza { get; private set; }
 
@@ -44,8 +52,27 @@ static class Sessao
     {
         var config = LimpezaConfig.Carregar();
         byte[]? papel = config.RestaurarPapelDeParede ? LerSeExiste(CaminhoPapelComposto) : null;
-        byte[]? imagem = LerSeExiste(CaminhoImagemLimpeza);
-        PacoteLimpeza = new PacoteLimpezaDados(config.Serializar(), papel, imagem);
+        PacoteLimpeza = new PacoteLimpezaDados(config.Serializar(), papel, LogoParaLimpeza());
+    }
+
+    /// <summary>O logotipo da escola (o do papel de parede) em tamanho leve, porque é reenviado a cada PC que conecta.</summary>
+    static byte[]? LogoParaLimpeza()
+    {
+        if (ConfigPapelDeParede.Carregar().Logo is not { Length: > 0 } caminho) return null;
+        try
+        {
+            var logo = PapelDeParede.CarregarImagem(caminho);
+            double escala = Math.Min(1, 512.0 / Math.Max(logo.PixelWidth, logo.PixelHeight));
+            var codificador = new PngBitmapEncoder();
+            codificador.Frames.Add(BitmapFrame.Create(new TransformedBitmap(logo, new ScaleTransform(escala, escala))));
+            using var memoria = new System.IO.MemoryStream();
+            codificador.Save(memoria);
+            return memoria.ToArray();
+        }
+        catch (Exception)
+        {
+            return null; // logo apagado ou inválido: a tela de limpeza usa o ícone do programa
+        }
     }
 
     static byte[]? LerSeExiste(string caminho)

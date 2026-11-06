@@ -11,7 +11,7 @@ public partial class JanelaSobre : Window
         InitializeComponent();
         string versao = Assembly.GetEntryAssembly()?.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
             ?? "?";
-        TextoVersao.Text = $"Versão {versao.Split('+')[0]} (prova de conceito)";
+        TextoVersao.Text = $"Versão {versao.Split('+')[0]}";
         TextoAutor.Text = Creditos.Autor;
         TextoComponentes.Text =
             $"FFmpeg {FFmpegNativo.Versao} — LGPL v3 (texto em LICENSE-FFmpeg-LGPL.txt, na pasta do programa)\n" +

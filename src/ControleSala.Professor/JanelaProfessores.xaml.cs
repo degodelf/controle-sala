@@ -58,7 +58,7 @@ public partial class JanelaProfessores : Window
         if (new JanelaNovoProfessor(_repositorio, ModoPerfil.TrocarPin, perfil) { Owner = this }.ShowDialog() == true)
         {
             Atualizar();
-            TextoMensagem.Text = $"Senha de {perfil.Nome} definida.";
+            TextoMensagem.Text = RepositorioPerfis.TemPin(perfil) ? $"Senha de {perfil.Nome} definida." : "";
         }
     }
 

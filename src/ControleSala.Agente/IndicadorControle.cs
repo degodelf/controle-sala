@@ -4,14 +4,15 @@ using System.Windows.Forms;
 namespace ControleSala.Agente;
 
 /// <summary>
-/// Aviso de transparência: enquanto o professor estiver controlando (mouse/teclado), aparece uma faixa no topo da
-/// tela do aluno ("Prof. X está controlando este computador"). Some sozinha pouco depois do último evento.
+/// Aviso de transparência: enquanto o professor estiver com esta tela aberta em tamanho grande, ou controlando (mouse/teclado),
+/// aparece uma faixa no topo da tela do aluno. Some sozinha quando ele fecha a tela e para de controlar.
 /// </summary>
 static class IndicadorControle
 {
     const long OciosoMs = 2500;
     static long _ultimo;
     static volatile string? _professor;
+    static volatile string[] _vendo = [];
     static volatile bool _ativo;
     static AvisoControleForm? _form;
 
@@ -23,6 +24,18 @@ static class IndicadorControle
     {
         _professor = professor;
         Interlocked.Exchange(ref _ultimo, Environment.TickCount64);
+        Ligar();
+    }
+
+    /// <summary>Quem está com esta tela aberta em tamanho grande agora.</summary>
+    public static void DefinirVisao(string[] professores)
+    {
+        _vendo = professores;
+        if (professores.Length > 0) Ligar();
+    }
+
+    static void Ligar()
+    {
         if (_ativo) return;
         _ativo = true;
         InterfaceAgente.Postar(Mostrar);
@@ -31,15 +44,22 @@ static class IndicadorControle
     static void Mostrar()
     {
         _form ??= new AvisoControleForm();
-        _form.Atualizar(_professor);
         _form.Mostrar();
     }
 
+    static bool Controlando => Environment.TickCount64 - Ultimo < OciosoMs;
+
     internal static void MarcarInativo() => _ativo = false;
-    internal static bool AindaAtivo => Environment.TickCount64 - Ultimo < OciosoMs;
+    internal static bool AindaAtivo => Controlando || _vendo.Length > 0;
+
+    internal static string TextoAtual => Controlando
+        ? $"{Quem(_professor)} está controlando este computador"
+        : $"{Quem(string.Join(", ", _vendo))} está vendo esta tela";
+
+    static string Quem(string? professor) => string.IsNullOrWhiteSpace(professor) ? "O professor" : professor;
 }
 
-/// <summary>Faixa fina no topo da tela avisando que o computador está sendo controlado.</summary>
+/// <summary>Faixa fina no topo da tela avisando que o computador está sendo visto de perto ou controlado.</summary>
 sealed class AvisoControleForm : Form
 {
     readonly Label _texto;
@@ -60,17 +80,16 @@ sealed class AvisoControleForm : Form
             Font = new Font("Segoe UI Semibold", 10.5f), TextAlign = ContentAlignment.MiddleCenter,
         };
         Controls.Add(_texto);
-        _relogio.Tick += (_, _) => { if (!IndicadorControle.AindaAtivo) Esconder(); };
-    }
-
-    public void Atualizar(string? professor)
-    {
-        string quem = string.IsNullOrWhiteSpace(professor) ? "O professor" : professor!;
-        _texto.Text = $"🖱  {quem} está controlando este computador";
+        _relogio.Tick += (_, _) =>
+        {
+            if (IndicadorControle.AindaAtivo) _texto.Text = IndicadorControle.TextoAtual;
+            else Esconder();
+        };
     }
 
     public void Mostrar()
     {
+        _texto.Text = IndicadorControle.TextoAtual;
         var area = Screen.PrimaryScreen?.WorkingArea ?? new Rectangle(0, 0, 1366, 768);
         Location = new Point(area.Left + (area.Width - Width) / 2, area.Top + 8);
         if (!Visible) Show();

@@ -29,18 +29,26 @@ public partial class MainWindow : Window
         {
             IniciarAutoAtualizacao();
             MostrarConclusaoAtualizacao();
-            _ = VerificarAtualizacaoAsync();
+            _ = VerificarAtualizacaoAsync(abrirAviso: true);
+            _ = VigiarEnderecosAsync();
         }
     }
 
+    void MenuRegras_Click(object sender, RoutedEventArgs e) =>
+        new JanelaRegrasDeUso(pedirAceite: false) { Owner = this, WindowStartupLocation = WindowStartupLocation.CenterOwner }.ShowDialog();
+
+    void MenuAtividades_Click(object sender, RoutedEventArgs e) => new JanelaAtividades { Owner = this }.ShowDialog();
+
     AtualizacaoDisponivel? _novaVersao;
     bool _avisouVersaoNova;
+    readonly CancellationTokenSource _fimDasVigias = new();
 
     // --- Atualização online (aviso central, auto-update dos alunos, aviso de "concluído") ---
 
     AutoAtualizadorAlunos? _auto;
     DispatcherTimer? _relogioAuto;
     DispatcherTimer? _relogioAviso;
+    DispatcherTimer? _relogioVersao;
 
     void IniciarAutoAtualizacao()
     {
@@ -49,6 +57,41 @@ public partial class MainWindow : Window
         _relogioAuto = new DispatcherTimer { Interval = TimeSpan.FromSeconds(6) };
         _relogioAuto.Tick += (_, _) => _auto?.Verificar();
         _relogioAuto.Start();
+        // Programa aberto por muito tempo: a faixa do topo acompanha a última versão sem interromper a aula.
+        _relogioVersao = new DispatcherTimer { Interval = TimeSpan.FromHours(1) };
+        _relogioVersao.Tick += (_, _) => _ = VerificarAtualizacaoAsync(abrirAviso: false);
+        _relogioVersao.Start();
+    }
+
+    /// <summary>
+    /// Ouve os anúncios dos agentes: um PC da lista que não conecta e aparece em outro IP tem o endereço corrigido sozinho.
+    /// O anúncio não é autenticado, mas conectar continua exigindo a chave da sala, e PC online nunca é mexido.
+    /// </summary>
+    async Task VigiarEnderecosAsync()
+    {
+        while (!_fimDasVigias.IsCancellationRequested)
+        {
+            try
+            {
+                await Descoberta.EscutarAsync(CorrigirEndereco, ct: _fimDasVigias.Token);
+            }
+            catch (Exception e) when (e is System.Net.Sockets.SocketException or System.IO.IOException or UnauthorizedAccessException)
+            {
+                try { await Task.Delay(TimeSpan.FromSeconds(10), _fimDasVigias.Token); }
+                catch (OperationCanceledException) { }
+            }
+        }
+    }
+
+    void CorrigirEndereco(AgenteEncontrado achado)
+    {
+        if (_sala.MudouDeEndereco(achado) is not { } computador) return;
+        var tile = _tiles.FirstOrDefault(t => t.Conexao.Dados == computador);
+        if (tile == null || tile.Conexao.Estado == EstadoConexao.Online) return;
+        _sala.DefinirEndereco(computador, achado.Endereco);
+        tile.AtualizarDados();
+        tile.Conexao.Reconectar();
+        MostrarAviso($"{computador.Nome}: endereço atualizado para {achado.Endereco} ✓");
     }
 
     /// <summary>Ao reabrir depois de instalar a atualização deste PC: confirma na barra de status.</summary>
@@ -74,14 +117,14 @@ public partial class MainWindow : Window
     }
 
     /// <summary>Checa o GitHub, sem travar nada, e mostra o aviso se houver versão nova.</summary>
-    async Task VerificarAtualizacaoAsync()
+    async Task VerificarAtualizacaoAsync(bool abrirAviso)
     {
         var nova = await VerificadorAtualizacao.VerificarAsync(Versoes.Atual);
         if (nova == null) return;
         _novaVersao = nova;
         TextoBanner.Text = $"Nova versão disponível: {nova.Versao} (você tem a {Versoes.Atual}).";
         BannerAtualizacao.Visibility = Visibility.Visible;
-        if (!_avisouVersaoNova)   // aviso no meio da tela, só uma vez por abertura do programa
+        if (abrirAviso && !_avisouVersaoNova)   // aviso no meio da tela, só uma vez por abertura do programa
         {
             _avisouVersaoNova = true;
             AbrirJanelaNovaVersao(nova);
@@ -126,7 +169,7 @@ public partial class MainWindow : Window
         {
             if (porDados.Remove(c, out var existente))
             {
-                existente.AtualizarNome(); // reflete um rename (ex.: renumerar) sem recriar a conexão
+                existente.AtualizarDados(); // reflete um rename (ex.: renumerar) sem recriar a conexão
                 novos.Add(existente);
             }
             else
@@ -311,11 +354,13 @@ public partial class MainWindow : Window
     void Limpeza_Click(object sender, RoutedEventArgs e)
     {
         var janela = new JanelaLimpeza { Owner = this };
-        janela.ShowDialog();
-        if (janela.Salvou)
+        janela.Salvou += () =>
+        {
             foreach (var t in _tiles.Where(t => t.Conexao.Estado == EstadoConexao.Online))
                 t.Conexao.ReenviarConfigLimpeza();
-        AtualizarAgendaLimpeza();
+            AtualizarAgendaLimpeza();
+        };
+        janela.ShowDialog();
     }
 
     void TextoLimpeza_Click(object sender, MouseButtonEventArgs e) => Limpeza_Click(sender, e);
@@ -325,7 +370,8 @@ public partial class MainWindow : Window
     {
         var c = LimpezaConfig.Carregar();
         bool ligada = c.Agendada && c.Dias.Count > 0;
-        TextoLimpeza.Text = ligada ? $"🧹 Limpeza: {c.ResumoAgenda()}" : "🧹 Limpeza: desligada";
+        TextoLimpeza.Text = ligada ? $"🧹 Limpeza: {c.ResumoAgenda()}"
+            : c.Dias.Count > 0 ? "🧹 Limpeza: pausada" : "🧹 Limpeza: desligada";
         TextoLimpeza.Foreground = (Brush)FindResource(ligada ? "PincelTexto" : "PincelTextoFraco");
     }
 
@@ -336,6 +382,7 @@ public partial class MainWindow : Window
     void AoRenderizar(object? sender, EventArgs e)
     {
         int online = 0;
+        bool renomeou = false;
         foreach (var t in _tiles)
         {
             // Com a tela aberta em tamanho grande, quem desenha é a janela dela.
@@ -344,6 +391,12 @@ public partial class MainWindow : Window
             t.AtualizarEstado();
             if (t.Conexao.Estado == EstadoConexao.Online) online++;
             if (t.Conexao.Mac is { } mac) _sala.DefinirMac(t.Conexao.Dados, mac); // guarda o MAC assim que chega (para Wake-on-LAN)
+            if (t.Conexao.NomeEscolhido is { } nome && _sala.AplicarNomeEscolhido(t.Conexao.Dados, nome)) renomeou = true;
+        }
+        if (renomeou)
+        {
+            _sala.OrdenarPorNome();
+            ReconstruirGrade();
         }
         string texto = _tiles.Count == 0 ? "" : $"{online} de {_tiles.Count} online";
         if (texto != _ultimoTextoEstado)
@@ -601,7 +654,13 @@ public partial class MainWindow : Window
         }
         var tela = new JanelaTelaCheia(tile.Conexao) { Owner = this };
         _telasAbertas[tile.Conexao] = tela;
-        tela.Closed += (_, _) => _telasAbertas.Remove(tile.Conexao);
+        var abertaEm = DateTime.Now;
+        Sessao.Registrar("Abriu a tela (ver e controlar)", tile.Nome);
+        tela.Closed += (_, _) =>
+        {
+            _telasAbertas.Remove(tile.Conexao);
+            Sessao.Registrar("Fechou a tela", tile.Nome, $"{Math.Max(1, (int)Math.Round((DateTime.Now - abertaEm).TotalMinutes))} min");
+        };
         tela.Show();
     }
 
@@ -616,12 +675,12 @@ public partial class MainWindow : Window
 
     void BotaoTrocar_Click(object sender, RoutedEventArgs e)
     {
-        var entrar = new JanelaEntrar(Sessao.Repositorio) { Owner = this, WindowStartupLocation = WindowStartupLocation.CenterOwner };
-        if (entrar.ShowDialog() == true && entrar.Escolhido != null)
-        {
-            Sessao.Iniciar(Sessao.Repositorio, entrar.Escolhido);
-            MostrarProfessor();
-        }
+        if (Entrada.Identificar(Sessao.Repositorio, this) is not { } professor) return;
+        Sessao.Registrar("Saiu do programa");
+        Sessao.Iniciar(Sessao.Repositorio, professor);
+        Sessao.Registrar("Entrou no programa");
+        MostrarProfessor();
+        foreach (var t in _tiles) t.Conexao.ReenviarIdentificacao(); // o aluno vê o nome de quem está usando agora
     }
 
     void BotaoProfessores_Click(object sender, RoutedEventArgs e)
@@ -672,6 +731,9 @@ public partial class MainWindow : Window
 
     void Window_Closed(object? sender, EventArgs e)
     {
+        if (!App.Capturando) Sessao.Registrar("Saiu do programa");
+        _fimDasVigias.Cancel();
+        _relogioVersao?.Stop();
         CompositionTarget.Rendering -= AoRenderizar;
         foreach (var t in _tiles) t.Conexao.Dispose();
         _tiles.Clear();

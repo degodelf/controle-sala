@@ -44,31 +44,34 @@ public static class Descoberta
         }
     }
 
-    /// <summary>Escuta anúncios durante <paramref name="duracao"/> e devolve os agentes distintos que apareceram.</summary>
-    public static async Task<List<AgenteEncontrado>> ProcurarAsync(TimeSpan duracao, int porta = Porta, CancellationToken ct = default)
+    /// <summary>Escuta anúncios até <paramref name="ct"/> cancelar, avisando cada anúncio válido. Vários podem escutar ao mesmo tempo.</summary>
+    public static async Task EscutarAsync(Action<AgenteEncontrado> aoAchar, int porta = Porta, CancellationToken ct = default)
     {
-        var achados = new Dictionary<(string, int), AgenteEncontrado>();
         using var udp = new UdpClient(AddressFamily.InterNetwork);
         udp.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
         udp.Client.Bind(new IPEndPoint(IPAddress.Any, porta));
-        using var limite = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        limite.CancelAfter(duracao);
         try
         {
             while (true)
             {
-                var pacote = await udp.ReceiveAsync(limite.Token);
+                var pacote = await udp.ReceiveAsync(ct);
                 if (TentarLer(pacote.Buffer, out string nome, out int portaVideo))
-                {
-                    string ip = pacote.RemoteEndPoint.Address.ToString();
-                    achados[(ip, portaVideo)] = new AgenteEncontrado(nome, ip, portaVideo);
-                }
+                    aoAchar(new AgenteEncontrado(nome, pacote.RemoteEndPoint.Address.ToString(), portaVideo));
             }
         }
         catch (OperationCanceledException)
         {
             // fim do tempo de busca (ou o chamador cancelou)
         }
+    }
+
+    /// <summary>Escuta anúncios durante <paramref name="duracao"/> e devolve os agentes distintos que apareceram.</summary>
+    public static async Task<List<AgenteEncontrado>> ProcurarAsync(TimeSpan duracao, int porta = Porta, CancellationToken ct = default)
+    {
+        var achados = new Dictionary<(string, int), AgenteEncontrado>();
+        using var limite = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        limite.CancelAfter(duracao);
+        await EscutarAsync(a => achados[(a.Endereco, a.Porta)] = a, porta, limite.Token);
         return [.. achados.Values];
     }
 }

@@ -4,9 +4,8 @@ using System.Text;
 namespace ControleSala.Comum;
 
 /// <summary>
-/// Protocolo da prova de conceito (v0), sobre TCP.
+/// Protocolo entre professor e agente, sobre TCP, depois do aperto de mão que autentica e criptografa o canal.
 /// Cada mensagem: [int32 tamanho][byte tipo][corpo], little-endian; "tamanho" conta o tipo + corpo.
-/// ATENÇÃO: ainda sem autenticação/criptografia — isso entra antes de qualquer instalação na sala.
 /// </summary>
 public enum TipoMensagem : byte
 {
@@ -52,6 +51,8 @@ public enum TipoMensagem : byte
     AtualizacaoInicio = 35,
     /// <summary>Agente → professor: [string] versão do agente (ex.: "0.3.0"), enviada ao conectar.</summary>
     VersaoAgente = 36,
+    /// <summary>Agente → professor: [string UTF-8] nome escolhido para este PC na instalação, enviado ao conectar.</summary>
+    NomeEscolhido = 37,
 }
 
 public enum ArquivoConfigTipo : byte { PapelDeParede = 0, ImagemLimpeza = 1 }
@@ -282,6 +283,11 @@ public static class Protocolo
 
     public static string LerVersaoAgente(ReadOnlySpan<byte> corpo) =>
         new string(Encoding.ASCII.GetString(corpo.Length > 32 ? corpo[..32] : corpo).Where(c => char.IsAsciiDigit(c) || c == '.').ToArray());
+
+    public static byte[] MontarNomeEscolhido(string nome) =>
+        Montar(TipoMensagem.NomeEscolhido, Encoding.UTF8.GetBytes(nome));
+
+    public static string LerNomeEscolhido(ReadOnlySpan<byte> corpo) => Encoding.UTF8.GetString(corpo);
 
     public static byte[] MontarConfigLimpeza(string json) =>
         Montar(TipoMensagem.ConfigLimpeza, Encoding.UTF8.GetBytes(json));

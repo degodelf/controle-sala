@@ -121,12 +121,18 @@ public partial class App : Application
             args.Handled = true;
         };
 
-        // Entrada sem senha: abre direto como o professor atual (na 1ª vez cria um perfil padrão, sem PIN).
-        // Para quem quiser proteger o programa, dá para definir um PIN em "Professores... > Gerenciar".
+        // As janelas de entrada abrem antes da principal: fechar uma delas não pode encerrar o programa sozinho.
+        ShutdownMode = ShutdownMode.OnExplicitShutdown;
         var repositorio = new RepositorioPerfis();
-        var professor = repositorio.Perfis.FirstOrDefault() ?? repositorio.AdicionarSemPin("Professor");
+        if (Entrada.Identificar(repositorio) is not { } professor)
+        {
+            Shutdown(0);
+            return;
+        }
 
         Sessao.Iniciar(repositorio, professor);
+        Sessao.Atividades.ApagarAntigos();
+        Sessao.Registrar("Entrou no programa");
         Sessao.CarregarSala();
         Sessao.AtualizarLimpeza();
         var principal = new MainWindow();
@@ -307,6 +313,8 @@ public partial class App : Application
             "confirmar" => new JanelaConfirmarPin(repositorio, repositorio.Perfis[0], "Diego, digite o seu PIN para adicionar um professor:"),
             "professores" => new JanelaProfessores(repositorio, repositorio.Perfis[0]),
             "sobre" => new JanelaSobre(),
+            "regras" => new JanelaRegrasDeUso(pedirAceite: true),
+            "atividades" => new JanelaAtividades(),
             "sala" => new JanelaSala(),
             "enviar" => new JanelaEnviarArquivos(sala.Computadores.Select(c => new ConexaoComputador(c, Sessao.Sala?.Chave)).ToList()),
             "atualizar" => new JanelaAtualizarAlunos(sala.Computadores.Select(c => new ConexaoComputador(c, Sessao.Sala?.Chave)).ToList()),

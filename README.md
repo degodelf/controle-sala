@@ -3,10 +3,9 @@
 Substituto do Veyon para a sala de informática: o professor vê e controla os PCs dos alunos,
 com transmissão de tela em vídeo H.264 (QuickSync/GPU) em vez de VNC.
 
-> **Estado atual: prova de conceito (v0.1).** Transmissão de tela (grade + tela cheia), perfis de professor,
-> sala com chave secreta, conexão **autenticada e criptografada**, e instalador. **Ainda faltam** mouse/teclado
-> remoto, transferência de arquivos, comandos e limpeza (ver `ROADMAP.md`). Sem chave da sala o agente só
-> aceita conexões do próprio PC.
+> **Estado atual:** em uso em uma sala real. Grade de telas, controle remoto, envio de arquivos, comandos, limpeza
+> automática, atualização pela rede e conexão **autenticada e criptografada** (ver `ROADMAP.md`). Sem chave da sala
+> o agente só aceita conexões do próprio PC. Privacidade: ver "Privacidade e LGPD" abaixo.
 
 ## Atualização (detecta e avisa)
 
@@ -40,14 +39,19 @@ As DLLs do FFmpeg (~107 MB) não ficam no git; o `terceiros/baixar-ffmpeg.ps1` a
 
 `instalador\gerar-instalador.ps1` publica os dois programas e gera `instalador\saida\ControleSala-Setup-<versão>.exe`
 (a versão vem do `<Version>` do `Directory.Build.props` — mude só lá; precisa do .NET 10 SDK e do Inno Setup 6). O assistente tem: **Bem-vindo → Tipo (Professor ou Aluno) →
-[Aluno: arquivo da sala + senha] → Pasta de instalação → Instalar → Concluir**, e aparece em
+[Aluno: nome do PC + arquivo da sala + senha] → Pasta de instalação → Instalar → Concluir**, e aparece em
 "Adicionar ou remover programas".
 
 - **Professor:** instala o programa de controle, atalhos e a liberação do firewall para a busca na rede.
 - **Aluno:** instala o agente como **serviço do Windows** (liga com o PC, reinicia se cair, roda como SYSTEM —
   o aluno não consegue encerrar nem abrir), grava a chave da sala numa pasta só de administrador, libera o
   firewall **só para a rede local** e coloca o ícone informativo perto do relógio. Não cria atalho nenhum.
-- Silencioso: `ControleSala-Setup-0.2.0.exe /VERYSILENT /TIPO=aluno /SALA="E:\Lab1.controlesala" /SENHA=...`
+  A tarefa agendada **ControleSala Vigia** tenta ligar o serviço a cada minuto, porque o Windows não religa sozinho
+  um serviço que demorou demais para subir. Para parar o serviço de propósito, desative também a tarefa.
+- **Nome do PC:** o nome digitado na instalação (ex.: `PC 01`) fica em `%ProgramData%\ControleSala\nome-pc.txt` e vale
+  só no ControleSala. O agente anuncia esse nome e o envia ao professor, que renomeia o PC na lista e reordena. Se o
+  professor renomear depois, a escolha dele fica, até alguém escolher outro nome no PC.
+- Silencioso: `ControleSala-Setup-0.2.0.exe /VERYSILENT /TIPO=aluno /SALA="E:\Lab1.controlesala" /SENHA=... /NOME="PC 01"`
   (sem `/SALA` procura um `.controlesala` ao lado do Setup; sem `/SENHA` usa a variável `CONTROLESALA_SENHA`).
 - Teste sem administrador: `/CURRENTUSER` instala os arquivos mas **não** cria serviço nem regras de firewall.
 - Instalação silenciosa com pacote/senha errados não abre janela: encerra com código de saída diferente de 0
@@ -61,6 +65,9 @@ As DLLs do FFmpeg (~107 MB) não ficam no git; o `terceiros/baixar-ffmpeg.ps1` a
 
 Rode o Setup da versão nova **por cima** da instalada (mesmo `AppId`): os arquivos são trocados e o resto fica.
 
+- Atualizações: o programa lê `/releases/latest` de `degodelf/controle-sala` sem login. Com o repositório privado, os
+  programas não veem versão nova. Antes de fechar o código, publique uma versão apontando para um repositório público só com
+  os instaladores (`VerificadorAtualizacao.Repositorio`).
 - O instalador **lembra o tipo** do computador (professor/aluno) e não pergunta de novo. A 0.1.0 não guardava o
   tipo: nesse caso ele descobre pelo programa que está na pasta instalada.
 - **PC de aluno:** se já tem sala gravada, oferece **"Manter a sala atual"** (padrão) e não pede pacote nem senha;
@@ -198,12 +205,39 @@ os sites de **Sites bloqueados...** (ex.: redes sociais), via arquivo hosts, dei
 
 **Limpeza automatizada:** Comandos → Limpeza automática (configurar). O professor escolhe o que apagar na conta do
 aluno (Downloads, Área de Trabalho, Documentos, histórico/cache/cookies dos navegadores, Lixeira, %TEMP%), exceções
-(pastas/arquivos a preservar), uma **imagem** mostrada durante a limpeza, se **restaura o papel de parede** (fundo+logo)
-e a **agenda** (dias da semana + horário). Também pode **atualizar o Windows Defender** e **fazer uma verificação**
-(rápida ou completa) como parte da limpeza — o Defender roda em segundo plano, sem travar o aluno. A configuração e as
-imagens são enviadas aos computadores quando ficam online; o agente cria uma **tarefa agendada** no Windows (roda como
-serviço, mesmo sem o professor conectado). Também há **Limpar agora** (com confirmação). **A limpeza nunca roda no PC
-do professor** (ele só tem o console, não o agente) e nunca mexe na conta de administrador.
+(pastas/arquivos a preservar), se **restaura o papel de parede** (fundo+logo) e a **agenda** (dias da semana + horário).
+A tela de limpeza mostra o **logotipo da escola** escolhido em Papel de parede (sem logotipo, o ícone do programa).
+Também pode **atualizar o Windows Defender** e **fazer uma verificação** (rápida ou completa) como parte da limpeza — o
+Defender roda em segundo plano, sem travar o aluno. **Pausar** / **Retomar**, no alto da janela, vale na hora para os
+computadores online e guarda a agenda; PC desligado só recebe a pausa quando conectar ao professor. A configuração e as
+imagens são enviadas aos computadores quando ficam online, e o próprio agente roda a agenda, mesmo sem o professor
+conectado. Também há **Limpar agora** (com confirmação), que funciona mesmo com a agenda pausada. **A limpeza nunca roda
+no PC do professor** (ele só tem o console, não o agente) e nunca mexe na conta de administrador.
+
+## Licença
+
+Licença própria, em `LICENSE.txt`: escolas, redes de ensino e secretarias de educação usam de graça, ninguém pode vender, e o
+crédito ao autor deve continuar no programa. O instalador mostra o texto na primeira instalação e o copia como `LICENCA.txt`.
+O FFmpeg e os demais componentes continuam com as próprias licenças.
+
+## Privacidade e LGPD
+
+O programa mostra telas de alunos, muitos deles crianças e adolescentes. O que foi feito para isso:
+
+- **Entrada:** cada professor se identifica pelo nome e aceita as regras de uso uma vez. O PIN é opcional (4 a 8 números,
+  guardado só como resumo PBKDF2): sem PIN, e com um só professor no PC, o programa abre direto. Dá para definir ou tirar a
+  senha em Professores. Sem PIN, o registro mostra o nome escolhido, sem confirmar quem estava no PC.
+- **Registro de atividades (Ajuda):** quem fez o quê, quando e em qual computador, só no PC do professor
+  (`%AppData%\ControleSala\atividades`), por 6 meses, com exportação para planilha. Não guarda imagens, texto de mensagens
+  nem a configuração da limpeza.
+- **O aluno sabe:** ao entrar no Windows aparece um aviso em linguagem simples; o ícone perto do relógio fica vermelho com
+  o nome do professor; com a tela aberta em tamanho grande, ou sob controle, aparece uma faixa no topo.
+- **Tentativas:** 5 erros seguidos de chave da sala bloqueiam aquele endereço por 1 minuto.
+- **O que o programa não faz:** não grava tela nem áudio, não usa câmera nem microfone, não registra o que é digitado e não
+  tem cadastro de aluno. As telas não saem da rede da escola.
+- **Mudar:** `Entrada.VersaoDasRegras` faz todos aceitarem as regras de novo.
+
+Isso é a parte técnica. Base legal, relatório de impacto e aviso às famílias dependem da SED, que é a controladora dos dados.
 
 ## Aparência (temas claro e escuro)
 

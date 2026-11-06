@@ -9,6 +9,8 @@ public sealed class ComputadorSala
     public int Porta { get; set; } = Protocolo.PortaPadrao;
     /// <summary>Endereço de rede (MAC) da placa, descoberto quando o PC fica online; usado para ligá-lo (Wake-on-LAN).</summary>
     public string? Mac { get; set; }
+    /// <summary>Último nome escolhido na instalação do PC que já foi aplicado aqui (ver <see cref="RepositorioSala.AplicarNomeEscolhido"/>).</summary>
+    public string? NomeEscolhido { get; set; }
 }
 
 /// <summary>Os computadores da sala, na ordem em que aparecem na grade. Arquivo: <c>sala.json</c>.</summary>
@@ -55,7 +57,7 @@ public sealed class RepositorioSala
         int i = _computadores.IndexOf(atual);
         if (i < 0) throw new ArgumentException("Esse computador não está mais na sala.");
         if (Validar(nome, endereco, porta, atual) is { } erro) throw new ArgumentException(erro);
-        var novo = new ComputadorSala { Nome = nome.Trim(), Endereco = endereco.Trim(), Porta = porta };
+        var novo = new ComputadorSala { Nome = nome.Trim(), Endereco = endereco.Trim(), Porta = porta, NomeEscolhido = atual.NomeEscolhido };
         _computadores[i] = novo;
         Salvar();
         return novo;
@@ -74,6 +76,44 @@ public sealed class RepositorioSala
     {
         if (mac == null || c.Mac == mac || !_computadores.Contains(c)) return;
         c.Mac = mac;
+        Salvar();
+    }
+
+    /// <summary>
+    /// Usa o nome escolhido na instalação do PC. Cada nome vale uma vez: se o professor renomear depois, a escolha dele fica
+    /// até alguém escolher outro nome no PC. Retorna true se o nome na lista mudou.
+    /// </summary>
+    public bool AplicarNomeEscolhido(ComputadorSala c, string nome)
+    {
+        if (c.NomeEscolhido == nome || !_computadores.Contains(c)) return false;
+        bool mudou = c.Nome != nome;
+        c.NomeEscolhido = nome;
+        c.Nome = nome;
+        Salvar();
+        return mudou;
+    }
+
+    /// <summary>
+    /// O computador da lista que apareceu na rede em outro endereço (o IP dele mudou), achado pelo nome sem contar espaços,
+    /// hífens e maiúsculas: o "PC18" do Windows é o "PC 18" da lista. Null se o endereço já é de alguém ou se o nome não for único.
+    /// </summary>
+    public ComputadorSala? MudouDeEndereco(AgenteEncontrado achado)
+    {
+        if (_computadores.Any(c => c.Porta == achado.Porta
+                && string.Equals(c.Endereco, achado.Endereco, StringComparison.OrdinalIgnoreCase)))
+            return null;
+        string nome = NomeComparavel(achado.Nome);
+        var mesmos = _computadores.Where(c => c.Porta == achado.Porta && NomeComparavel(c.Nome) == nome).ToList();
+        return mesmos.Count == 1 ? mesmos[0] : null;
+    }
+
+    static string NomeComparavel(string nome) => string.Concat(nome.Where(char.IsLetterOrDigit)).ToUpperInvariant();
+
+    /// <summary>Troca só o endereço, no mesmo objeto: a conexão aberta para este computador passa a usar o novo.</summary>
+    public void DefinirEndereco(ComputadorSala c, string endereco)
+    {
+        if (!_computadores.Contains(c)) return;
+        c.Endereco = endereco;
         Salvar();
     }
 

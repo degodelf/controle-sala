@@ -67,6 +67,8 @@ sealed unsafe partial class ConexaoComputador : IDisposable
     public volatile string? Mac;
     /// <summary>Versão do agente ("0.3.0"); null até chegar (agentes até a 0.2.0 não informam).</summary>
     public volatile string? VersaoAgente;
+    /// <summary>Nome escolhido na instalação daquele PC; null até chegar (ou se ninguém escolheu).</summary>
+    public volatile string? NomeEscolhido;
     public long BytesRecebidos => Interlocked.Read(ref _bytes);
 
     /// <summary>O que o professor quer receber. Muda na hora, também com a conexão já aberta.</summary>
@@ -198,6 +200,9 @@ sealed unsafe partial class ConexaoComputador : IDisposable
                 case TipoMensagem.VersaoAgente:
                     VersaoAgente = Protocolo.LerVersaoAgente(buffer.AsSpan(0, msg.Tamanho));
                     break;
+                case TipoMensagem.NomeEscolhido:
+                    NomeEscolhido = NomeDoPc.Validar(Protocolo.LerNomeEscolhido(buffer.AsSpan(0, msg.Tamanho)));
+                    break;
                 case TipoMensagem.ArquivoResposta:
                     if (Protocolo.LerArquivoResposta(buffer.AsSpan(0, msg.Tamanho)) is { } resposta
                         && _transferencias.TryGetValue(resposta.Id, out var canal))
@@ -273,6 +278,12 @@ sealed unsafe partial class ConexaoComputador : IDisposable
             usar((IntPtr)_frente, _largura, _altura, _stride, _recebidoFrente, _usAgenteFrente);
             return true;
         }
+    }
+
+    /// <summary>Informa de novo quem está usando o programa (o aluno vê o nome do professor que está vendo a tela).</summary>
+    public void ReenviarIdentificacao()
+    {
+        if (Sessao.Atual is { } professor) Enviar(Protocolo.MontarIdentificacao(professor.Nome));
     }
 
     /// <summary>Reenvia agora a configuração de limpeza (após o professor alterá-la).</summary>

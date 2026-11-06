@@ -18,6 +18,7 @@ sealed class ServidorVideo : IDisposable
     readonly List<ConexaoProfessor> _conexoes = [];
     readonly Lock _trava = new();
     readonly SemaphoreSlim _vagasHandshake = new(MaxApertosDeMaoAoMesmoTempo);
+    readonly LimiteTentativas _tentativas = new();
 
     /// <summary>Algum professor precisa de um quadro-chave do fluxo desse modo (escolheu o modo, perdeu quadros ou pediu).</summary>
     public event Action<ModoVideo>? PedidoQuadroChave;
@@ -35,6 +36,8 @@ sealed class ServidorVideo : IDisposable
     public byte[]? Ola { get; set; }
     /// <summary>Mensagem com o MAC deste PC, enviada a quem conecta (para o Wake-on-LAN).</summary>
     public byte[]? MacMsg { get; set; }
+    /// <summary>Mensagem com o nome escolhido para este PC na instalação; null se nenhum foi escolhido.</summary>
+    public byte[]? NomeMsg { get; set; }
 
     public ManualResetEventSlim TemProfessores { get; } = new(false);
 
@@ -47,6 +50,12 @@ sealed class ServidorVideo : IDisposable
     public string[] Professores
     {
         get { lock (_trava) return [.. _conexoes.Select(c => c.Nome ?? c.Endereco)]; }
+    }
+
+    /// <summary>Quem está com esta tela aberta em tamanho grande (vendo de perto e podendo controlar).</summary>
+    public string[] VendoEmTelaGrande
+    {
+        get { lock (_trava) return [.. _conexoes.Where(c => c.Modo == ModoVideo.Completo).Select(c => c.Nome ?? "O professor")]; }
     }
 
     /// <summary>Algum professor conectado quer receber esse modo?</summary>
@@ -98,11 +107,18 @@ sealed class ServidorVideo : IDisposable
     void IniciarConexao(TcpClient tcp)
     {
         string origem = tcp.Client.RemoteEndPoint?.ToString() ?? "?";
+        string ip = (tcp.Client.RemoteEndPoint as IPEndPoint)?.Address.ToString() ?? "?";
         try
         {
+            if (_tentativas.Bloqueado(ip))
+            {
+                tcp.Dispose();
+                return;
+            }
             tcp.NoDelay = true;
             tcp.ReceiveTimeout = tcp.SendTimeout = 5000; // quem não completa o aperto de mão em 5 s é descartado
             var fluxo = Handshake.Agente(tcp.GetStream(), _chave);
+            _tentativas.Acertou(ip);
             tcp.ReceiveTimeout = tcp.SendTimeout = 0;
 
             var conexao = new ConexaoProfessor(tcp, fluxo, this);
@@ -116,12 +132,15 @@ sealed class ServidorVideo : IDisposable
                 conexao.EnfileirarControle(Ola);
             if (MacMsg != null)
                 conexao.EnfileirarControle(MacMsg);
+            if (NomeMsg != null)
+                conexao.EnfileirarControle(NomeMsg);
             conexao.EnfileirarControle(Protocolo.MontarVersaoAgente(Versoes.Atual)); // o professor vê quem precisa atualizar
             conexao.Iniciar();
             AvisarMudanca();
         }
         catch (Exception ex)
         {
+            if (ex is AutenticacaoException) _tentativas.Falhou(ip);
             Aviso?.Invoke($"Conexão recusada de {origem}: {ex.Message}");
             tcp.Dispose();
         }
@@ -419,6 +438,7 @@ sealed class ConexaoProfessor(TcpClient tcp, Stream fluxo, ServidorVideo servido
                         Volatile.Write(ref _modo, (int)novo);
                         _esperandoChave = true; // o fluxo novo começa num quadro-chave
                         servidor.SolicitarQuadroChave(novo);
+                        servidor.AvisarMudanca(); // o aluno vê a faixa quando abrem a tela dele em tamanho grande
                         break;
                     case TipoMensagem.PedirQuadroChave:
                         if (Modo is { } atual) servidor.SolicitarQuadroChave(atual);

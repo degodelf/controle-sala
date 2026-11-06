@@ -99,6 +99,9 @@
                 </MenuItem>
             </MenuItem>
             <MenuItem Header="_Ajuda">
+                <MenuItem Header="Regras de uso e privacidade..." Click="MenuRegras_Click"/>
+                <MenuItem Header="Registro de atividades..." Click="MenuAtividades_Click"/>
+                <Separator/>
                 <MenuItem Header="Sobre o ControleSala" Click="BotaoSobre_Click">
                     <MenuItem.Icon><Path Style="{StaticResource Icone}" Data="{StaticResource IconeSobre}"/></MenuItem.Icon>
                 </MenuItem>

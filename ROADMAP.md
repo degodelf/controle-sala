@@ -13,8 +13,8 @@
    do aluno continua funcionando). A **versão** do programa aparece discreta no rodapé (barra de status e tela cheia).
 2. **Segurança** — **núcleo feito (2026-10-10)**: chave da sala, pacote com senha, aperto de mão com prova da chave
    nos dois sentidos, canal AES-256-GCM, perfis de professor, nome do professor no ícone do aluno (ver
-   "Instalador e segurança da sala" abaixo). **Falta:** log de auditoria (quem viu/fez o quê), limite de tentativas
-   por endereço no agente, trocar/girar a chave da sala, assinar o instalador. Pré-requisito para qualquer comando
+   "Instalador e segurança da sala" abaixo). **Feito na 0.7.0:** registro de atividades, regras de uso aceitas pelo professor e limite de
+   tentativas por endereço. **Falta:** trocar/girar a chave da sala, assinar o instalador. Pré-requisito para qualquer comando
    que altere o PC do aluno (papel de parede, limpeza etc.) — esses comandos devem exigir o canal autenticado.
 3. ~~**Grade de miniaturas**~~ — **feita (2026-10-10)**, ver "Grade de miniaturas" abaixo. Falta: arrastar as telas para a
    posição das mesas (hoje a ordem é a da lista, com ▲▼).
@@ -53,7 +53,7 @@
 - ~~**Atualização online "num clique"**~~ — **já existia** (faixa de aviso → `JanelaNovaVersao`); em 2026-10-14 virou botão único
   **"Atualizar agora"** (baixa do GitHub + confere assinatura + instala por cima, mantendo tudo). "Enviar aos alunos" baixa sob demanda.
 - ~~**Travar o mouse/teclado do aluno durante o controle**~~ — **feito (2026-10-14)**, ver item 1.
-- **Falta (ideias futuras):** arrastar as miniaturas para a posição das mesas; log de auditoria (LGPD); cursor do professor
+- **Falta (ideias futuras):** arrastar as miniaturas para a posição das mesas; cursor do professor
   desenhado sobre a transmissão.
 
 ## Instalador e segurança da sala (feito 2026-10-10)

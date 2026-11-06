@@ -1,4 +1,7 @@
 using System.Diagnostics;
+using System.Net;
+using System.Net.NetworkInformation;
+using System.Net.Sockets;
 using System.Runtime.InteropServices;
 using System.ServiceProcess;
 using ControleSala.Comum;
@@ -13,11 +16,15 @@ namespace ControleSala.Agente;
 sealed class ServicoAgente : ServiceBase
 {
     public const string Nome = "ControleSalaAgente";
+    const int SegundosEntreChecagensDaPorta = 15, ChecagensSemPortaAntesDeReiniciar = 4;
 
     readonly ManualResetEvent _parar = new(false);
     Thread? _monitor;
     Process? _filho;
     uint _sessaoDoFilho = uint.MaxValue;
+    DateTime _inicioDoFilho, _proximaTentativa;
+    int _quedas, _segundosDesdeChecagem, _checagensSemPorta;
+    bool _tentouLiberarPorta;
 
     public ServicoAgente()
     {
@@ -42,7 +49,7 @@ sealed class ServicoAgente : ServiceBase
 
     void Monitorar()
     {
-        Registrar("Serviço iniciado.");
+        Registrar($"Serviço iniciado (versão {Versoes.Atual}).");
         while (!_parar.WaitOne(1000))
         {
             try
@@ -51,21 +58,122 @@ sealed class ServicoAgente : ServiceBase
                 if (sessao == uint.MaxValue) continue; // nenhuma sessão ativa agora (ex.: troca de usuário)
 
                 bool vivo = _filho is { HasExited: false };
-                if (vivo && sessao == _sessaoDoFilho) continue;
+                if (vivo && sessao == _sessaoDoFilho)
+                {
+                    VigiarPorta();
+                    continue;
+                }
 
+                if (_filho != null && !vivo) ContarQueda();
                 Encerrar();
+                if (DateTime.UtcNow < _proximaTentativa) continue;
+
+                if (_quedas >= 2) LiberarPortaSeBloqueada();
                 _filho = LancadorNaSessao.Iniciar(sessao, Environment.ProcessPath!, "--sessao");
                 _sessaoDoFilho = sessao;
+                _inicioDoFilho = DateTime.UtcNow;
+                _segundosDesdeChecagem = _checagensSemPorta = 0;
                 Registrar(_filho == null
                     ? $"Não foi possível iniciar o agente na sessão {sessao}."
                     : $"Agente iniciado na sessão {sessao} (processo {_filho.Id}).");
-                if (_filho == null)
-                    _parar.WaitOne(5000); // evita tentar sem parar se algo estiver errado
+                if (_filho == null) ContarQueda();
             }
             catch (Exception ex)
             {
                 Registrar($"Erro no monitor: {ex.Message}");
             }
+        }
+    }
+
+    /// <summary>Agente que cai logo depois de subir espera cada vez mais para religar; o que ficou de pé recomeça a conta.</summary>
+    void ContarQueda()
+    {
+        _quedas = DateTime.UtcNow - _inicioDoFilho < VigiaAgente.TempoMinimoVivo ? _quedas + 1 : 0;
+        var espera = VigiaAgente.EsperaAposQuedas(_quedas);
+        _proximaTentativa = DateTime.UtcNow + espera;
+        if (_quedas > 0)
+            Registrar($"O agente caiu logo depois de subir ({_quedas}x seguidas). Nova tentativa em {espera.TotalSeconds:0} s. Veja agente.log.");
+    }
+
+    /// <summary>Agente vivo sem abrir a porta fica invisível para o professor: depois de cerca de um minuto assim, é reiniciado.</summary>
+    void VigiarPorta()
+    {
+        if (++_segundosDesdeChecagem < SegundosEntreChecagensDaPorta) return;
+        _segundosDesdeChecagem = 0;
+        if (PortaEscutando())
+        {
+            _checagensSemPorta = 0;
+            return;
+        }
+        if (++_checagensSemPorta < ChecagensSemPortaAntesDeReiniciar) return;
+        Registrar($"O agente está aberto, mas sem escutar a porta {Protocolo.PortaPadrao}. Reiniciando o agente.");
+        Encerrar();
+    }
+
+    static bool PortaEscutando()
+    {
+        try
+        {
+            return IPGlobalProperties.GetIPGlobalProperties().GetActiveTcpListeners().Any(e => e.Port == Protocolo.PortaPadrao);
+        }
+        catch (NetworkInformationException)
+        {
+            return true; // sem como saber: não derruba um agente que pode estar bem
+        }
+    }
+
+    /// <summary>
+    /// O Windows pode reservar a porta do agente para a virtualização (erro 10013) e aí o agente não sobe. Faz a mesma reserva
+    /// do instalador, uma vez por início do serviço, porque parar o winnat não é para ficar repetindo.
+    /// </summary>
+    void LiberarPortaSeBloqueada()
+    {
+        if (_tentouLiberarPorta || !PortaBloqueada()) return;
+        _tentouLiberarPorta = true;
+        Registrar($"O Windows bloqueou a porta {Protocolo.PortaPadrao} (erro 10013). Tentando reservá-la.");
+        string reservar = $"int ipv4 add excludedportrange protocol=tcp startport={Protocolo.PortaPadrao} numberofports=1 store=persistent";
+        int codigo = Rodar("netsh.exe", reservar);
+        if (codigo != 0)
+        {
+            Rodar("net.exe", "stop winnat");
+            codigo = Rodar("netsh.exe", reservar);
+            Rodar("net.exe", "start winnat");
+        }
+        Registrar(codigo == 0 ? "Porta reservada." : $"Não foi possível reservar a porta (código {codigo}). Reiniciar o computador pode liberá-la.");
+    }
+
+    static bool PortaBloqueada()
+    {
+        var teste = new TcpListener(IPAddress.Any, Protocolo.PortaPadrao);
+        try
+        {
+            teste.Start();
+            return false;
+        }
+        catch (SocketException ex)
+        {
+            return ex.SocketErrorCode == SocketError.AccessDenied;
+        }
+        finally
+        {
+            teste.Stop();
+        }
+    }
+
+    static int Rodar(string programa, string argumentos)
+    {
+        try
+        {
+            using var p = Process.Start(new ProcessStartInfo(Path.Combine(Environment.SystemDirectory, programa), argumentos)
+            { UseShellExecute = false, CreateNoWindow = true });
+            if (p == null) return -1;
+            if (p.WaitForExit(30000)) return p.ExitCode;
+            p.Kill();
+            return -1;
+        }
+        catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException)
+        {
+            return -1;
         }
     }
 
@@ -91,7 +199,9 @@ sealed class ServicoAgente : ServiceBase
         {
             string pasta = Path.Combine(Path.GetDirectoryName(ConfigAgente.CaminhoPadrao)!, "logs");
             Directory.CreateDirectory(pasta);
-            File.AppendAllText(Path.Combine(pasta, "servico.log"), $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {mensagem}{Environment.NewLine}");
+            string arquivo = Path.Combine(pasta, "servico.log");
+            if (File.Exists(arquivo) && new FileInfo(arquivo).Length > 1_000_000) File.Delete(arquivo);
+            File.AppendAllText(arquivo, $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {mensagem}{Environment.NewLine}");
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
@@ -105,7 +215,7 @@ static partial class LancadorNaSessao
 {
     const uint TokenDuplicate = 0x0002, TokenQuery = 0x0008;
     const uint MaximumAllowed = 0x02000000, CreateNoWindow = 0x08000000, CreateUnicodeEnvironment = 0x00000400;
-    const int SecurityImpersonation = 2, TokenPrimary = 1, TokenSessionId = 12;
+    const int SecurityImpersonation = 2, TokenPrimary = 1, TokenSessionId = 12, WtsUserName = 5;
 
     [StructLayout(LayoutKind.Sequential)]
     struct StartupInfo
@@ -147,6 +257,11 @@ static partial class LancadorNaSessao
     [LibraryImport("wtsapi32.dll", SetLastError = true)] [return: MarshalAs(UnmanagedType.Bool)]
     private static partial bool WTSLogoffSession(nint servidor, uint sessao, [MarshalAs(UnmanagedType.Bool)] bool esperar);
 
+    [LibraryImport("wtsapi32.dll", EntryPoint = "WTSQuerySessionInformationW", SetLastError = true)] [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool WTSQuerySessionInformation(nint servidor, uint sessao, int classe, out nint texto, out uint tamanho);
+
+    [LibraryImport("wtsapi32.dll")] private static partial void WTSFreeMemory(nint memoria);
+
     [LibraryImport("userenv.dll", SetLastError = true)] [return: MarshalAs(UnmanagedType.Bool)]
     private static partial bool CreateEnvironmentBlock(out nint ambiente, nint token, [MarshalAs(UnmanagedType.Bool)] bool herdar);
 
@@ -175,6 +290,21 @@ static partial class LancadorNaSessao
         finally
         {
             if (token != 0) CloseHandle(token);
+        }
+    }
+
+    /// <summary>Quem entrou no Windows nesta sessão; vazio ou null na tela de login.</summary>
+    public static string? UsuarioDaSessao()
+    {
+        uint sessao = WTSGetActiveConsoleSessionId();
+        if (sessao == uint.MaxValue || !WTSQuerySessionInformation(0, sessao, WtsUserName, out nint texto, out _)) return null;
+        try
+        {
+            return Marshal.PtrToStringUni(texto);
+        }
+        finally
+        {
+            WTSFreeMemory(texto);
         }
     }
 
@@ -244,7 +374,8 @@ static partial class LancadorNaSessao
 
             CloseHandle(info.hThread);
             CloseHandle(info.hProcess);
-            return Process.GetProcessById(info.dwProcessId);
+            try { return Process.GetProcessById(info.dwProcessId); }
+            catch (ArgumentException) { return null; } // já terminou: conta como não ter subido
         }
         finally
         {

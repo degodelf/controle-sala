@@ -57,6 +57,20 @@ static class Atualizacoes
     public static bool Desatualizado(ConexaoComputador c, string versao) =>
         c.Estado == EstadoConexao.Online && c.VersaoAgente is { } v && Versoes.MaisNova(versao, v);
 
+    /// <summary>Entre os instaladores guardados neste PC, o de versão mais nova com a assinatura do autor (null se não houver).</summary>
+    public static async Task<string?> InstaladorMaisNovoAsync(params string[] caminhos)
+    {
+        string? melhor = null, versaoDoMelhor = null;
+        foreach (var caminho in caminhos.Distinct(StringComparer.OrdinalIgnoreCase).Where(File.Exists))
+        {
+            string? versao;
+            try { versao = await Task.Run(() => AssinaturaInstalador.Verificar(caminho)); }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException) { continue; }
+            if (versao != null && Versoes.MaisNova(versao, versaoDoMelhor)) (melhor, versaoDoMelhor) = (caminho, versao);
+        }
+        return melhor;
+    }
+
     /// <summary>Confere a assinatura e calcula o SHA-256. Lança <see cref="ArgumentException"/> com a mensagem para o professor.</summary>
     public static async Task<InstaladorParaAlunos> PrepararAsync(string caminho, CancellationToken ct)
     {

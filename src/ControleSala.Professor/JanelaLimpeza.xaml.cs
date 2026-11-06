@@ -1,16 +1,16 @@
 using System.IO;
 using System.Windows;
 using System.Windows.Controls.Primitives;
+using System.Windows.Media;
 using ControleSala.Comum;
-using Microsoft.Win32;
 
 namespace ControleSala.Professor;
 
-/// <summary>Configura a limpeza automática: o que apagar, exceções, imagem mostrada e a agenda (dias e horário).</summary>
+/// <summary>Configura a limpeza automática: o que apagar, exceções e a agenda (dias e horário), que pode ser pausada.</summary>
 public partial class JanelaLimpeza : Window
 {
-    /// <summary>Chamado ao salvar, para a janela principal reenviar a configuração aos computadores online.</summary>
-    public bool Salvou { get; private set; }
+    /// <summary>A configuração mudou em disco: a janela principal reenvia aos computadores online na hora.</summary>
+    public event Action? Salvou;
 
     public JanelaLimpeza()
     {
@@ -28,49 +28,50 @@ public partial class JanelaLimpeza : Window
         RbCompleta.IsChecked = c.DefenderVarreduraCompleta;
         RbRapida.IsChecked = !c.DefenderVarreduraCompleta;
         CampoExcecoes.Text = string.Join("\n", c.Excecoes);
-        CxAgendada.IsChecked = c.Agendada;
         CampoHora.Text = c.Hora;
         foreach (var b in Dias())
             b.IsChecked = c.Dias.Contains(int.Parse((string)b.Tag));
-        MostrarImagem();
+        MostrarEstado();
     }
 
     IEnumerable<ToggleButton> Dias() => PainelDias.Children.OfType<ToggleButton>();
 
-    void MostrarImagem() =>
-        TextoImagem.Text = File.Exists(Sessao.CaminhoImagemLimpeza) ? "imagem escolhida" : "nenhuma (mostra só o texto)";
-
-    void EscolherImagem_Click(object sender, RoutedEventArgs e)
+    /// <summary>Mostra a situação da agenda salva (não a que está sendo editada) e o que o botão faz agora.</summary>
+    void MostrarEstado()
     {
-        var dialogo = new OpenFileDialog { Title = "Imagem da limpeza", Filter = "Imagens|*.png;*.jpg;*.jpeg;*.bmp" };
-        if (dialogo.ShowDialog(this) != true) return;
-        try
-        {
-            Directory.CreateDirectory(Path.GetDirectoryName(Sessao.CaminhoImagemLimpeza)!);
-            File.Copy(dialogo.FileName, Sessao.CaminhoImagemLimpeza, overwrite: true);
-            MostrarImagem();
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            TextoMensagem.Text = $"Não foi possível usar a imagem: {ex.Message}";
-        }
+        var c = LimpezaConfig.Carregar();
+        bool temAgenda = c.Dias.Count > 0;
+        bool ligada = c.Agendada && temAgenda;
+        TextoEstado.Text = ligada ? "Ligada" : temAgenda ? "Pausada" : "Sem agenda";
+        TextoDetalhe.Text = ligada ? c.ResumoAgenda()
+            : temAgenda ? "Nenhum computador será limpo sozinho. A agenda fica guardada."
+            : "Marque os dias e o horário abaixo e clique em Salvar.";
+        PontoEstado.Fill = (Brush)FindResource(ligada ? "PincelOnline" : temAgenda ? "PincelAviso" : "PincelTextoFraco");
+        BotaoPausar.Content = ligada ? "Pausar" : "Retomar";
+        BotaoPausar.Visibility = temAgenda ? Visibility.Visible : Visibility.Collapsed;
     }
 
-    void RemoverImagem_Click(object sender, RoutedEventArgs e)
+    /// <summary>Pausa ou retoma na hora, sem salvar o que estiver sendo editado nos campos abaixo.</summary>
+    void Pausar_Click(object sender, RoutedEventArgs e)
     {
-        try { if (File.Exists(Sessao.CaminhoImagemLimpeza)) File.Delete(Sessao.CaminhoImagemLimpeza); }
-        catch (IOException) { }
-        MostrarImagem();
+        var c = LimpezaConfig.Carregar();
+        c.Agendada = !c.Agendada;
+        if (Guardar(c))
+            TextoMensagem.Text = c.Agendada
+                ? "Limpeza retomada nos computadores online. Os outros recebem ao conectar."
+                : "Limpeza pausada nos computadores online. Os outros recebem ao conectar.";
     }
 
     void Salvar_Click(object sender, RoutedEventArgs e)
     {
-        bool agendada = CxAgendada.IsChecked == true;
+        var salva = LimpezaConfig.Carregar();
         var dias = Dias().Where(b => b.IsChecked == true).Select(b => int.Parse((string)b.Tag)).ToList();
         string hora = CampoHora.Text.Trim();
-        if (agendada && dias.Count == 0) { TextoMensagem.Text = "Escolha pelo menos um dia para a limpeza agendada."; return; }
-        if (agendada && !LimpezaConfig.HoraValida(hora)) { TextoMensagem.Text = "Horário inválido. Use HH:mm (ex.: 18:00)."; return; }
+        if (salva.Agendada && dias.Count == 0) { TextoMensagem.Text = "Escolha pelo menos um dia. Para parar a limpeza, clique em Pausar."; return; }
+        if (dias.Count > 0 && !LimpezaConfig.HoraValida(hora)) { TextoMensagem.Text = "Horário inválido. Use HH:mm (ex.: 18:00)."; return; }
 
+        // A primeira agenda já liga. Quem pausou continua pausado até clicar em Retomar.
+        bool agendada = dias.Count > 0 && (salva.Agendada || salva.Dias.Count == 0);
         var c = new LimpezaConfig
         {
             Downloads = CxDownloads.IsChecked == true,
@@ -88,16 +89,26 @@ public partial class JanelaLimpeza : Window
             Dias = dias,
             Hora = LimpezaConfig.HoraValida(hora) ? hora : "18:00",
         };
+        if (Guardar(c))
+            TextoMensagem.Text = dias.Count > 0 && !agendada
+                ? "Configuração salva. A limpeza continua pausada."
+                : "Configuração salva e enviada aos computadores online. Os outros recebem ao conectar.";
+    }
+
+    bool Guardar(LimpezaConfig c)
+    {
         try
         {
             c.Salvar();
             Sessao.AtualizarLimpeza();
-            Salvou = true;
-            TextoMensagem.Text = "Configuração salva. Enviada aos computadores que estão online.";
+            Salvou?.Invoke();
+            MostrarEstado();
+            return true;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             TextoMensagem.Text = $"Não foi possível salvar: {ex.Message}";
+            return false;
         }
     }
 }

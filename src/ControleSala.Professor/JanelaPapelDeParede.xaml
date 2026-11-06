@@ -18,6 +18,7 @@
             </DockPanel>
 
             <TextBlock Text="Logotipo da escola (PNG)" FontWeight="SemiBold"/>
+            <TextBlock Text="Também aparece na tela de limpeza dos alunos." Style="{StaticResource Rotulo}" Margin="0,2,0,0"/>
             <DockPanel Margin="0,4,0,12">
                 <Button DockPanel.Dock="Right" Content="Escolher..." Padding="10,3" Margin="6,0,0,0" Click="EscolherLogo_Click"/>
                 <TextBox x:Name="CampoLogo" IsReadOnly="True" VerticalContentAlignment="Center"/>

@@ -64,9 +64,11 @@ public partial class JanelaAtualizarAlunos : Window
         if (_alvos.Count == 0) TextoMensagem.Text = "Não há computadores na sala. Adicione em \"Computadores...\".";
         Loaded += async (_, _) =>
         {
-            // Preferência: o instalador que o professor acabou de baixar; senão, a cópia guardada pelo instalador.
+            // Preferência: o instalador que o professor acabou de baixar; senão, o mais novo guardado neste PC.
+            TextoInstalador.Text = "Conferindo a assinatura do instalador...";
             string? caminho = instaladorInicial != null && File.Exists(instaladorInicial) ? instaladorInicial
-                : File.Exists(Atualizacoes.CaminhoPadrao) ? Atualizacoes.CaminhoPadrao : null;
+                : await Atualizacoes.InstaladorMaisNovoAsync(Atualizacoes.CaminhoBaixado, Atualizacoes.CaminhoPadrao)
+                  ?? (File.Exists(Atualizacoes.CaminhoPadrao) ? Atualizacoes.CaminhoPadrao : null);
             if (caminho != null)
                 await CarregarInstalador(caminho);
             else

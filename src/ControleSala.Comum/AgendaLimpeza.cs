@@ -18,11 +18,13 @@ public static class AgendaLimpeza
     /// <param name="adiadoPara">Se o aluno adiou, o momento a partir do qual deve rodar (null se não adiou).</param>
     public static bool DeveRodar(LimpezaConfig c, DateTime agora, DateTime? ultimaExecucao, DateTime? adiadoPara)
     {
+        if (!c.Agendada) return false; // pausada: nem o adiamento roda
+
         // Adiamento ("adiar 1 hora") tem prioridade: quando chega a hora adiada, roda — mesmo fora dos dias marcados.
         if (adiadoPara is { } ad && agora >= ad)
             return ultimaExecucao is not { } ue || ue < ad;
 
-        if (!c.Agendada || c.Dias.Count == 0 || !LimpezaConfig.HoraValida(c.Hora)) return false;
+        if (c.Dias.Count == 0 || !LimpezaConfig.HoraValida(c.Hora)) return false;
         if (!c.Dias.Contains((int)agora.DayOfWeek)) return false;
 
         var marcadoHoje = HorarioDoDia(c.Hora, agora.Date);

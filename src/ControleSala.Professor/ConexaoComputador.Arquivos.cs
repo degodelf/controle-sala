@@ -23,8 +23,16 @@ sealed partial class ConexaoComputador
         }
     }
 
-    /// <summary>Envia um comando ao agente e espera o resultado (ou um tempo-limite). Usado pela janela de comandos.</summary>
+    /// <summary>Envia um comando ao agente, espera o resultado (ou um tempo-limite) e anota no registro de atividades.</summary>
     public async Task<(bool Ok, string Mensagem)> EnviarComandoAsync(AcaoComando acao, string argumento, CancellationToken ct)
+    {
+        var resultado = await ExecutarComandoAsync(acao, argumento, ct);
+        string detalhe = RegistroAtividades.DetalheDoComando(acao, argumento);
+        Sessao.Registrar(RegistroAtividades.NomeDoComando(acao), Dados.Nome, resultado.Ok ? detalhe : $"falhou: {resultado.Mensagem} {detalhe}");
+        return resultado;
+    }
+
+    async Task<(bool Ok, string Mensagem)> ExecutarComandoAsync(AcaoComando acao, string argumento, CancellationToken ct)
     {
         if (Estado != EstadoConexao.Online)
             return (false, "computador offline");
@@ -67,6 +75,14 @@ sealed partial class ConexaoComputador
     /// </summary>
     public async Task<(bool Ok, string Mensagem)> EnviarArquivoAsync(string caminho, string nome, long tamanho, byte[] sha256,
         IProgress<long>? progresso, CancellationToken ct, bool atualizacao = false)
+    {
+        var resultado = await TransferirArquivoAsync(caminho, nome, tamanho, sha256, progresso, ct, atualizacao);
+        if (!atualizacao) Sessao.Registrar("Enviar arquivo", Dados.Nome, resultado.Ok ? nome : $"falhou: {nome}");
+        return resultado;
+    }
+
+    async Task<(bool Ok, string Mensagem)> TransferirArquivoAsync(string caminho, string nome, long tamanho, byte[] sha256,
+        IProgress<long>? progresso, CancellationToken ct, bool atualizacao)
     {
         uint id = (uint)Interlocked.Increment(ref _proximoIdArquivo);
         var canal = Channel.CreateUnbounded<RespostaArquivo>();

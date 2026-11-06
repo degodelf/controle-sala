@@ -9,7 +9,7 @@ namespace ControleSala.Professor;
 /// <summary>Mostra a versão nova encontrada no GitHub e deixa o professor baixar e escolher: atualizar o próprio PC e/ou enviar aos alunos.</summary>
 public partial class JanelaNovaVersao : Window
 {
-    readonly AtualizacaoDisponivel _nova;
+    AtualizacaoDisponivel _nova;
     readonly List<ConexaoComputador> _computadores;
     readonly AutoAtualizadorAlunos? _auto;
     bool _baixado;
@@ -20,11 +20,16 @@ public partial class JanelaNovaVersao : Window
         _computadores = computadores;
         _auto = auto;
         InitializeComponent();
-        Title = $"Nova versão {nova.Versao}";
-        TextoTitulo.Text = $"Nova versão disponível: {nova.Versao}";
+        MostrarVersao();
         TextoSub.Text = $"Você tem a versão {Versoes.Atual}. Atualizar mantém a sala e as configurações.";
-        TextoNotas.Text = string.IsNullOrWhiteSpace(nova.Notas) ? "(sem descrição)" : nova.Notas;
         BotaoAlunos.IsEnabled = _computadores.Count > 0;
+    }
+
+    void MostrarVersao()
+    {
+        Title = $"Nova versão {_nova.Versao}";
+        TextoTitulo.Text = $"Nova versão disponível: {_nova.Versao}";
+        TextoNotas.Text = string.IsNullOrWhiteSpace(_nova.Notas) ? "(sem descrição)" : _nova.Notas;
     }
 
     /// <summary>
@@ -41,6 +46,13 @@ public partial class JanelaNovaVersao : Window
         try
         {
             TextoMensagem.Foreground = (System.Windows.Media.Brush)FindResource("PincelTextoFraco");
+            TextoMensagem.Text = "Conferindo a última versão...";
+            // Pode ter saído outra versão desde que o programa abriu: baixa sempre a última, direto.
+            if (await VerificadorAtualizacao.VerificarAsync(Versoes.Atual) is { } ultima && Versoes.MaisNova(ultima.Versao, _nova.Versao))
+            {
+                _nova = ultima;
+                MostrarVersao();
+            }
             TextoMensagem.Text = "Baixando a atualização...";
             Directory.CreateDirectory(Path.GetDirectoryName(Atualizacoes.CaminhoBaixado)!);
             await BaixarAsync(_nova.UrlInstalador, Atualizacoes.CaminhoBaixado);

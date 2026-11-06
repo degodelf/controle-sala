@@ -4,6 +4,22 @@
         Title="Limpeza automática" Width="620" Height="760" MinWidth="520" MinHeight="600"
         WindowStartupLocation="CenterOwner" Background="{DynamicResource PincelFundo}">
     <DockPanel Margin="20">
+        <TextBlock DockPanel.Dock="Top" Text="Limpeza automática" Style="{StaticResource Titulo}" Margin="0,0,0,12"/>
+
+        <!-- Situação da agenda, sempre à vista: pausar ou retomar vale na hora. -->
+        <Border DockPanel.Dock="Top" Style="{StaticResource Cartao}">
+            <DockPanel>
+                <Button x:Name="BotaoPausar" DockPanel.Dock="Right" Padding="20,6" Margin="12,0,0,0" VerticalAlignment="Center" Click="Pausar_Click"/>
+                <StackPanel VerticalAlignment="Center">
+                    <StackPanel Orientation="Horizontal">
+                        <Ellipse x:Name="PontoEstado" Width="10" Height="10" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="TextoEstado" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource PincelTexto}"/>
+                    </StackPanel>
+                    <TextBlock x:Name="TextoDetalhe" Style="{StaticResource Rotulo}" TextWrapping="Wrap" Margin="18,2,0,0"/>
+                </StackPanel>
+            </DockPanel>
+        </Border>
+
         <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,14,0,0">
             <Button Content="Salvar" Style="{StaticResource BotaoPrincipal}" Padding="26,6" Margin="0,0,8,0" Click="Salvar_Click"/>
             <Button Content="Fechar" IsCancel="True" Padding="16,6"/>
@@ -12,7 +28,24 @@
 
         <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="0,0,6,0">
             <StackPanel>
-                <TextBlock Text="Limpeza automática" Style="{StaticResource Titulo}" Margin="0,0,0,12"/>
+                <Border Style="{StaticResource Cartao}">
+                    <StackPanel>
+                        <TextBlock Text="Quando limpar (agenda)" Style="{StaticResource TituloSecao}"/>
+                        <WrapPanel x:Name="PainelDias" Margin="0,0,0,12">
+                            <ToggleButton Tag="0" Content="Dom" Width="56" Margin="0,0,6,6"/>
+                            <ToggleButton Tag="1" Content="Seg" Width="56" Margin="0,0,6,6"/>
+                            <ToggleButton Tag="2" Content="Ter" Width="56" Margin="0,0,6,6"/>
+                            <ToggleButton Tag="3" Content="Qua" Width="56" Margin="0,0,6,6"/>
+                            <ToggleButton Tag="4" Content="Qui" Width="56" Margin="0,0,6,6"/>
+                            <ToggleButton Tag="5" Content="Sex" Width="56" Margin="0,0,6,6"/>
+                            <ToggleButton Tag="6" Content="Sáb" Width="56" Margin="0,0,0,6"/>
+                        </WrapPanel>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="Horário (HH:mm):" VerticalAlignment="Center" Foreground="{DynamicResource PincelTexto}" Margin="0,0,8,0"/>
+                            <TextBox x:Name="CampoHora" Width="80" Padding="6,4" MaxLength="5"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
 
                 <Border Style="{StaticResource Cartao}">
                     <StackPanel>
@@ -44,37 +77,6 @@
                         <TextBlock Text="Não apagar" Style="{StaticResource TituloSecao}"/>
                         <TextBlock Text="Um nome por linha — pastas ou arquivos a preservar." Style="{StaticResource Rotulo}"/>
                         <TextBox x:Name="CampoExcecoes" Height="70" AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" Padding="6,4"/>
-                    </StackPanel>
-                </Border>
-
-                <Border Style="{StaticResource Cartao}">
-                    <StackPanel>
-                        <TextBlock Text="Imagem mostrada durante a limpeza (opcional)" Style="{StaticResource TituloSecao}"/>
-                        <DockPanel>
-                            <Button DockPanel.Dock="Right" Content="Escolher..." Padding="10,4" Margin="6,0,0,0" Click="EscolherImagem_Click"/>
-                            <Button DockPanel.Dock="Right" Content="Remover" Padding="10,4" Margin="6,0,0,0" Click="RemoverImagem_Click"/>
-                            <TextBlock x:Name="TextoImagem" Foreground="{DynamicResource PincelTextoFraco}" VerticalAlignment="Center"/>
-                        </DockPanel>
-                    </StackPanel>
-                </Border>
-
-                <Border Style="{StaticResource Cartao}">
-                    <StackPanel>
-                        <TextBlock Text="Quando limpar (agenda)" Style="{StaticResource TituloSecao}"/>
-                        <CheckBox x:Name="CxAgendada" Content="Limpar automaticamente nos dias e horário abaixo" Margin="0,0,0,10"/>
-                        <WrapPanel x:Name="PainelDias" Margin="0,0,0,12">
-                            <ToggleButton Tag="0" Content="Dom" Width="56" Margin="0,0,6,6"/>
-                            <ToggleButton Tag="1" Content="Seg" Width="56" Margin="0,0,6,6"/>
-                            <ToggleButton Tag="2" Content="Ter" Width="56" Margin="0,0,6,6"/>
-                            <ToggleButton Tag="3" Content="Qua" Width="56" Margin="0,0,6,6"/>
-                            <ToggleButton Tag="4" Content="Qui" Width="56" Margin="0,0,6,6"/>
-                            <ToggleButton Tag="5" Content="Sex" Width="56" Margin="0,0,6,6"/>
-                            <ToggleButton Tag="6" Content="Sáb" Width="56" Margin="0,0,0,6"/>
-                        </WrapPanel>
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="Horário (HH:mm):" VerticalAlignment="Center" Foreground="{DynamicResource PincelTexto}" Margin="0,0,8,0"/>
-                            <TextBox x:Name="CampoHora" Width="80" Padding="6,4" MaxLength="5"/>
-                        </StackPanel>
                     </StackPanel>
                 </Border>
 

@@ -53,6 +53,7 @@ static partial class Programa
         PrepararConsole();
         if (opcoes.CartaoCaptura != null) return Bandeja.CapturarCartao(opcoes.CartaoCaptura);
         if (opcoes.DefinirPapel != null) { LimpezaExecutor.DefinirPapelDeParede(opcoes.DefinirPapel); return 0; }
+        if (opcoes.DefinirNome != null) return DefinirNomeDoPc(opcoes.DefinirNome);
         if (opcoes.Limpar)
         {
             InterfaceAgente.Iniciar();
@@ -122,9 +123,16 @@ static partial class Programa
                 $"'netsh int ipv4 add excludedportrange protocol=tcp startport={opcoes.Porta} numberofports=1 store=persistent' → 'net start winnat', e reinicie.");
             return 3;
         }
+        catch (System.Net.Sockets.SocketException ex) when (ex.SocketErrorCode == System.Net.Sockets.SocketError.AddressAlreadyInUse)
+        {
+            Log($"ERRO: a porta {opcoes.Porta} já está em uso (outro agente aberto neste PC?).");
+            return 3;
+        }
         using var _descarteServidor = servidor;
         string? mac = MacDaPlaca();
         if (mac != null) { servidor.MacMsg = Protocolo.MontarEnderecoMac(mac); Log($"MAC deste PC: {mac}"); }
+        string? nomeEscolhido = NomeDoPc.Ler();
+        if (nomeEscolhido != null) { servidor.NomeMsg = Protocolo.MontarNomeEscolhido(nomeEscolhido); Log($"Nome deste PC na sala: {nomeEscolhido}"); }
         Log($"Versão {Versoes.Atual}");
         // O instalador de uma atualização ainda pode estar terminando quando este agente liga: apaga depois.
         _ = Task.Delay(TimeSpan.FromMinutes(3)).ContinueWith(_ => AtualizacaoAgente.LimparRestos());
@@ -136,7 +144,7 @@ static partial class Programa
 
         var extras = opcoes.Anunciar.Select(IPAddress.Parse).ToArray();
         using var anunciante = rede || extras.Length > 0
-            ? new Anunciante(Environment.MachineName, opcoes.Porta, rede, extras)
+            ? new Anunciante(nomeEscolhido ?? Environment.MachineName, opcoes.Porta, rede, extras)
             : null;
         if (anunciante != null)
             Log("Anunciando este PC na rede para o professor encontrar.");
@@ -270,9 +278,29 @@ static partial class Programa
             Console.WriteLine("Nenhuma sala configurada neste computador (ou sem permissão para ler).");
             return 2;
         }
-        if (o.Saida != null) File.WriteAllText(o.Saida, sala.Escola + "\n" + sala.Sala);
+        if (o.Saida != null) File.WriteAllText(o.Saida, sala.Escola + "\n" + sala.Sala + "\n" + NomeDoPc.Ler());
         Console.WriteLine($"Sala \"{sala.Sala}\" ({sala.Escola}).");
         return 0;
+    }
+
+    /// <summary>--definir-nome: grava como este PC aparece para o professor (o instalador chama). Códigos: 0 ok, 4 nome inválido, 5 sem permissão.</summary>
+    static int DefinirNomeDoPc(string nome)
+    {
+        if (NomeDoPc.Validar(nome) is not { } valido)
+        {
+            Console.WriteLine($"Nome inválido: use de 1 a {NomeDoPc.TamanhoMaximo} caracteres.");
+            return 4;
+        }
+        try
+        {
+            NomeDoPc.Salvar(valido);
+            return 0;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            Console.WriteLine($"Não foi possível gravar o nome: {ex.Message}");
+            return 5;
+        }
     }
 
     /// <summary>--desfazer: tira o que o agente mudou no Windows (bloqueio de internet/sites e limpeza agendada). O desinstalador chama.</summary>
@@ -432,7 +460,7 @@ sealed record Opcoes(int Porta, bool Rede, int Fps, int Kbps, string Encoder,
     int MiniaturaLargura, int MiniaturaFps, int MiniaturaKbps, string[] Anunciar,
     string? Sala, string? Senha, string? ImportarSala, string? VerificarSala, string? Saida,
     bool Servico, bool Sessao, string? CartaoCaptura, string? PastaRecebidos, string? DefinirPapel, bool Limpar,
-    bool SalaAtual = false, bool Desfazer = false)
+    bool SalaAtual = false, bool Desfazer = false, string? DefinirNome = null)
 {
     public static Opcoes? Ler(string[] args)
     {
@@ -468,6 +496,7 @@ sealed record Opcoes(int Porta, bool Rede, int Fps, int Kbps, string Encoder,
                     case "--sessao": o = o with { Sessao = true }; break;
                     case "--cartao-captura": o = o with { CartaoCaptura = Valor() }; break;
                     case "--definir-papel": o = o with { DefinirPapel = Valor() }; break;
+                    case "--definir-nome": o = o with { DefinirNome = Valor() }; break;
                     case "--limpar": o = o with { Limpar = true }; break;
                     case "--sala-atual": o = o with { SalaAtual = true }; break;
                     case "--desfazer": o = o with { Desfazer = true }; break;

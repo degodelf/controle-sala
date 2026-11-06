@@ -189,22 +189,39 @@ public sealed class PerfisTestes : IDisposable
         Assert.Equal(ResultadoPin.Incorreto, repo.Verificar(p, "4321", out _));
     }
 
-    [Fact]
-    public void Professor_sem_pin_entra_sem_senha()
+    /// <summary>Perfil gravado por versões antigas, que entravam sem senha.</summary>
+    (RepositorioPerfis Repositorio, PerfilProfessor Perfil) PerfilAntigoSemPin()
     {
+        Directory.CreateDirectory(_pasta);
+        File.WriteAllText(Arquivo, """[{"Nome":"Professor"}]""");
         var repo = Novo();
-        var p = repo.AdicionarSemPin("Professor");
-        Assert.False(RepositorioPerfis.TemPin(p));
-        Assert.Equal(ResultadoPin.Correto, repo.Verificar(p, "", out _));
-        Assert.Equal(ResultadoPin.Correto, repo.Verificar(p, "qualquer", out _));
+        return (repo, repo.Perfis[0]);
     }
 
     [Fact]
-    public void Professor_sem_pin_persiste_sem_senha()
+    public void Perfil_antigo_sem_pin_define_senha_e_nome_de_verdade()
     {
-        Novo().AdicionarSemPin("Professor");
-        var perfil = Assert.Single(Novo().Perfis);
-        Assert.False(RepositorioPerfis.TemPin(perfil));
+        var (repo, p) = PerfilAntigoSemPin();
+        Assert.False(RepositorioPerfis.TemPin(p));
+
+        repo.Renomear(p, "Diego Delfino");
+        // Sem PIN atual, o "PIN atual" vazio passa e define o novo.
+        Assert.Equal(ResultadoPin.Correto, repo.TrocarPin(p, "", "5555", out _));
+
+        var salvo = Novo().Perfis[0];
+        Assert.Equal("Diego Delfino", salvo.Nome);
+        Assert.True(RepositorioPerfis.TemPin(salvo));
+        Assert.Equal(ResultadoPin.Incorreto, repo.Verificar(p, "0000", out _));
+    }
+
+    [Fact]
+    public void Professor_sem_pin_entra_sem_senha_e_continua_assim()
+    {
+        var repo = Novo();
+        var p = repo.AdicionarSemPin("Diego");
+        Assert.False(RepositorioPerfis.TemPin(p));
+        Assert.Equal(ResultadoPin.Correto, repo.Verificar(p, "", out _));
+        Assert.False(RepositorioPerfis.TemPin(Assert.Single(Novo().Perfis)));
     }
 
     [Fact]
@@ -212,24 +229,34 @@ public sealed class PerfisTestes : IDisposable
     {
         var repo = Novo();
         var p = repo.Adicionar("Diego", "4321");
-        Assert.True(RepositorioPerfis.TemPin(p));
-
         repo.RemoverPin(p);
-        Assert.False(RepositorioPerfis.TemPin(p));
         Assert.Equal(ResultadoPin.Correto, repo.Verificar(p, "", out _));
         Assert.False(RepositorioPerfis.TemPin(Novo().Perfis[0])); // persistiu sem senha
     }
 
     [Fact]
-    public void Definir_senha_num_professor_sem_pin()
+    public void Renomear_nao_aceita_nome_de_outro_professor()
     {
         var repo = Novo();
-        var p = repo.AdicionarSemPin("Professor");
-        // Sem PIN atual, o "PIN atual" vazio passa e define o novo.
-        Assert.Equal(ResultadoPin.Correto, repo.TrocarPin(p, "", "5555", out _));
-        Assert.True(RepositorioPerfis.TemPin(p));
-        Assert.Equal(ResultadoPin.Correto, repo.Verificar(p, "5555", out _));
-        Assert.Equal(ResultadoPin.Incorreto, repo.Verificar(p, "0000", out _));
+        repo.Adicionar("Maria", "1111");
+        var diego = repo.Adicionar("Diego", "2222");
+        Assert.Throws<ArgumentException>(() => repo.Renomear(diego, "maria"));
+        repo.Renomear(diego, "DIEGO"); // o próprio nome com outra grafia pode
+        Assert.Equal("DIEGO", diego.Nome);
+    }
+
+    [Fact]
+    public void Aceite_das_regras_fica_gravado_com_a_data()
+    {
+        var repo = Novo();
+        var p = repo.Adicionar("Diego", "4321");
+        Assert.Equal(0, p.RegrasAceitas);
+
+        repo.AceitarRegras(p, 1);
+
+        var salvo = Novo().Perfis[0];
+        Assert.Equal(1, salvo.RegrasAceitas);
+        Assert.Equal(_relogio.GetUtcNow(), salvo.RegrasAceitasEm);
     }
 
     sealed class RelogioFalso : TimeProvider

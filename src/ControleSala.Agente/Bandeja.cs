@@ -8,7 +8,8 @@ namespace ControleSala.Agente;
 
 /// <summary>
 /// Ícone perto do relógio do PC do aluno. Sempre visível; ao clicar mostra só um cartão informativo
-/// (sala, quem está vendo a tela, crédito). Não tem menu nem botões: o aluno não configura nem encerra nada.
+/// (sala, quem está vendo a tela, crédito) e avisa quem entra no Windows sobre o que o professor pode ver.
+/// Não tem menu nem botões: o aluno não configura nem encerra nada.
 /// </summary>
 sealed class Bandeja : IDisposable
 {
@@ -17,9 +18,15 @@ sealed class Bandeja : IDisposable
     readonly Icon _iconeLivre, _iconeVisto;
     readonly Control _ponte = new();
     readonly string _nomeSala;
+    readonly ServidorVideo _servidor;
+    readonly System.Windows.Forms.Timer _vigiaLogin = new() { Interval = 5000 };
+    AvisoAlunoForm? _avisoAluno;
+    string? _ultimoUsuario;
+    int _checagensAteAvisar;
 
     public Bandeja(ConfigSala? sala, ServidorVideo servidor)
     {
+        _servidor = servidor;
         _nomeSala = sala == null ? "ControleSala" : $"ControleSala — {sala.Sala}";
         _iconeLivre = CriarIcone(Color.FromArgb(0x4C, 0xAF, 0x50));
         _iconeVisto = CriarIcone(Color.FromArgb(0xE5, 0x39, 0x35));
@@ -36,10 +43,26 @@ sealed class Bandeja : IDisposable
             _icone.ShowBalloonTip(6000, "ControleSala",
                 $"{professor} enviou: {arquivo}\nEstá na pasta \"{PastaRecebidos.Nome}\", na área de trabalho.", ToolTipIcon.Info));
         Atualizar(servidor.Professores);
+        _vigiaLogin.Tick += (_, _) => VigiarLogin();
+        _vigiaLogin.Start();
+    }
+
+    /// <summary>Avisa quem acabou de entrar no Windows, cerca de 15 s depois, quando a área de trabalho já carregou.</summary>
+    void VigiarLogin()
+    {
+        string? usuario = LancadorNaSessao.UsuarioDaSessao();
+        if (usuario != _ultimoUsuario)
+        {
+            _ultimoUsuario = usuario;
+            _checagensAteAvisar = string.IsNullOrEmpty(usuario) ? 0 : 3;
+        }
+        if (_checagensAteAvisar > 0 && --_checagensAteAvisar == 0)
+            (_avisoAluno ??= new AvisoAlunoForm()).Mostrar();
     }
 
     void Atualizar(string[] professores)
     {
+        IndicadorControle.DefinirVisao(_servidor.VendoEmTelaGrande);
         bool visto = professores.Length > 0;
         _icone.Icon = visto ? _iconeVisto : _iconeLivre;
         _icone.Text = Limitar(visto ? $"{_nomeSala} — tela sendo vista por {string.Join(", ", professores)}" : _nomeSala);
@@ -74,11 +97,15 @@ sealed class Bandeja : IDisposable
         using var cartao = new CartaoForm(new ConfigSala("Escola Estadual Exemplo", "Laboratório de Informática 1", new byte[ConfigSala.TamanhoChave]));
         cartao.Atualizar(["Prof. Diego"]);
         cartao.SalvarImagem(saida);
+        using var aviso = new AvisoAlunoForm();
+        aviso.SalvarImagem(Path.ChangeExtension(saida, ".aviso.png"));
         return 0;
     }
 
     public void Dispose()
     {
+        _vigiaLogin.Dispose();
+        _avisoAluno?.Dispose();
         _icone.Visible = false;
         _icone.Dispose();
         _cartao.Dispose();
@@ -96,7 +123,7 @@ sealed class CartaoForm : Form
         StartPosition = FormStartPosition.Manual;
         ShowInTaskbar = false;
         TopMost = true;
-        Size = new Size(360, 176);
+        Size = new Size(360, 196);
         BackColor = Color.FromArgb(0x1E, 0x1E, 0x1E);
         ForeColor = Color.FromArgb(0xDD, 0xDD, 0xDD);
         Font = new Font("Segoe UI", 9.5f);
@@ -116,8 +143,13 @@ sealed class CartaoForm : Form
         Controls.Add(_estado);
         Controls.Add(new Label
         {
+            Text = "O professor vê a tela ao vivo. Nada é gravado.", ForeColor = Color.FromArgb(0xAA, 0xAA, 0xAA),
+            AutoSize = false, Location = new Point(18, 138), Size = new Size(324, 20),
+        });
+        Controls.Add(new Label
+        {
             Text = Creditos.Linha, ForeColor = Color.FromArgb(0x6E, 0x6E, 0x6E), Font = new Font("Segoe UI", 7.5f),
-            AutoSize = false, Location = new Point(18, 148), Size = new Size(324, 18),
+            AutoSize = false, Location = new Point(18, 168), Size = new Size(324, 18),
         });
         Atualizar([]);
 

@@ -12,6 +12,9 @@ public sealed class PerfilProfessor
     public int Iteracoes { get; set; }
     public int Falhas { get; set; }
     public DateTimeOffset? BloqueadoAte { get; set; }
+    /// <summary>Versão das regras de uso que este professor aceitou (0 = ainda não aceitou).</summary>
+    public int RegrasAceitas { get; set; }
+    public DateTimeOffset? RegrasAceitasEm { get; set; }
 }
 
 public enum ResultadoPin { Correto, Incorreto, Bloqueado }
@@ -48,16 +51,10 @@ public sealed class RepositorioPerfis
     /// <summary>Esse professor tem PIN? Se não tiver, entra sem pedir senha.</summary>
     public static bool TemPin(PerfilProfessor perfil) => !string.IsNullOrEmpty(perfil.Resumo);
 
-    /// <summary>Cria um professor SEM PIN (entra direto). Usado quando o professor não quer senha.</summary>
+    /// <summary>Cria um professor SEM PIN (entra direto). O PIN é opcional.</summary>
     public PerfilProfessor AdicionarSemPin(string nome)
     {
-        nome = (nome ?? "").Trim();
-        if (nome.Length == 0 || nome.Length > 60)
-            throw new ArgumentException("Digite um nome com até 60 letras.");
-        if (_perfis.Any(p => string.Equals(p.Nome, nome, StringComparison.CurrentCultureIgnoreCase)))
-            throw new ArgumentException("Já existe um professor com esse nome.");
-
-        var perfil = new PerfilProfessor { Nome = nome };   // sem PIN: Resumo fica vazio
+        var perfil = new PerfilProfessor { Nome = NomeValido(nome) };   // sem PIN: Resumo fica vazio
         _perfis.Add(perfil);
         Salvar();
         return perfil;
@@ -76,19 +73,39 @@ public sealed class RepositorioPerfis
 
     public PerfilProfessor Adicionar(string nome, string pin)
     {
-        nome = (nome ?? "").Trim();
-        if (nome.Length == 0 || nome.Length > 60)
-            throw new ArgumentException("Digite um nome com até 60 letras.");
+        nome = NomeValido(nome);
         if (!PinValido(pin))
             throw new ArgumentException("O PIN deve ter de 4 a 8 números.");
-        if (_perfis.Any(p => string.Equals(p.Nome, nome, StringComparison.CurrentCultureIgnoreCase)))
-            throw new ArgumentException("Já existe um professor com esse nome.");
 
         var perfil = new PerfilProfessor { Nome = nome };
         DefinirPin(perfil, pin);
         _perfis.Add(perfil);
         Salvar();
         return perfil;
+    }
+
+    string NomeValido(string nome, PerfilProfessor? ignorar = null)
+    {
+        nome = (nome ?? "").Trim();
+        if (nome.Length == 0 || nome.Length > 60)
+            throw new ArgumentException("Digite um nome com até 60 letras.");
+        if (_perfis.Any(p => p != ignorar && string.Equals(p.Nome, nome, StringComparison.CurrentCultureIgnoreCase)))
+            throw new ArgumentException("Já existe um professor com esse nome.");
+        return nome;
+    }
+
+    /// <summary>Troca o nome (o perfil "Professor" de versões antigas ganha o nome de verdade).</summary>
+    public void Renomear(PerfilProfessor perfil, string nome)
+    {
+        perfil.Nome = NomeValido(nome, perfil);
+        Salvar();
+    }
+
+    public void AceitarRegras(PerfilProfessor perfil, int versao)
+    {
+        perfil.RegrasAceitas = versao;
+        perfil.RegrasAceitasEm = _tempo.GetUtcNow();
+        Salvar();
     }
 
     public ResultadoPin Verificar(PerfilProfessor perfil, string pin, out TimeSpan espera)

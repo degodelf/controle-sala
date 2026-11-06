@@ -13,10 +13,13 @@
         <TextBlock Text="Componentes de terceiros" FontWeight="SemiBold"/>
         <TextBlock x:Name="TextoComponentes" TextWrapping="Wrap" Foreground="{DynamicResource PincelTextoFraco}" Margin="0,4,0,18"/>
 
-        <Border Background="#33E0A060" BorderBrush="{DynamicResource PincelAviso}" BorderThickness="1" Padding="10,8" Margin="0,0,0,18">
-            <TextBlock TextWrapping="Wrap" Foreground="{DynamicResource PincelAviso}"
-                       Text="Versão de teste: a transmissão ainda não é criptografada nem exige senha do aluno. Use só em rede de teste."/>
-        </Border>
+        <TextBlock Text="Licença" FontWeight="SemiBold"/>
+        <TextBlock TextWrapping="Wrap" Foreground="{DynamicResource PincelTextoFraco}" Margin="0,4,0,18"
+                   Text="Uso gratuito em escolas. É proibido vender, e o crédito ao autor deve continuar no programa. Texto completo em LICENCA.txt, na pasta do programa."/>
+
+        <TextBlock Text="Privacidade" FontWeight="SemiBold"/>
+        <TextBlock TextWrapping="Wrap" Foreground="{DynamicResource PincelTextoFraco}" Margin="0,4,0,18"
+                   Text="As telas são mostradas ao vivo, com conexão criptografada, e nada é gravado. Elas e os dados dos alunos não saem da rede da escola. O aluno vê quando a tela dele está sendo vista."/>
 
         <Button Content="Fechar" IsCancel="True" IsDefault="True" Padding="22,6" HorizontalAlignment="Right"/>
     </StackPanel>

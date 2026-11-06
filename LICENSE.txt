@@ -1,0 +1,23 @@
+﻿LICENÇA DE USO DO CONTROLESALA
+
+Copyright (c) 2026 Diego Sabino Delfino. Todos os direitos reservados.
+
+1. USO GRATUITO
+Escolas, redes de ensino e secretarias de educação podem instalar e usar o ControleSala de graça, em quantos computadores precisarem.
+
+2. VENDA PROIBIDA
+Ninguém pode vender, alugar ou cobrar pelo ControleSala, nem incluí-lo em produto ou serviço pago.
+
+3. CRÉDITO AO AUTOR
+O crédito "ControleSala, criado pelo professor Diego Sabino Delfino" deve continuar no programa e em qualquer material que o divulgue. Ele não pode ser removido nem alterado.
+
+4. OUTROS USOS
+O que esta licença não permite depende de autorização por escrito do autor. Isso inclui copiar o código, alterar o programa e distribuir versões modificadas.
+
+5. SEM GARANTIA
+O programa é entregue como está, sem garantia de qualquer tipo. Quem usa responde pelo uso, inclusive pela proteção dos dados dos alunos.
+
+6. COMPONENTES DE TERCEIROS
+O FFmpeg (LGPL v3) e os demais componentes de terceiros continuam com as próprias licenças.
+
+Contato do autor: github.com/degodelf
