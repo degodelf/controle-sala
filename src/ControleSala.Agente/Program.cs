@@ -112,6 +112,7 @@ static partial class Programa
         // Pasta padrão = área de trabalho pública do PC do aluno (todos os usuários veem e podem alterar).
         // --pasta-recebidos serve para testar sem administrador.
         string pastaRecebidos = opcoes.PastaRecebidos ?? PastaRecebidos.Padrao;
+        Comandos.PastaDeRecebidos = pastaRecebidos;
         ServidorVideo servidor;
         try
         {
@@ -135,6 +136,14 @@ static partial class Programa
         if (mac != null) { servidor.MacMsg = Protocolo.MontarEnderecoMac(mac); Log($"MAC deste PC: {mac}"); }
         string? nomeEscolhido = NomeDoPc.Ler();
         if (nomeEscolhido != null) { servidor.NomeMsg = Protocolo.MontarNomeEscolhido(nomeEscolhido); Log($"Nome deste PC na sala: {nomeEscolhido}"); }
+        RelatoLimpeza.Carregar();
+        if (RelatoLimpeza.Atual is { } limpeza) servidor.LimpezaMsg = Protocolo.MontarResultadoLimpeza(limpeza.Serializar());
+        RelatoLimpeza.Mudou += r =>
+        {
+            byte[] msg = Protocolo.MontarResultadoLimpeza(r.Serializar());
+            servidor.LimpezaMsg = msg;
+            servidor.TransmitirControle(msg);
+        };
         AgenteDefender.Carregar();
         if (AgenteDefender.Atual is { } defender) servidor.DefenderMsg = Protocolo.MontarResultadoDefender(defender.Serializar());
         AgenteDefender.Mudou += r =>
@@ -155,7 +164,7 @@ static partial class Programa
 
         var extras = opcoes.Anunciar.Select(IPAddress.Parse).ToArray();
         using var anunciante = rede || extras.Length > 0
-            ? new Anunciante(nomeEscolhido ?? Environment.MachineName, opcoes.Porta, rede, extras)
+            ? new Anunciante(nomeEscolhido ?? Environment.MachineName, opcoes.Porta, rede, extras, sala?.Chave)
             : null;
         if (anunciante != null)
             Log("Anunciando este PC na rede para o professor encontrar.");

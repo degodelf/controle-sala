@@ -69,6 +69,22 @@ public static class LimpezaArquivos
         return removidos;
     }
 
+    /// <summary>Quantos bytes um arquivo ou uma pasta ocupam agora. O que não dá para ler não conta, e atalhos de pasta não são seguidos.</summary>
+    public static long Tamanho(string caminho)
+    {
+        try
+        {
+            if (File.Exists(caminho)) return new FileInfo(caminho).Length;
+            if (!Directory.Exists(caminho)) return 0;
+            var opcoes = new EnumerationOptions { RecurseSubdirectories = true, IgnoreInaccessible = true, AttributesToSkip = FileAttributes.ReparsePoint };
+            return new DirectoryInfo(caminho).EnumerateFiles("*", opcoes).Sum(a => a.Length);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return 0;
+        }
+    }
+
     /// <summary>Apaga um arquivo ou uma pasta (com conteúdo). Não lança: devolve false se não deu.</summary>
     public static bool Remover(string caminho)
     {

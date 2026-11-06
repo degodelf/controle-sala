@@ -14,6 +14,17 @@ public static class PastaRecebidos
     /// <summary>Dentro da Área de Trabalho Pública: aparece na área de trabalho de todos os usuários do PC.</summary>
     public static string Padrao => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonDesktopDirectory), Nome);
 
+    /// <summary>
+    /// O caminho de um arquivo que o professor enviou, para abrir. Null se ele não estiver na pasta de recebidos ou for de um tipo
+    /// bloqueado: o comando de abrir nunca serve para abrir outra coisa do PC.
+    /// </summary>
+    public static string? Localizar(string pasta, string nome)
+    {
+        if (NomesDeArquivo.Validar(nome) != null || Path.GetFileName(nome) != nome) return null;
+        string caminho = Path.Combine(pasta, nome);
+        return File.Exists(caminho) ? caminho : null;
+    }
+
     /// <summary>Cria a pasta. Com <paramref name="liberarParaAlunos"/>, qualquer usuário pode abrir, alterar e apagar o que está nela.</summary>
     public static void Garantir(string pasta, bool liberarParaAlunos)
     {

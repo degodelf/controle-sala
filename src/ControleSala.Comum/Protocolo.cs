@@ -55,6 +55,8 @@ public enum TipoMensagem : byte
     NomeEscolhido = 37,
     /// <summary>Agente → professor: [string JSON] resultado do Windows Defender, ao conectar e quando muda.</summary>
     ResultadoDefender = 38,
+    /// <summary>Agente → professor: [string JSON] resultado da última limpeza, ao conectar e quando muda.</summary>
+    ResultadoLimpeza = 39,
 }
 
 public enum ArquivoConfigTipo : byte { PapelDeParede = 0, ImagemLimpeza = 1 }
@@ -87,6 +89,7 @@ public enum AcaoComando : byte
     Limpeza = 14,
     DefinirPapel = 15,
     IniciarAplicativo = 16,
+    AbrirArquivoRecebido = 17,
 }
 
 public readonly record struct Comando(uint Id, AcaoComando Acao, string Argumento);
@@ -295,6 +298,11 @@ public static class Protocolo
         Montar(TipoMensagem.ResultadoDefender, Encoding.UTF8.GetBytes(json));
 
     public static string LerResultadoDefender(ReadOnlySpan<byte> corpo) => Encoding.UTF8.GetString(corpo);
+
+    public static byte[] MontarResultadoLimpeza(string json) =>
+        Montar(TipoMensagem.ResultadoLimpeza, Encoding.UTF8.GetBytes(json));
+
+    public static string LerResultadoLimpeza(ReadOnlySpan<byte> corpo) => Encoding.UTF8.GetString(corpo);
 
     public static byte[] MontarConfigLimpeza(string json) =>
         Montar(TipoMensagem.ConfigLimpeza, Encoding.UTF8.GetBytes(json));

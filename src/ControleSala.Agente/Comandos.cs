@@ -38,9 +38,10 @@ static class Comandos
                 AcaoComando.Silenciar => Silenciar(comando.Argumento),
                 AcaoComando.BloquearInternet => BloquearInternet(comando.Argumento),
                 AcaoComando.LiberarInternet => LiberarInternet(),
-                AcaoComando.Limpeza => Limpeza(comando.Argumento),
+                AcaoComando.Limpeza => Limpeza(comando.Argumento, professor),
                 AcaoComando.DefinirPapel => LimpezaExecutor.AplicarPapelGuardado(),
                 AcaoComando.IniciarAplicativo => IniciarAplicativo(comando.Argumento),
+                AcaoComando.AbrirArquivoRecebido => AbrirArquivoRecebido(comando.Argumento),
                 _ => (false, "Este comando ainda não está disponível nesta versão."),
             };
         }
@@ -76,6 +77,17 @@ static class Comandos
     {
         if (Programas.ValidarComando(comando) is { } erro) return (false, erro);
         return Iniciar(ResolverPrograma(comando.Trim()), "", "Programa aberto.");
+    }
+
+    /// <summary>Onde este agente guarda o que o professor envia.</summary>
+    public static string PastaDeRecebidos { get; set; } = PastaRecebidos.Padrao;
+
+    /// <summary>Abre, na conta do aluno, um arquivo que acabou de chegar, com o programa padrão do Windows para aquele tipo.</summary>
+    static (bool, string) AbrirArquivoRecebido(string nome)
+    {
+        if (PastaRecebidos.Localizar(PastaDeRecebidos, nome) is not { } caminho)
+            return (false, "O arquivo não está na pasta de recebidos.");
+        return Iniciar(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "explorer.exe"), $"\"{caminho}\"", "Arquivo aberto.");
     }
 
     /// <summary>"Iniciar aplicativo" (estilo Veyon): roda o programa OU comando digitado, sem lista de permitidos.
@@ -160,7 +172,7 @@ static class Comandos
         return (true, fechados > 0 ? $"{fechados} janela(s) fechada(s)." : "Não foi possível fechar.");
     }
 
-    static (bool, string) Limpeza(string argumento)
+    static (bool, string) Limpeza(string argumento, string? professor)
     {
         // O argumento traz a configuração (JSON) da limpeza; se vier vazio, usa a guardada neste PC.
         var config = string.IsNullOrWhiteSpace(argumento)
@@ -176,7 +188,7 @@ static class Comandos
             try
             {
                 JanelasAluno.PerguntarLimpeza(SegundosAvisoLimpeza, ImagemDaLimpeza(), podeAdiar: false);
-                var (_, mensagem) = LimpezaExecutor.Executar(config);
+                var (_, mensagem) = LimpezaExecutor.Executar(config, pedida: professor ?? "");
                 Programa.Log($"Limpar agora: {mensagem}");
             }
             catch (Exception ex)

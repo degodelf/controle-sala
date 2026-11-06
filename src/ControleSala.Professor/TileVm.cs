@@ -119,6 +119,48 @@ sealed class TileVm : INotifyPropertyChanged
             Opacidade = 1;
     }
 
+    /// <summary>Só para a ferramenta de captura: mostra o computador online, com uma tela inventada (nunca a de um aluno).</summary>
+    internal void MostrarExemplo(int numero)
+    {
+        Imagem = TelaDeExemplo(numero);
+        CorEstado = Verde;
+        CorBorda = BordaNormal;
+        Opacidade = 1;
+        Mensagem = "";
+    }
+
+    static WriteableBitmap TelaDeExemplo(int numero)
+    {
+        const int largura = 640, altura = 360;
+        (Color Fundo, Color Claro, Color Destaque)[] temas =
+        [
+            (Color.FromRgb(0x0F, 0x4C, 0x5C), Color.FromRgb(0x2F, 0x7F, 0x8F), Color.FromRgb(0xE3, 0x64, 0x14)),
+            (Color.FromRgb(0x2B, 0x3A, 0x67), Color.FromRgb(0x49, 0x6A, 0x81), Color.FromRgb(0x2F, 0x9E, 0x6E)),
+            (Color.FromRgb(0x3D, 0x5A, 0x40), Color.FromRgb(0x77, 0x95, 0x6B), Color.FromRgb(0x2B, 0x6C, 0xB0)),
+            (Color.FromRgb(0x5B, 0x3A, 0x6B), Color.FromRgb(0x8C, 0x6A, 0xA0), Color.FromRgb(0xC9, 0x8A, 0x12)),
+        ];
+        var tema = temas[numero % temas.Length];
+        Brush Cor(Color c) { var b = new SolidColorBrush(c); b.Freeze(); return b; }
+        var linha = Cor(Color.FromRgb(0xD5, 0xDC, 0xDF));
+
+        var desenho = new DrawingVisual();
+        using (var dc = desenho.RenderOpen())
+        {
+            dc.DrawRectangle(new LinearGradientBrush(tema.Fundo, tema.Claro, 35), null, new Rect(0, 0, largura, altura));
+            dc.DrawRectangle(Cor(Color.FromRgb(0x20, 0x26, 0x2B)), null, new Rect(0, altura - 26, largura, 26));
+            int esquerda = 70 + numero % 3 * 22, topo = 28 + numero % 2 * 14;
+            dc.DrawRectangle(Brushes.White, null, new Rect(esquerda, topo, 450, 270));
+            dc.DrawRectangle(Cor(tema.Destaque), null, new Rect(esquerda, topo, 450, 30));
+            for (int i = 0; i < 2 + numero % 2; i++)
+                dc.DrawRectangle(Cor(tema.Claro), null, new Rect(esquerda + 24 + i * 138, topo + 52, 124, 86));
+            for (int i = 0; i < 5; i++)
+                dc.DrawRectangle(linha, null, new Rect(esquerda + 24, topo + 158 + i * 19, 400 - (i + numero) % 4 * 70, 9));
+        }
+        var quadro = new RenderTargetBitmap(largura, altura, 96, 96, PixelFormats.Pbgra32);
+        quadro.Render(desenho);
+        return new WriteableBitmap(quadro);
+    }
+
     public event PropertyChangedEventHandler? PropertyChanged;
     void Mudou([CallerMemberName] string? nome = null) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nome));
 }

@@ -84,6 +84,7 @@
                     <MenuItem.Icon><Path Style="{StaticResource Icone}" Data="{StaticResource IconeLimpeza}"/></MenuItem.Icon>
                 </MenuItem>
                 <MenuItem Header="Limpar agora..." Click="LimparAgora_Click"/>
+                <MenuItem Header="Relatórios de limpeza..." Click="MenuRelatorios_Click"/>
             </MenuItem>
             <MenuItem Header="_Professores">
                 <MenuItem Header="Trocar de professor..." Click="BotaoTrocar_Click"/>
@@ -125,68 +126,95 @@
                 </StackPanel>
                 <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
                 <StackPanel Orientation="Horizontal">
-                    <Button Style="{StaticResource BotaoFerramenta}" Click="BotaoEnviarArquivos_Click">
-                        <StackPanel>
-                            <Path Style="{StaticResource Icone}" Data="{StaticResource IconeEnviar}" HorizontalAlignment="Center"/>
-                            <TextBlock Text="Enviar arquivos" FontSize="11" Margin="0,3,0,0"/>
-                        </StackPanel>
-                    </Button>
-                    <Button Style="{StaticResource BotaoFerramenta}" Click="ComandoLink_Click">
-                        <StackPanel>
-                            <Path Style="{StaticResource Icone}" Data="{StaticResource IconeLink}" HorizontalAlignment="Center"/>
-                            <TextBlock Text="Abrir link" FontSize="11" Margin="0,3,0,0"/>
-                        </StackPanel>
-                    </Button>
-                    <Button Style="{StaticResource BotaoFerramenta}" Click="ComandoMensagem_Click">
-                        <StackPanel>
-                            <Path Style="{StaticResource Icone}" Data="{StaticResource IconeMensagem}" HorizontalAlignment="Center"/>
-                            <TextBlock Text="Mensagem" FontSize="11" Margin="0,3,0,0"/>
-                        </StackPanel>
-                    </Button>
-                    <Button Style="{StaticResource BotaoFerramenta}" Click="ComandoBloquear_Click">
+                    <!-- Da esquerda para a direita, o que mais se usa na aula. O que é de configuração fica nos menus. -->
+                    <Button Style="{StaticResource BotaoFerramenta}" Click="ComandoBloquear_Click" ToolTip="Bloquear a tela dos alunos">
                         <StackPanel>
                             <Path Style="{StaticResource Icone}" Data="{StaticResource IconeBloquear}" HorizontalAlignment="Center"/>
-                            <TextBlock Text="Bloquear tela" FontSize="11" Margin="0,3,0,0"/>
+                            <TextBlock Text="Bloquear" FontSize="11" Margin="0,3,0,0" HorizontalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+                    <Button Style="{StaticResource BotaoFerramenta}" Click="ComandoDesbloquear_Click" ToolTip="Devolver a tela aos alunos">
+                        <StackPanel>
+                            <Path Style="{StaticResource Icone}" Data="{StaticResource IconeDesbloquear}" HorizontalAlignment="Center"/>
+                            <TextBlock Text="Desbloquear" FontSize="11" Margin="0,3,0,0" HorizontalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+                    <Button Style="{StaticResource BotaoFerramenta}" Click="ComandoMensagem_Click" ToolTip="Enviar uma mensagem aos alunos">
+                        <StackPanel>
+                            <Path Style="{StaticResource Icone}" Data="{StaticResource IconeMensagem}" HorizontalAlignment="Center"/>
+                            <TextBlock Text="Mensagem" FontSize="11" Margin="0,3,0,0" HorizontalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+                    <Button Style="{StaticResource BotaoFerramenta}" Click="ComandoLink_Click" ToolTip="Abrir um site nos computadores">
+                        <StackPanel>
+                            <Path Style="{StaticResource Icone}" Data="{StaticResource IconeLink}" HorizontalAlignment="Center"/>
+                            <TextBlock Text="Abrir link" FontSize="11" Margin="0,3,0,0" HorizontalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+                    <Button Style="{StaticResource BotaoFerramenta}" Click="ComandoAbrirPrograma_Click" ToolTip="Abrir um programa nos computadores">
+                        <StackPanel>
+                            <Path Style="{StaticResource Icone}" Data="{StaticResource IconePrograma}" HorizontalAlignment="Center"/>
+                            <TextBlock Text="Abrir programa" FontSize="11" Margin="0,3,0,0" HorizontalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+                    <Button Style="{StaticResource BotaoFerramenta}" Click="BotaoEnviarArquivos_Click" ToolTip="Enviar arquivos aos alunos">
+                        <StackPanel>
+                            <Path Style="{StaticResource Icone}" Data="{StaticResource IconeEnviar}" HorizontalAlignment="Center"/>
+                            <TextBlock Text="Enviar arquivos" FontSize="11" Margin="0,3,0,0" HorizontalAlignment="Center"/>
                         </StackPanel>
                     </Button>
                     <Border Width="1" Background="{DynamicResource PincelBorda}" Margin="6,6"/>
-                    <Button Style="{StaticResource BotaoFerramenta}" Click="BotaoComputadores_Click">
+                    <Button Style="{StaticResource BotaoFerramenta}" Click="MenuDaBarra_Click" ToolTip="Bloquear ou liberar a internet">
+                        <Button.ContextMenu>
+                            <ContextMenu>
+                                <MenuItem Header="Bloquear TODA a internet..." Click="BloquearInternet_Click"/>
+                                <MenuItem Header="Bloquear sites da lista..." Click="BloquearSites_Click"/>
+                                <MenuItem Header="Liberar a internet..." Click="LiberarInternet_Click"/>
+                            </ContextMenu>
+                        </Button.ContextMenu>
                         <StackPanel>
-                            <Path Style="{StaticResource Icone}" Data="{StaticResource IconeComputadores}" HorizontalAlignment="Center"/>
-                            <TextBlock Text="Computadores" FontSize="11" Margin="0,3,0,0"/>
+                            <Path Style="{StaticResource Icone}" Data="{StaticResource IconeInternet}" HorizontalAlignment="Center"/>
+                            <TextBlock Text="Internet ▾" FontSize="11" Margin="0,3,0,0" HorizontalAlignment="Center"/>
                         </StackPanel>
                     </Button>
-                    <Button Style="{StaticResource BotaoFerramenta}" Click="MenuProcurar_Click">
+                    <Button Style="{StaticResource BotaoFerramenta}" Click="MenuDaBarra_Click" ToolTip="Silenciar ou reativar o som">
+                        <Button.ContextMenu>
+                            <ContextMenu>
+                                <MenuItem Header="Silenciar o som..." Click="ComandoSilenciar_Click"/>
+                                <MenuItem Header="Reativar o som..." Click="ComandoReativarSom_Click"/>
+                            </ContextMenu>
+                        </Button.ContextMenu>
                         <StackPanel>
-                            <Path Style="{StaticResource Icone}" Data="{StaticResource IconeProcurar}" HorizontalAlignment="Center"/>
-                            <TextBlock Text="Procurar" FontSize="11" Margin="0,3,0,0"/>
+                            <Path Style="{StaticResource Icone}" Data="{StaticResource IconeSom}" HorizontalAlignment="Center"/>
+                            <TextBlock Text="Som ▾" FontSize="11" Margin="0,3,0,0" HorizontalAlignment="Center"/>
                         </StackPanel>
                     </Button>
                     <Border Width="1" Background="{DynamicResource PincelBorda}" Margin="6,6"/>
-                    <Button Style="{StaticResource BotaoFerramenta}" Click="BotaoSala_Click">
-                        <StackPanel>
-                            <Path Style="{StaticResource Icone}" Data="{StaticResource IconeSala}" HorizontalAlignment="Center"/>
-                            <TextBlock Text="Sala" FontSize="11" Margin="0,3,0,0"/>
-                        </StackPanel>
-                    </Button>
-                    <Button Style="{StaticResource BotaoFerramenta}" Click="BotaoPapelDeParede_Click">
-                        <StackPanel>
-                            <Path Style="{StaticResource Icone}" Data="{StaticResource IconePapel}" HorizontalAlignment="Center"/>
-                            <TextBlock Text="Papel de parede" FontSize="11" Margin="0,3,0,0"/>
-                        </StackPanel>
-                    </Button>
-                    <Border Width="1" Background="{DynamicResource PincelBorda}" Margin="6,6"/>
-                    <Button Style="{StaticResource BotaoFerramenta}" Click="Limpeza_Click" ToolTip="Configurar a limpeza e a verificação automáticas (e Limpar agora)">
+                    <Button Style="{StaticResource BotaoFerramenta}" Click="MenuDaBarra_Click" ToolTip="Limpar, configurar a agenda e ver os relatórios">
+                        <Button.ContextMenu>
+                            <ContextMenu>
+                                <MenuItem Header="Limpar agora..." Click="LimparAgora_Click"/>
+                                <MenuItem Header="Configurar a limpeza automática..." Click="Limpeza_Click"/>
+                                <MenuItem Header="Relatórios de limpeza..." Click="MenuRelatorios_Click"/>
+                            </ContextMenu>
+                        </Button.ContextMenu>
                         <StackPanel>
                             <Path Style="{StaticResource Icone}" Data="{StaticResource IconeLimpeza}" HorizontalAlignment="Center"/>
-                            <TextBlock Text="Limpeza" FontSize="11" Margin="0,3,0,0"/>
+                            <TextBlock Text="Limpeza ▾" FontSize="11" Margin="0,3,0,0" HorizontalAlignment="Center"/>
                         </StackPanel>
                     </Button>
-                    <Border Width="1" Background="{DynamicResource PincelBorda}" Margin="6,6"/>
-                    <Button Style="{StaticResource BotaoFerramenta}" Click="ComandoDesligar_Click">
+                    <Button Style="{StaticResource BotaoFerramenta}" Click="MenuDaBarra_Click" ToolTip="Ligar, desligar ou reiniciar os computadores">
+                        <Button.ContextMenu>
+                            <ContextMenu>
+                                <MenuItem Header="Ligar os computadores..." Click="WakeOnLan_Click"/>
+                                <MenuItem Header="Desligar os computadores..." Click="ComandoDesligar_Click"/>
+                                <MenuItem Header="Reiniciar os computadores..." Click="ComandoReiniciar_Click"/>
+                                <MenuItem Header="Encerrar a sessão (logoff)..." Click="ComandoLogoff_Click"/>
+                            </ContextMenu>
+                        </Button.ContextMenu>
                         <StackPanel>
                             <Path Style="{StaticResource Icone}" Data="{StaticResource IconeEnergia}" HorizontalAlignment="Center"/>
-                            <TextBlock Text="Desligar" FontSize="11" Margin="0,3,0,0"/>
+                            <TextBlock Text="Ligar e desligar ▾" FontSize="11" Margin="0,3,0,0" HorizontalAlignment="Center"/>
                         </StackPanel>
                     </Button>
                 </StackPanel>
@@ -209,6 +237,10 @@
                     <!-- Aviso curto de atualização (some sozinho). -->
                     <TextBlock x:Name="TextoAviso" Foreground="{DynamicResource PincelOnline}" FontSize="12" FontWeight="SemiBold"
                                VerticalAlignment="Center" Margin="10,0,0,0" Visibility="Collapsed"/>
+                    <!-- Limpeza terminada: fica aqui, discreto, até o professor abrir o relatório. -->
+                    <TextBlock x:Name="TextoRelatorio" Foreground="{DynamicResource PincelRealce}" FontSize="12" Cursor="Hand"
+                               TextDecorations="Underline" VerticalAlignment="Center" Margin="10,0,0,0" Visibility="Collapsed"
+                               ToolTip="Abrir o relatório no navegador" MouseLeftButtonUp="TextoRelatorio_Click"/>
                     <Border Width="1" Background="{DynamicResource PincelBorda}" Margin="12,2"/>
                     <TextBlock x:Name="TextoSala" Foreground="{DynamicResource PincelTextoFraco}" FontSize="12" VerticalAlignment="Center"/>
                     <Border Width="1" Background="{DynamicResource PincelBorda}" Margin="12,2"/>

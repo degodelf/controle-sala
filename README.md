@@ -115,7 +115,8 @@ gera sem assinatura (os alunos recusam esse Setup pela rede).
 ## Segurança da sala
 
 1. No Professor, **Sala...** cria a sala (escola + nome) e uma **chave secreta** de 256 bits, guardada protegida
-   pelo Windows (DPAPI) neste PC.
+   pelo Windows (DPAPI) neste PC. **Renomear...** troca só os nomes: a chave continua a mesma, os computadores seguem
+   conectados e o pacote já gerado continua valendo.
 2. **Gerar pacote para os alunos...** grava um `.controlesala` protegido por uma **senha** escolhida na hora
    (PBKDF2-SHA256 600 mil voltas + AES-256-GCM). Leve no pendrive e apague depois.
 3. O instalador (opção Aluno) pede o pacote e a senha, confere e grava a chave em `%ProgramData%\ControleSala`
@@ -212,7 +213,9 @@ roda em segundo plano, a verificação acontece mesmo se a atualização falhar,
 **Computadores > Situação do Windows Defender**. **Pausar** / **Retomar**, no alto da janela, vale na hora para os
 computadores online e guarda a agenda; PC desligado só recebe a pausa quando conectar ao professor. A configuração e as
 imagens são enviadas aos computadores quando ficam online, e o próprio agente roda a agenda, mesmo sem o professor
-conectado. Também há **Limpar agora**, que funciona mesmo com a agenda pausada: pede confirmação ao professor e dá 30 segundos de aviso ao aluno. **A limpeza nunca roda
+conectado. Ao terminar, cada PC informa o resultado: a barra de status do professor mostra um aviso discreto com o link do
+**relatório** em `.html`, com um gráfico de barras em GB por computador e o total no final, e **Comandos > Relatórios de
+limpeza** lista as 5 limpezas mais recentes (a mais antiga é apagada quando chega uma nova). Também há **Limpar agora**, que funciona mesmo com a agenda pausada: pede confirmação ao professor e dá 30 segundos de aviso ao aluno. **A limpeza nunca roda
 no PC do professor** (ele só tem o console, não o agente) e nunca mexe na conta de administrador.
 
 ## Licença
@@ -254,6 +257,10 @@ O Professor abre com a **grade da sala**: uma tela por computador, atualizando 2
 rede). **Duplo clique** em uma tela abre ela em tamanho grande, a ~55 fps; Esc volta.
 
 - **Computadores...** — monta a lista da sala (adicionar, editar, remover, mudar a ordem) ou **Procurar na rede...**.
+- Os PCs da sala entram na lista **sozinhos**: cada agente se anuncia na rede a cada 3 s e assina o anúncio com a chave da
+  sala, então o programa do professor põe na lista só os da própria sala, em ordem pelo nome, sem pegar outro laboratório da
+  mesma rede. PC removido pelo professor não volta sozinho. **Procurar na rede...** continua valendo para trazer um removido,
+  para PCs com versão antiga e para dois PCs com o mesmo nome.
 - Cada agente se anuncia na rede (`--rede`) e aparece na busca. Para testar no mesmo PC, abra dois agentes:
 
 ```bash
@@ -267,6 +274,8 @@ ControleSala.Agente.exe --porta 47811 --anunciar 127.0.0.1
 ## Enviar arquivos
 
 No Professor, **Enviar arquivos...**: escolha os arquivos, marque os computadores (só os online) e clique em **Enviar**.
+Marque **Abrir o arquivo no computador do aluno assim que chegar** para ele abrir sozinho, no programa padrão do PC, na conta
+do aluno.
 Cada computador mostra o andamento; vários computadores recebem ao mesmo tempo. Os arquivos chegam na pasta
 **"Arquivos do Professor"**, na área de trabalho de todos os usuários do PC do aluno (eles podem abrir, alterar e apagar),
 e aparece um aviso perto do relógio. Enviar de novo um arquivo com o mesmo nome substitui o anterior.

@@ -40,6 +40,8 @@ sealed class ServidorVideo : IDisposable
     public byte[]? NomeMsg { get; set; }
     /// <summary>Mensagem com o último resultado do Windows Defender, enviada a quem conecta.</summary>
     public byte[]? DefenderMsg { get; set; }
+    /// <summary>Mensagem com o resultado da última limpeza, enviada a quem conecta.</summary>
+    public byte[]? LimpezaMsg { get; set; }
 
     public ManualResetEventSlim TemProfessores { get; } = new(false);
 
@@ -138,6 +140,8 @@ sealed class ServidorVideo : IDisposable
                 conexao.EnfileirarControle(NomeMsg);
             if (DefenderMsg != null)
                 conexao.EnfileirarControle(DefenderMsg);
+            if (LimpezaMsg != null)
+                conexao.EnfileirarControle(LimpezaMsg);
             conexao.EnfileirarControle(Protocolo.MontarVersaoAgente(Versoes.Atual)); // o professor vê quem precisa atualizar
             conexao.Iniciar();
             AvisarMudanca();

@@ -226,3 +226,151 @@ public class ResultadoDefenderTestes
         Assert.Equal(r, ResultadoDefender.Desserializar(Protocolo.LerResultadoDefender(buffer.AsSpan(0, msg.Value.Tamanho))));
     }
 }
+
+public sealed class RelatoriosTestes : IDisposable
+{
+    readonly string _pasta = Path.Combine(Path.GetTempPath(), "controlesala-testes-" + Guid.NewGuid().ToString("N"));
+    static readonly DateTimeOffset Base = new(2026, 11, 5, 18, 0, 0, TimeSpan.Zero);
+
+    public void Dispose()
+    {
+        if (Directory.Exists(_pasta)) Directory.Delete(_pasta, recursive: true);
+    }
+
+    RepositorioRelatorios Novo() => new(_pasta);
+
+    const long Gb = 1024L * 1024 * 1024;
+
+    static ResultadoLimpeza Limpeza(DateTimeOffset inicio, long bytes = Gb, bool ok = true, string detalhe = "") =>
+        new(inicio, inicio.AddMinutes(1), Automatica: true, Pedida: "", ok, bytes, detalhe);
+
+    [Fact]
+    public void Pcs_da_mesma_limpeza_entram_no_mesmo_relatorio()
+    {
+        var repo = Novo();
+        repo.Registrar("PC 01", Limpeza(Base), "Escola", "Lab");
+        repo.Registrar("PC 02", Limpeza(Base.AddMinutes(1)), "Escola", "Lab");
+
+        var r = Assert.Single(Novo().Listar());
+        Assert.Equal(2, r.Linhas.Count);
+        Assert.Equal(2 * Gb, r.Bytes);
+        Assert.True(File.Exists(repo.CaminhoHtml(r)));
+    }
+
+    [Fact]
+    public void Depois_de_cinco_apaga_o_mais_antigo()
+    {
+        var repo = Novo();
+        for (int dia = 0; dia < 7; dia++) repo.Registrar("PC 01", Limpeza(Base.AddDays(dia)), "Escola", "Lab");
+
+        var lista = Novo().Listar();
+        Assert.Equal(RepositorioRelatorios.Guardados, lista.Count);
+        Assert.Equal(Base.AddDays(6), lista[0].Inicio);
+        Assert.Equal(Base.AddDays(2), lista[^1].Inicio);
+        Assert.Equal(RepositorioRelatorios.Guardados, Directory.GetFiles(_pasta, "*.html").Length);
+        Assert.Equal(RepositorioRelatorios.Guardados, Directory.GetFiles(_pasta, "*.json").Length);
+    }
+
+    [Fact]
+    public void Resultado_repetido_nao_gera_aviso_novo()
+    {
+        var repo = Novo();
+        var r = Limpeza(Base);
+        Assert.NotNull(repo.Registrar("PC 01", r, "Escola", "Lab"));
+        Assert.Null(repo.Registrar("PC 01", r, "Escola", "Lab")); // o agente reenvia a cada conexão
+    }
+
+    [Fact]
+    public void Resultado_antigo_nao_ressuscita_relatorio_apagado()
+    {
+        var repo = Novo();
+        for (int dia = 10; dia < 15; dia++) repo.Registrar("PC 01", Limpeza(Base.AddDays(dia)), "Escola", "Lab");
+        Assert.Null(repo.Registrar("PC 02", Limpeza(Base), "Escola", "Lab"));
+        Assert.Equal(RepositorioRelatorios.Guardados, Novo().Listar().Count);
+    }
+
+    [Fact]
+    public void Html_tem_barra_em_gb_por_pc_e_total_no_final()
+    {
+        var repo = Novo();
+        repo.Registrar("PC 01", Limpeza(Base, 2 * Gb), "Escola", "Lab");
+        var r = repo.Registrar("PC 02", Limpeza(Base, Gb), "Escola", "Lab")!;
+
+        string html = r.GerarHtml();
+        Assert.Contains("width:100.0%", html); // o maior preenche o trilho
+        Assert.Contains("width:50.0%", html);
+        Assert.Contains("2,00 GB", html);
+        Assert.Contains("3,00 GB", html);
+        Assert.Contains("Total em 2 de 2 computadores", html);
+        Assert.True(html.IndexOf("PC 02", StringComparison.Ordinal) < html.IndexOf("class=\"total\"", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Html_mostra_quem_nao_limpou_e_escapa_nomes()
+    {
+        var repo = Novo();
+        repo.Registrar("<b>PC</b>", Limpeza(Base), "Escola & Cia", "Lab");
+        var r = repo.Registrar("PC 02", Limpeza(Base, 0, ok: false, detalhe: "pasta do aluno não encontrada"), "Escola & Cia", "Lab")!;
+
+        Assert.Equal(1, r.ComProblema);
+        string html = r.GerarHtml();
+        Assert.Contains("&lt;b&gt;PC&lt;/b&gt;", html);
+        Assert.Contains("Escola &amp; Cia", html);
+        Assert.Contains("Não limpou: pasta do aluno não encontrada", System.Net.WebUtility.HtmlDecode(html));
+        Assert.Contains("Total em 1 de 2 computadores", html);
+        Assert.DoesNotContain("<script", html);
+    }
+
+    [Theory]
+    [InlineData(0, "0,00 GB")]
+    [InlineData(1024, "menos de 0,01 GB")]
+    [InlineData(1610612736, "1,50 GB")]
+    public void Gb_como_o_windows_mostra(long bytes, string esperado)
+    {
+        Assert.Equal(esperado, RelatorioLimpeza.EmGb(bytes));
+    }
+
+    [Fact]
+    public void Tamanho_soma_a_pasta_inteira()
+    {
+        string pasta = Path.Combine(_pasta, "t", "sub");
+        Directory.CreateDirectory(pasta);
+        File.WriteAllBytes(Path.Combine(pasta, "a.bin"), new byte[1000]);
+        File.WriteAllBytes(Path.Combine(_pasta, "t", "b.bin"), new byte[234]);
+        Assert.Equal(1234, LimpezaArquivos.Tamanho(Path.Combine(_pasta, "t")));
+        Assert.Equal(0, LimpezaArquivos.Tamanho(Path.Combine(_pasta, "nao-existe")));
+    }
+}
+
+public sealed class AbrirArquivoRecebidoTestes : IDisposable
+{
+    readonly string _pasta = Path.Combine(Path.GetTempPath(), "controlesala-testes-" + Guid.NewGuid().ToString("N"));
+
+    public AbrirArquivoRecebidoTestes() => Directory.CreateDirectory(_pasta);
+
+    public void Dispose() => Directory.Delete(_pasta, recursive: true);
+
+    [Fact]
+    public void Acha_o_arquivo_que_chegou()
+    {
+        File.WriteAllText(Path.Combine(_pasta, "tarefa.pdf"), "x");
+        Assert.Equal(Path.Combine(_pasta, "tarefa.pdf"), PastaRecebidos.Localizar(_pasta, "tarefa.pdf"));
+    }
+
+    [Theory]
+    [InlineData("nao-existe.pdf")]
+    [InlineData(@"..\tarefa.pdf")]
+    [InlineData(@"C:\Windows\win.ini")]
+    [InlineData("programa.exe")]
+    public void Nao_abre_nada_fora_da_pasta_nem_programa(string nome)
+    {
+        File.WriteAllText(Path.Combine(_pasta, "programa.exe"), "x");
+        Assert.Null(PastaRecebidos.Localizar(_pasta, nome));
+    }
+
+    [Fact]
+    public void Abrir_arquivo_entra_no_registro_com_o_nome()
+    {
+        Assert.Equal("tarefa.pdf", RegistroAtividades.DetalheDoComando(AcaoComando.AbrirArquivoRecebido, "tarefa.pdf"));
+    }
+}

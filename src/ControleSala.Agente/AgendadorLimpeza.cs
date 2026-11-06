@@ -66,7 +66,7 @@ sealed class AgendadorLimpeza : IDisposable
                 return;
             }
 
-            LimpezaExecutor.Executar(config); // mostra a tela de carregamento e limpa
+            LimpezaExecutor.Executar(config, automatica: true); // mostra a tela de carregamento e limpa
             estado.UltimaExecucao = DateTime.Now;
             estado.AdiadoPara = null;
             SalvarEstado(estado);

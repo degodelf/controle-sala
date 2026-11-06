@@ -56,7 +56,7 @@ public partial class JanelaComputadores : Window
         TextoMensagem.Text = "";
         if (!EscolheuAlgum()) return;
         var c = Selecionado!;
-        if (MessageBox.Show(this, $"Remover {c.Nome} da sala?\n\nO programa dele não é desinstalado; ele só deixa de aparecer aqui.",
+        if (MessageBox.Show(this, $"Remover {c.Nome} da sala?\n\nO programa dele não é desinstalado; ele só deixa de aparecer aqui. Para trazê-lo de volta, use Procurar na rede.",
                 "Remover computador", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
         _sala.Remover(c);
         Atualizar();

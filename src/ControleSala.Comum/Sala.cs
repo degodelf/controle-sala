@@ -18,12 +18,17 @@ public sealed class RepositorioSala
 {
     readonly string _caminho;
     readonly List<ComputadorSala> _computadores;
+    readonly HashSet<string> _removidos;
 
     public RepositorioSala(string? caminho = null)
     {
         _caminho = caminho ?? Path.Combine(Pastas.Dados, "sala.json");
         _computadores = Ler();
+        _removidos = LerRemovidos();
     }
+
+    /// <summary>Quem o professor tirou da lista não volta sozinho: só por "Procurar na rede" ou adicionando à mão.</summary>
+    string CaminhoRemovidos => Path.ChangeExtension(_caminho, ".removidos.json");
 
     public IReadOnlyList<ComputadorSala> Computadores => _computadores;
 
@@ -48,8 +53,34 @@ public sealed class RepositorioSala
         var c = new ComputadorSala { Nome = nome.Trim(), Endereco = endereco.Trim(), Porta = porta };
         _computadores.Add(c);
         Salvar();
+        if (_removidos.Remove(NomeComparavel(c.Nome))) SalvarRemovidos();
         return c;
     }
+
+    /// <summary>
+    /// Um PC que provou ser desta sala apareceu na rede: entra na lista sozinho, no lugar certo pelo nome, sem mexer na ordem
+    /// dos outros. Null se ele já está na lista (pelo endereço ou pelo nome), se o professor o removeu ou se o nome não serve.
+    /// </summary>
+    public ComputadorSala? AdicionarDaRede(AgenteEncontrado achado)
+    {
+        string nome = NomeComparavel(achado.Nome);
+        if (nome.Length == 0 || _removidos.Contains(nome) || TemNome(nome)) return null;
+        if (Validar(achado.Nome, achado.Endereco, achado.Porta) != null) return null;
+
+        var c = new ComputadorSala { Nome = achado.Nome.Trim(), Endereco = achado.Endereco, Porta = achado.Porta };
+        int lugar = _computadores.FindIndex(outro => CompararNatural(outro.Nome, c.Nome) > 0);
+        _computadores.Insert(lugar < 0 ? _computadores.Count : lugar, c);
+        Salvar();
+        return c;
+    }
+
+    /// <summary>True se o PC anunciado é outro computador com o nome de um que já está na lista: ele não entra sozinho.</summary>
+    public bool NomeRepetido(AgenteEncontrado achado) =>
+        TemNome(NomeComparavel(achado.Nome)) && !_computadores.Any(c => c.Porta == achado.Porta
+            && string.Equals(c.Endereco, achado.Endereco, StringComparison.OrdinalIgnoreCase));
+
+    bool TemNome(string nome) => _computadores.Any(c => NomeComparavel(c.Nome) == nome
+        || (c.NomeEscolhido is { } escolhido && NomeComparavel(escolhido) == nome));
 
     /// <summary>Troca os dados por um objeto novo (quem usa a lista percebe que o computador mudou). Mantém a posição.</summary>
     public ComputadorSala Atualizar(ComputadorSala atual, string nome, string endereco, int porta)
@@ -67,6 +98,9 @@ public sealed class RepositorioSala
     {
         if (!_computadores.Remove(c)) return false;
         Salvar();
+        _removidos.Add(NomeComparavel(c.Nome));
+        if (c.NomeEscolhido is { } escolhido) _removidos.Add(NomeComparavel(escolhido));
+        SalvarRemovidos();
         return true;
     }
 
@@ -182,6 +216,23 @@ public sealed class RepositorioSala
             try { File.Move(_caminho, _caminho + ".corrompido", overwrite: true); } catch (IOException) { }
         }
         return [];
+    }
+
+    HashSet<string> LerRemovidos()
+    {
+        try
+        {
+            if (File.Exists(CaminhoRemovidos))
+                return JsonSerializer.Deserialize<HashSet<string>>(File.ReadAllText(CaminhoRemovidos)) ?? [];
+        }
+        catch (Exception ex) when (ex is JsonException or IOException) { }
+        return [];
+    }
+
+    void SalvarRemovidos()
+    {
+        Directory.CreateDirectory(Path.GetDirectoryName(_caminho)!);
+        File.WriteAllText(CaminhoRemovidos, JsonSerializer.Serialize(_removidos));
     }
 
     void Salvar()

@@ -14,6 +14,9 @@ public sealed record ConfigSala(string Escola, string Sala, byte[] Chave)
     public static ConfigSala Nova(string escola, string sala) =>
         new(escola.Trim(), sala.Trim(), RandomNumberGenerator.GetBytes(TamanhoChave));
 
+    /// <summary>A mesma sala com outros nomes. A chave não muda: os PCs dos alunos continuam ligados a este professor.</summary>
+    public ConfigSala Renomeada(string escola, string sala) => this with { Escola = escola.Trim(), Sala = sala.Trim() };
+
     /// <summary>
     /// Resumo curto da chave (ex.: "A1B2-C3D4") para conferir a olho se o professor e o agente são da mesma sala.
     /// Não revela a chave.

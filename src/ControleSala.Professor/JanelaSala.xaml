@@ -30,11 +30,25 @@
                 </StackPanel>
             </Border>
 
+            <StackPanel x:Name="PainelRenomear" Visibility="Collapsed" Margin="0,0,0,14">
+                <TextBlock Text="Nome da escola"/>
+                <TextBox x:Name="CampoNovaEscola" MaxLength="80" Margin="0,4,0,12" Padding="6,4"/>
+                <TextBlock Text="Nome da sala"/>
+                <TextBox x:Name="CampoNovaSala" MaxLength="60" Margin="0,4,0,8" Padding="6,4"/>
+                <TextBlock TextWrapping="Wrap" Foreground="{DynamicResource PincelTextoFraco}" Margin="0,0,0,10"
+                           Text="Muda só os nomes. A chave da sala continua a mesma: os computadores seguem conectados e não precisa gerar outro pacote."/>
+                <WrapPanel>
+                    <Button Content="Salvar nomes" Padding="14,7" Margin="0,0,8,0" Click="SalvarNomes_Click"/>
+                    <Button Content="Cancelar" Padding="14,7" Click="CancelarNomes_Click"/>
+                </WrapPanel>
+            </StackPanel>
+
             <TextBlock TextWrapping="Wrap" Margin="0,0,0,10"
                        Text="Para colocar um computador de aluno na sala: gere o pacote abaixo, copie para um pendrive e rode o ControleSala-Setup (opção Aluno) em cada PC. O instalador pede a senha do pacote."/>
             <WrapPanel>
                 <Button Content="Gerar pacote para os alunos..." Padding="14,7" Margin="0,0,8,6" Click="GerarPacote_Click"/>
-                <Button Content="Restaurar de um pacote..." Padding="14,7" Margin="0,0,0,6" Click="Restaurar_Click"/>
+                <Button Content="Restaurar de um pacote..." Padding="14,7" Margin="0,0,8,6" Click="Restaurar_Click"/>
+                <Button x:Name="BotaoRenomear" Content="Renomear..." Padding="14,7" Margin="0,0,0,6" Click="Renomear_Click"/>
             </WrapPanel>
         </StackPanel>
 

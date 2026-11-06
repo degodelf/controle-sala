@@ -31,9 +31,14 @@ static partial class LimpezaExecutor
         return Directory.Exists(perfil) ? null : "Não foi possível encontrar a pasta do aluno.";
     }
 
-    public static (bool Ok, string Mensagem) Executar(LimpezaConfig c)
+    public static (bool Ok, string Mensagem) Executar(LimpezaConfig c, bool automatica = false, string pedida = "")
     {
-        if (Impedimento() is { } motivo) return (false, motivo);
+        var inicio = DateTimeOffset.Now;
+        if (Impedimento() is { } motivo)
+        {
+            RelatoLimpeza.Registrar(new ResultadoLimpeza(inicio, DateTimeOffset.Now, automatica, pedida, false, 0, motivo));
+            return (false, motivo);
+        }
         string perfil = Perfil()!;
 
         bool temTela = InterfaceAgenteDisponivel();
@@ -44,17 +49,32 @@ static partial class LimpezaExecutor
             if (c.Navegadores) FecharNavegadores();
 
             int itens = 0;
+            long bytes = 0;
             foreach (var pasta in LimpezaArquivos.PastasParaEsvaziar(perfil, c))
+            {
+                long antes = LimpezaArquivos.Tamanho(pasta); // medido antes e depois: exceções e arquivos em uso não contam
                 itens += LimpezaArquivos.EsvaziarPasta(pasta, c.Excecoes);
+                bytes += Math.Max(0, antes - LimpezaArquivos.Tamanho(pasta));
+            }
 
             if (c.Navegadores)
                 foreach (var alvo in LimpezaArquivos.CaminhosNavegadores(perfil))
-                    if (LimpezaArquivos.Remover(alvo)) itens++;
+                {
+                    long antes = LimpezaArquivos.Tamanho(alvo);
+                    if (!LimpezaArquivos.Remover(alvo)) continue;
+                    itens++;
+                    bytes += antes;
+                }
 
-            if (c.Lixeira) EsvaziarLixeira();
+            if (c.Lixeira)
+            {
+                bytes += TamanhoDaLixeira();
+                EsvaziarLixeira();
+            }
             if (c.RestaurarPapelDeParede && File.Exists(CaminhoPapel)) RestaurarPapel(CaminhoPapel);
 
             string extra = AgenteDefender.Iniciar(c);
+            RelatoLimpeza.Registrar(new ResultadoLimpeza(inicio, DateTimeOffset.Now, automatica, pedida, true, bytes));
             return (true, $"Limpeza concluída ({itens} itens removidos).{extra}");
         }
         finally
@@ -76,6 +96,19 @@ static partial class LimpezaExecutor
                 try { p.Kill(); p.WaitForExit(2000); } catch (Exception) { } finally { p.Dispose(); }
             }
         Thread.Sleep(500); // dá tempo de os arquivos destravarem
+    }
+
+    static long TamanhoDaLixeira()
+    {
+        try
+        {
+            var info = new InfoLixeira { Tamanho = Marshal.SizeOf<InfoLixeira>() };
+            return SHQueryRecycleBin(null, ref info) == 0 ? info.Bytes : 0;
+        }
+        catch (Exception ex) when (ex is DllNotFoundException or EntryPointNotFoundException)
+        {
+            return 0;
+        }
     }
 
     static void EsvaziarLixeira()
@@ -111,6 +144,12 @@ static partial class LimpezaExecutor
         try { SystemParametersInfo(0x0014 /* SPI_SETDESKWALLPAPER */, 0, caminho, 0x01 | 0x02 /* atualiza e avisa */); }
         catch (Exception) { }
     }
+
+    [StructLayout(LayoutKind.Sequential)]
+    struct InfoLixeira { public int Tamanho; public long Bytes; public long Itens; }
+
+    [LibraryImport("shell32.dll", EntryPoint = "SHQueryRecycleBinW", StringMarshalling = StringMarshalling.Utf16)]
+    private static partial int SHQueryRecycleBin(string? raiz, ref InfoLixeira info);
 
     [LibraryImport("shell32.dll", EntryPoint = "SHEmptyRecycleBinW", StringMarshalling = StringMarshalling.Utf16)]
     private static partial int SHEmptyRecycleBin(nint janela, string? raiz, uint flags);

@@ -71,6 +71,10 @@ sealed unsafe partial class ConexaoComputador : IDisposable
     public volatile string? NomeEscolhido;
     /// <summary>Último resultado do Windows Defender informado pelo agente; null se ainda não rodou.</summary>
     public volatile ResultadoDefender? Defender;
+    ResultadoLimpeza? _limpezaNova;
+
+    /// <summary>Entrega uma vez o resultado de limpeza que chegou; null se não chegou nada novo.</summary>
+    public ResultadoLimpeza? TomarLimpezaNova() => Interlocked.Exchange(ref _limpezaNova, null);
     public long BytesRecebidos => Interlocked.Read(ref _bytes);
 
     /// <summary>O que o professor quer receber. Muda na hora, também com a conexão já aberta.</summary>
@@ -204,6 +208,9 @@ sealed unsafe partial class ConexaoComputador : IDisposable
                     break;
                 case TipoMensagem.ResultadoDefender:
                     Defender = ResultadoDefender.Desserializar(Protocolo.LerResultadoDefender(buffer.AsSpan(0, msg.Tamanho)));
+                    break;
+                case TipoMensagem.ResultadoLimpeza:
+                    Interlocked.Exchange(ref _limpezaNova, ResultadoLimpeza.Desserializar(Protocolo.LerResultadoLimpeza(buffer.AsSpan(0, msg.Tamanho))));
                     break;
                 case TipoMensagem.NomeEscolhido:
                     NomeEscolhido = NomeDoPc.Validar(Protocolo.LerNomeEscolhido(buffer.AsSpan(0, msg.Tamanho)));

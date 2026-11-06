@@ -205,7 +205,7 @@ public partial class App : Application
                     var prontos = await EnvioDeArquivos.PrepararAsync(arquivos, CancellationToken.None);
                     // --cancelar-apos-ms conta a partir do começo do envio (como o professor apertando "Cancelar envio").
                     if (int.TryParse(Valor("--cancelar-apos-ms"), out int ms)) cancelar.CancelAfter(ms);
-                    return await EnvioDeArquivos.EnviarAsync(prontos, [conexao], null, cancelar.Token);
+                    return await EnvioDeArquivos.EnviarAsync(prontos, [conexao], null, cancelar.Token, abrir: args.Contains("--abrir"));
                 }).GetAwaiter().GetResult();
                 foreach (var r in res) linhas.Add($"{(r.Ok ? "OK" : "ERRO")}: {r.Arquivo}: {r.Mensagem}");
                 codigo = res.Count > 0 && res.All(r => r.Ok) ? 0 : 1;
@@ -286,6 +286,12 @@ public partial class App : Application
         return w;
     }
 
+    static MainWindow MostrarSalaDeExemplo(MainWindow w)
+    {
+        w.Loaded += (_, _) => w.MostrarExemploParaTeste();
+        return w;
+    }
+
     static void CapturarJanela(string nome, string saida, double esperar)
     {
         // Dados de exemplo (só na pasta indicada por --dados) para as telas terem o que mostrar.
@@ -305,6 +311,7 @@ public partial class App : Application
         Window janela = nome switch
         {
             "principal" => MostrarBannerDeTeste(new MainWindow()),
+            "exemplo" => MostrarSalaDeExemplo(new MainWindow()),
             "papel" => new JanelaPapelDeParede(),
             "entrar" => new JanelaEntrar(repositorio),
             "primeiro" => new JanelaNovoProfessor(new RepositorioPerfis(Path.GetTempFileName() + ".json"), ModoPerfil.PrimeiroAcesso),
@@ -315,6 +322,7 @@ public partial class App : Application
             "sobre" => new JanelaSobre(),
             "regras" => new JanelaRegrasDeUso(pedirAceite: true),
             "atividades" => new JanelaAtividades(),
+            "relatorios" => new JanelaRelatorios(new RepositorioRelatorios()),
             "defender" => new JanelaDefender(sala.Computadores.Select(c => new ConexaoComputador(c, Sessao.Sala?.Chave)).ToList()),
             "sala" => new JanelaSala(),
             "enviar" => new JanelaEnviarArquivos(sala.Computadores.Select(c => new ConexaoComputador(c, Sessao.Sala?.Chave)).ToList()),

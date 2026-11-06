@@ -53,6 +53,50 @@ public partial class JanelaSala : Window
         }
     }
 
+    void Renomear_Click(object sender, RoutedEventArgs e)
+    {
+        if (Sessao.Sala is not { } sala) return;
+        TextoMensagem.Text = "";
+        CampoNovaEscola.Text = sala.Escola;
+        CampoNovaSala.Text = sala.Sala;
+        MostrarRenomear(true);
+        CampoNovaEscola.Focus();
+    }
+
+    void CancelarNomes_Click(object sender, RoutedEventArgs e)
+    {
+        TextoMensagem.Text = "";
+        MostrarRenomear(false);
+    }
+
+    void SalvarNomes_Click(object sender, RoutedEventArgs e)
+    {
+        if (Sessao.Sala is not { } sala) return;
+        string escola = CampoNovaEscola.Text.Trim(), nome = CampoNovaSala.Text.Trim();
+        if (escola.Length == 0 || nome.Length == 0)
+        {
+            TextoMensagem.Text = "Preencha o nome da escola e o nome da sala.";
+            return;
+        }
+        try
+        {
+            Sessao.DefinirSala(sala.Renomeada(escola, nome));
+            MostrarRenomear(false);
+            Atualizar();
+            TextoMensagem.Text = "Nomes alterados. A chave da sala continua a mesma.";
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            TextoMensagem.Text = $"Não foi possível salvar: {ex.Message}";
+        }
+    }
+
+    void MostrarRenomear(bool mostrar)
+    {
+        PainelRenomear.Visibility = mostrar ? Visibility.Visible : Visibility.Collapsed;
+        BotaoRenomear.Visibility = mostrar ? Visibility.Collapsed : Visibility.Visible;
+    }
+
     void GerarPacote_Click(object sender, RoutedEventArgs e)
     {
         TextoMensagem.Text = "";
@@ -115,6 +159,7 @@ public partial class JanelaSala : Window
             return;
 
         Sessao.DefinirSala(nova);
+        MostrarRenomear(false);
         Atualizar();
         TextoMensagem.Text = $"Sala \"{nova.Sala}\" restaurada.";
     }

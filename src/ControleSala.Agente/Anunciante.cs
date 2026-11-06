@@ -14,9 +14,10 @@ sealed class Anunciante : IDisposable
 
     /// <param name="broadcast">Anuncia para toda a rede local (use com --rede).</param>
     /// <param name="extras">Endereços fixos que também recebem o anúncio (útil em testes e em redes que bloqueiam broadcast).</param>
-    public Anunciante(string nome, int portaVideo, bool broadcast, IEnumerable<IPAddress> extras)
+    /// <param name="chaveSala">Chave da sala: assina o anúncio, e o professor desta sala põe o PC na lista sozinho.</param>
+    public Anunciante(string nome, int portaVideo, bool broadcast, IEnumerable<IPAddress> extras, byte[]? chaveSala)
     {
-        _anuncio = Descoberta.MontarAnuncio(nome, portaVideo);
+        _anuncio = Descoberta.MontarAnuncio(nome, portaVideo, chaveSala);
         if (broadcast) _destinos.Add(new IPEndPoint(IPAddress.Broadcast, Descoberta.Porta));
         _destinos.AddRange(extras.Select(ip => new IPEndPoint(ip, Descoberta.Porta)));
         _relogio = new System.Threading.Timer(_ => Enviar(), null, TimeSpan.Zero, TimeSpan.FromSeconds(3));

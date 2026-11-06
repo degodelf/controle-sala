@@ -128,7 +128,7 @@ public partial class JanelaEnviarArquivos : Window
             foreach (var a in escolhidos) a.Status = "Enviando...";
             TextoMensagem.Text = "Enviando...";
             var progresso = new Progress<ProgressoEnvio>(p => Atualizar(p));
-            var resultados = await EnvioDeArquivos.EnviarAsync(prontos, [.. escolhidos.Select(a => a.Conexao)], progresso, ct);
+            var resultados = await EnvioDeArquivos.EnviarAsync(prontos, [.. escolhidos.Select(a => a.Conexao)], progresso, ct, CxAbrir.IsChecked == true);
 
             int ok = resultados.Count(r => r.Ok), falhas = resultados.Count(r => !r.Ok);
             if (ct.IsCancellationRequested)

@@ -130,11 +130,13 @@ public sealed class RegistroAtividades
         AcaoComando.Limpeza => "Limpar agora",
         AcaoComando.DefinirPapel => "Aplicar papel de parede",
         AcaoComando.IniciarAplicativo => "Iniciar aplicativo ou comando",
+        AcaoComando.AbrirArquivoRecebido => "Abrir arquivo enviado",
         _ => acao.ToString(),
     };
 
     /// <summary>O registro diz o que foi feito, não o conteúdo: texto de mensagem e outros argumentos ficam de fora.</summary>
     public static string DetalheDoComando(AcaoComando acao, string argumento) =>
         acao is AcaoComando.AbrirLink or AcaoComando.AbrirPrograma or AcaoComando.FecharPrograma or AcaoComando.IniciarAplicativo
+            or AcaoComando.AbrirArquivoRecebido
             ? argumento : "";
 }

@@ -34,6 +34,39 @@ public partial class MainWindow : Window
         }
     }
 
+    // --- Relatórios de limpeza: o aviso discreto fica na barra de status até o professor abrir ---
+
+    readonly RepositorioRelatorios _relatorios = new();
+    RelatorioLimpeza? _relatorioNovo;
+
+    void RegistrarLimpeza(TileVm t, ResultadoLimpeza limpeza)
+    {
+        var relatorio = _relatorios.Registrar(t.Nome, limpeza, Sessao.Sala?.Escola ?? "", Sessao.Sala?.Sala ?? "");
+        if (relatorio == null) return;
+        _relatorioNovo = relatorio;
+        string pcs = relatorio.Linhas.Count == 1 ? "1 PC" : $"{relatorio.Linhas.Count} PCs";
+        string aviso = relatorio.ComProblema == 0 ? "" : $", {relatorio.ComProblema} não limpou";
+        TextoRelatorio.Text = $"Limpeza de {relatorio.Inicio.ToLocalTime():HH:mm}: {RelatorioLimpeza.EmGb(relatorio.Bytes)} em {pcs}{aviso}. Ver relatório";
+        TextoRelatorio.Visibility = Visibility.Visible;
+    }
+
+    void TextoRelatorio_Click(object sender, MouseButtonEventArgs e)
+    {
+        if (_relatorioNovo is { } relatorio) JanelaRelatorios.AbrirNoNavegador(_relatorios.CaminhoHtml(relatorio));
+        TextoRelatorio.Visibility = Visibility.Collapsed;
+    }
+
+    void MenuRelatorios_Click(object sender, RoutedEventArgs e) => new JanelaRelatorios(_relatorios) { Owner = this }.ShowDialog();
+
+    /// <summary>Abre, logo abaixo do botão da barra, o menu dele (Internet, Som, Ligar e desligar, Limpeza).</summary>
+    void MenuDaBarra_Click(object sender, RoutedEventArgs e)
+    {
+        var botao = (System.Windows.Controls.Button)sender;
+        botao.ContextMenu.PlacementTarget = botao;
+        botao.ContextMenu.Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom;
+        botao.ContextMenu.IsOpen = true;
+    }
+
     void MenuDefender_Click(object sender, RoutedEventArgs e) => new JanelaDefender(Conexoes) { Owner = this }.ShowDialog();
 
     void MenuRegras_Click(object sender, RoutedEventArgs e) =>
@@ -66,8 +99,9 @@ public partial class MainWindow : Window
     }
 
     /// <summary>
-    /// Ouve os anúncios dos agentes: um PC da lista que não conecta e aparece em outro IP tem o endereço corrigido sozinho.
-    /// O anúncio não é autenticado, mas conectar continua exigindo a chave da sala, e PC online nunca é mexido.
+    /// Ouve os anúncios dos agentes: um PC da lista que não conecta e aparece em outro IP tem o endereço corrigido sozinho,
+    /// e um PC novo que prova ter a chave da sala entra na lista. Mesmo assim, conectar continua exigindo a chave, e PC online
+    /// nunca é mexido.
     /// </summary>
     async Task VigiarEnderecosAsync()
     {
@@ -75,7 +109,7 @@ public partial class MainWindow : Window
         {
             try
             {
-                await Descoberta.EscutarAsync(CorrigirEndereco, ct: _fimDasVigias.Token);
+                await Descoberta.EscutarAsync(AoOuvirAgente, ct: _fimDasVigias.Token);
             }
             catch (Exception e) when (e is System.Net.Sockets.SocketException or System.IO.IOException or UnauthorizedAccessException)
             {
@@ -83,6 +117,22 @@ public partial class MainWindow : Window
                 catch (OperationCanceledException) { }
             }
         }
+    }
+
+    readonly HashSet<string> _avisadosNomeRepetido = [];
+
+    void AoOuvirAgente(AgenteEncontrado achado)
+    {
+        CorrigirEndereco(achado);
+        // Com outra janela aberta (Computadores, Procurar...) espera: ela mostra uma cópia da lista, e o PC anuncia de novo em 3 s.
+        if (OwnedWindows.Count > 0 || !Descoberta.DaSala(achado, Sessao.Sala?.Chave)) return;
+        if (_sala.AdicionarDaRede(achado) is { } novo)
+        {
+            ReconstruirGrade();
+            MostrarAviso($"{novo.Nome} entrou na sala ✓");
+        }
+        else if (_sala.NomeRepetido(achado) && _avisadosNomeRepetido.Add(achado.Endereco))
+            MostrarAviso($"Outro computador ({achado.Endereco}) também se chama {achado.Nome}. Adicione em Computadores > Procurar na rede e renomeie.");
     }
 
     void CorrigirEndereco(AgenteEncontrado achado)
@@ -144,6 +194,15 @@ public partial class MainWindow : Window
         BannerAtualizacao.Visibility = Visibility.Visible;
     }
 
+    /// <summary>Só para a ferramenta de captura: a sala com todos online e telas inventadas, para prints sem a tela de nenhum aluno.</summary>
+    internal void MostrarExemploParaTeste()
+    {
+        CompositionTarget.Rendering -= AoRenderizar;
+        DeslizeTamanho.Value = 210;
+        for (int i = 0; i < _tiles.Count; i++) _tiles[i].MostrarExemplo(i);
+        TextoEstado.Text = $"{_tiles.Count} de {_tiles.Count} online";
+    }
+
     /// <summary>Só para a ferramenta de captura: marca os primeiros computadores, para conferir o visual da seleção.</summary>
     internal void SelecionarParaTeste(int quantidade)
     {
@@ -186,8 +245,8 @@ public partial class MainWindow : Window
         foreach (var t in novos) _tiles.Add(t);
         TextoVazio.Visibility = _tiles.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         TextoVazio.Text = Sessao.Sala == null
-            ? "A sala ainda não foi criada.\nClique em \"Sala...\" para criar a chave e gerar o pacote dos alunos."
-            : "Nenhum computador na sala ainda.\nClique em \"Computadores...\" para adicionar ou procurar na rede.";
+            ? "A sala ainda não foi criada.\nAbra o menu Sala, clique em \"Sala...\" e crie a sala para gerar o pacote dos alunos."
+            : "Nenhum computador na sala ainda.\nInstale o ControleSala nos PCs dos alunos com o pacote da sala: eles aparecem aqui sozinhos.";
     }
 
     /// <summary>Abre a janela da sala e, se a chave mudou, reconecta tudo com a chave nova.</summary>
@@ -394,6 +453,7 @@ public partial class MainWindow : Window
             if (t.Conexao.Estado == EstadoConexao.Online) online++;
             if (t.Conexao.Mac is { } mac) _sala.DefinirMac(t.Conexao.Dados, mac); // guarda o MAC assim que chega (para Wake-on-LAN)
             if (t.Conexao.NomeEscolhido is { } nome && _sala.AplicarNomeEscolhido(t.Conexao.Dados, nome)) renomeou = true;
+            if (t.Conexao.TomarLimpezaNova() is { } limpeza) RegistrarLimpeza(t, limpeza);
         }
         if (renomeou)
         {

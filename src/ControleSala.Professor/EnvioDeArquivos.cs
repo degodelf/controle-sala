@@ -43,7 +43,7 @@ static class EnvioDeArquivos
 
     /// <summary>Envia todos os arquivos para todos os computadores (vários computadores ao mesmo tempo; os arquivos de cada um em fila).</summary>
     public static async Task<List<ResultadoArquivoEnviado>> EnviarAsync(IReadOnlyList<ArquivoParaEnviar> arquivos,
-        IReadOnlyList<ConexaoComputador> alvos, IProgress<ProgressoEnvio>? progresso, CancellationToken ct)
+        IReadOnlyList<ConexaoComputador> alvos, IProgress<ProgressoEnvio>? progresso, CancellationToken ct, bool abrir = false)
     {
         var resultados = new List<ResultadoArquivoEnviado>();
         using var vagas = new SemaphoreSlim(ComputadoresAoMesmoTempo);
@@ -62,6 +62,11 @@ static class EnvioDeArquivos
                     var andamento = progresso == null ? null
                         : new Progress<long>(b => progresso.Report(new ProgressoEnvio(alvo, indice, arquivos.Count, b, arq.Tamanho, null, true)));
                     var (ok, msg) = await alvo.EnviarArquivoAsync(arq.Caminho, arq.Nome, arq.Tamanho, arq.Sha256, andamento, ct);
+                    if (ok && abrir)
+                    {
+                        var (abriu, motivo) = await alvo.EnviarComandoAsync(AcaoComando.AbrirArquivoRecebido, arq.Nome, ct);
+                        if (!abriu) (ok, msg) = (false, $"chegou, mas não abriu: {motivo}");
+                    }
                     lock (resultados) resultados.Add(new ResultadoArquivoEnviado(nomeAlvo, arq.Nome, ok, msg));
                     if (!ok)
                     {
@@ -72,7 +77,7 @@ static class EnvioDeArquivos
                 }
                 if (falhas == 0)
                     progresso?.Report(new ProgressoEnvio(alvo, arquivos.Count, arquivos.Count, 0, 0,
-                        arquivos.Count == 1 ? "Enviado" : $"{arquivos.Count} arquivos enviados", true));
+                        (arquivos.Count == 1 ? "Enviado" : $"{arquivos.Count} arquivos enviados") + (abrir ? " e aberto" + (arquivos.Count == 1 ? "" : "s") : ""), true));
             }
             finally
             {

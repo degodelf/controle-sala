@@ -52,6 +52,7 @@
 
     <!-- Bloquear tela: cadeado. -->
     <StreamGeometry x:Key="IconeBloquear">M6,11 L18,11 L18,20 L6,20 Z M8.5,11 L8.5,7.5 A3.5,3.5 0 0 1 15.5,7.5 L15.5,11</StreamGeometry>
+    <StreamGeometry x:Key="IconeDesbloquear">M6,11 L18,11 L18,20 L6,20 Z M8.5,11 L8.5,7.5 A3.5,3.5 0 0 1 15,5.8</StreamGeometry>
 
     <!-- Programa: janela de aplicativo. -->
     <StreamGeometry x:Key="IconePrograma">M4,5 L20,5 L20,19 L4,19 Z M4,8.5 L20,8.5 M6.5,6.7 L6.6,6.7 M8.5,6.7 L8.6,6.7</StreamGeometry>

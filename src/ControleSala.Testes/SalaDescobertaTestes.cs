@@ -15,6 +15,88 @@ public sealed class SalaTestes : IDisposable
         if (Directory.Exists(_pasta)) Directory.Delete(_pasta, recursive: true);
     }
 
+    static AgenteEncontrado Pc(string nome, string endereco) => new(nome, endereco, Protocolo.PortaPadrao, "etiqueta");
+
+    [Fact]
+    public void Pc_da_rede_entra_sozinho_no_lugar_certo_e_fica_gravado()
+    {
+        var sala = new RepositorioSala(Arquivo);
+        Assert.NotNull(sala.AdicionarDaRede(Pc("PC 10", "10.0.0.10")));
+        Assert.NotNull(sala.AdicionarDaRede(Pc("PC 02", "10.0.0.2")));
+        Assert.NotNull(sala.AdicionarDaRede(Pc("PC 03", "10.0.0.3")));
+
+        Assert.Equal(["PC 02", "PC 03", "PC 10"], sala.Computadores.Select(c => c.Nome));
+        Assert.Equal(["PC 02", "PC 03", "PC 10"], new RepositorioSala(Arquivo).Computadores.Select(c => c.Nome));
+    }
+
+    [Fact]
+    public void Pc_da_rede_nao_muda_a_ordem_que_o_professor_montou()
+    {
+        var sala = new RepositorioSala(Arquivo);
+        sala.Adicionar("Mesa C", "10.0.0.3");
+        sala.Adicionar("Mesa A", "10.0.0.1");
+        sala.AdicionarDaRede(Pc("Mesa D", "10.0.0.4"));
+        Assert.Equal(["Mesa C", "Mesa A", "Mesa D"], sala.Computadores.Select(c => c.Nome));
+    }
+
+    [Fact]
+    public void Pc_que_ja_esta_na_lista_nao_entra_de_novo()
+    {
+        var sala = new RepositorioSala(Arquivo);
+        var c = sala.Adicionar("PC 05", "10.0.0.5");
+        sala.AplicarNomeEscolhido(c, "PC 05");
+        sala.Atualizar(c, "Mesa da frente", "10.0.0.5", Protocolo.PortaPadrao);
+
+        Assert.Null(sala.AdicionarDaRede(Pc("PC 05", "10.0.0.5")));   // mesmo endereço, renomeado pelo professor
+        Assert.Null(sala.AdicionarDaRede(Pc("PC 05", "10.0.0.99")));  // mudou de IP: é a correção de endereço que resolve
+        Assert.Single(sala.Computadores);
+    }
+
+    [Fact]
+    public void Pc_removido_pelo_professor_nao_volta_sozinho()
+    {
+        var sala = new RepositorioSala(Arquivo);
+        var c = sala.AdicionarDaRede(Pc("PC 05", "10.0.0.5"))!;
+        sala.Remover(c);
+
+        Assert.Null(sala.AdicionarDaRede(Pc("PC 05", "10.0.0.5")));
+        Assert.Null(new RepositorioSala(Arquivo).AdicionarDaRede(Pc("PC-05", "10.0.0.5"))); // nem depois de reabrir
+        Assert.Empty(new RepositorioSala(Arquivo).Computadores);
+    }
+
+    [Fact]
+    public void Adicionar_a_mao_libera_o_pc_removido()
+    {
+        var sala = new RepositorioSala(Arquivo);
+        sala.Remover(sala.Adicionar("PC 05", "10.0.0.5"));
+        var devolvido = sala.Adicionar("PC 05", "10.0.0.5");
+        sala.Atualizar(devolvido, "Mesa 1", "10.0.0.5", Protocolo.PortaPadrao);
+
+        Assert.NotNull(new RepositorioSala(Arquivo).AdicionarDaRede(Pc("PC 05", "10.0.0.7")));
+    }
+
+    [Fact]
+    public void Dois_pcs_com_o_mesmo_nome_viram_aviso_e_nao_entram_sozinhos()
+    {
+        var sala = new RepositorioSala(Arquivo);
+        sala.AdicionarDaRede(Pc("PC 05", "10.0.0.5"));
+
+        Assert.False(sala.NomeRepetido(Pc("PC 05", "10.0.0.5")));
+        Assert.False(sala.NomeRepetido(Pc("PC 06", "10.0.0.6")));
+        Assert.True(sala.NomeRepetido(Pc("PC 05", "10.0.0.8")));
+        Assert.Null(sala.AdicionarDaRede(Pc("PC 05", "10.0.0.8")));
+    }
+
+    [Theory]
+    [InlineData("---")]
+    [InlineData("um nome de computador comprido demais para a lista da sala")]
+    public void Nome_que_nao_serve_nao_entra_sozinho(string nome)
+    {
+        var sala = new RepositorioSala(Arquivo);
+        Assert.Null(sala.AdicionarDaRede(Pc(nome, "10.0.0.5")));
+        Assert.Empty(sala.Computadores);
+    }
+
     [Fact]
     public void Adicionar_persiste_e_mantem_a_ordem()
     {
@@ -198,6 +280,51 @@ public sealed class SalaTestes : IDisposable
 
 public class DescobertaTestes
 {
+    static AgenteEncontrado Ouvir(byte[] anuncio, string endereco = "192.168.0.15")
+    {
+        Assert.True(Descoberta.TentarLer(anuncio, out var nome, out var porta, out var etiqueta));
+        return new AgenteEncontrado(nome, endereco, porta, etiqueta);
+    }
+
+    [Fact]
+    public void Anuncio_com_a_chave_prova_que_o_pc_e_da_sala()
+    {
+        byte[] chave = ConfigSala.Nova("Escola", "Lab 1").Chave, outra = ConfigSala.Nova("Escola", "Lab 2").Chave;
+        var achado = Ouvir(Descoberta.MontarAnuncio("PC 07", 47810, chave));
+
+        Assert.Equal("PC 07", achado.Nome);
+        Assert.True(Descoberta.DaSala(achado, chave));
+        Assert.False(Descoberta.DaSala(achado, outra));          // o outro laboratório da mesma rede não entra
+        Assert.False(Descoberta.DaSala(achado, null));           // professor sem sala criada
+        Assert.False(Descoberta.DaSala(achado with { Nome = "PC 08" }, chave));   // não dá para reaproveitar em outro nome
+        Assert.False(Descoberta.DaSala(achado with { Porta = 47999 }, chave));
+    }
+
+    [Fact]
+    public void Anuncio_de_agente_antigo_nao_e_da_sala_mas_continua_valido()
+    {
+        var achado = Ouvir(Descoberta.MontarAnuncio("PC 07", 47810));
+        Assert.Equal("", achado.Etiqueta);
+        Assert.False(Descoberta.DaSala(achado, ConfigSala.Nova("Escola", "Lab 1").Chave));
+    }
+
+    [Fact]
+    public void Etiqueta_vale_mesmo_com_nome_cheio_de_espacos_e_acentos()
+    {
+        byte[] chave = ConfigSala.Nova("Escola", "Lab 1").Chave;
+        var bytes = Descoberta.MontarAnuncio("  Informática 1  ", 47810, chave);
+        Assert.True(bytes.Length <= 512);
+        Assert.True(Descoberta.DaSala(Ouvir(bytes), chave));
+    }
+
+    [Fact]
+    public void Anuncio_com_nome_no_limite_ainda_cabe()
+    {
+        byte[] chave = ConfigSala.Nova("Escola", "Lab 1").Chave;
+        var achado = Ouvir(Descoberta.MontarAnuncio(new string('ã', 60), 47810, chave));
+        Assert.True(Descoberta.DaSala(achado, chave));
+    }
+
     [Fact]
     public void Anuncio_ida_e_volta()
     {

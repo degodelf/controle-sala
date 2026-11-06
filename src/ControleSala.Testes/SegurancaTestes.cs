@@ -299,6 +299,32 @@ public sealed class ConfigSalaArmazenamentoTestes : IDisposable
     }
 
     [Fact]
+    public void Renomear_a_sala_troca_so_os_nomes_e_a_chave_continua_a_mesma()
+    {
+        string caminho = Path.Combine(_pasta, "sala-config.json");
+        const string senha = "senha-do-pacote";
+        var sala = ConfigSala.Nova("Escola", "Sala 3");
+
+        var renomeada = sala.Renomeada("  EEF Augusta Scotti Bacis ", " Laboratório 1  ");
+        Assert.Equal("EEF Augusta Scotti Bacis", renomeada.Escola);
+        Assert.Equal("Laboratório 1", renomeada.Sala);
+        Assert.Equal(sala.Chave, renomeada.Chave);
+        Assert.Equal(sala.Impressao(), renomeada.Impressao());
+
+        ConfigProfessor.Salvar(renomeada, caminho);
+        var lida = ConfigProfessor.Carregar(caminho)!;
+        Assert.Equal("EEF Augusta Scotti Bacis", lida.Escola);
+        Assert.Equal(sala.Chave, lida.Chave);
+
+        // Pacote novo: leva os nomes novos e a mesma chave. Pacote antigo: continua abrindo a mesma sala.
+        var novo = PacoteSala.Importar(PacoteSala.Exportar(lida, senha, 1000), senha);
+        var antigo = PacoteSala.Importar(PacoteSala.Exportar(sala, senha, 1000), senha);
+        Assert.Equal("Laboratório 1", novo.Sala);
+        Assert.Equal(sala.Chave, novo.Chave);
+        Assert.Equal(antigo.Impressao(), novo.Impressao());
+    }
+
+    [Fact]
     public void Identificacao_ida_e_volta_e_sem_caracteres_de_controle()
     {
         var msg = Protocolo.MontarIdentificacao("Prof. Diego");
