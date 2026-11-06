@@ -68,8 +68,9 @@ static partial class LimpezaExecutor
 
             if (c.Lixeira)
             {
-                bytes += TamanhoDaLixeira();
-                EsvaziarLixeira();
+                var (removidos, liberados) = EsvaziarLixeira();
+                itens += removidos;
+                bytes += liberados;
             }
             if (c.RestaurarPapelDeParede && File.Exists(CaminhoPapel)) RestaurarPapel(CaminhoPapel);
 
@@ -98,23 +99,25 @@ static partial class LimpezaExecutor
         Thread.Sleep(500); // dá tempo de os arquivos destravarem
     }
 
-    static long TamanhoDaLixeira()
+    /// <summary>
+    /// Esvazia a Lixeira de quem está usando o PC e devolve quantos itens e bytes saíram. Apaga direto a pasta da conta porque o
+    /// SHEmptyRecycleBin, rodando como SYSTEM, só alcança a Lixeira do próprio SYSTEM, nunca a do aluno.
+    /// </summary>
+    static (int Itens, long Bytes) EsvaziarLixeira()
     {
-        try
-        {
-            var info = new InfoLixeira { Tamanho = Marshal.SizeOf<InfoLixeira>() };
-            return SHQueryRecycleBin(null, ref info) == 0 ? info.Bytes : 0;
-        }
-        catch (Exception ex) when (ex is DllNotFoundException or EntryPointNotFoundException)
-        {
-            return 0;
-        }
-    }
+        string? sid = EhSystem ? LancadorNaSessao.ContaDaSessao() : WindowsIdentity.GetCurrent().User?.Value;
+        if (sid == null) return (0, 0);
 
-    static void EsvaziarLixeira()
-    {
-        try { SHEmptyRecycleBin(0, null, 0x7 /* sem confirmação, som, progresso */); }
-        catch (Exception) { }
+        var discos = DriveInfo.GetDrives().Where(d => d.DriveType == DriveType.Fixed && d.IsReady).Select(d => d.RootDirectory.FullName);
+        int itens = 0;
+        long bytes = 0;
+        foreach (var pasta in LimpezaArquivos.PastasDaLixeira(discos, sid))
+        {
+            long antes = LimpezaArquivos.Tamanho(pasta);
+            itens += LimpezaArquivos.EsvaziarPasta(pasta, []);
+            bytes += Math.Max(0, antes - LimpezaArquivos.Tamanho(pasta));
+        }
+        return (itens, bytes);
     }
 
     /// <summary>Aplica agora o papel de parede já recebido (se houver). Chamado pelo comando "aplicar papel de parede" do professor.</summary>
@@ -144,15 +147,6 @@ static partial class LimpezaExecutor
         try { SystemParametersInfo(0x0014 /* SPI_SETDESKWALLPAPER */, 0, caminho, 0x01 | 0x02 /* atualiza e avisa */); }
         catch (Exception) { }
     }
-
-    [StructLayout(LayoutKind.Sequential)]
-    struct InfoLixeira { public int Tamanho; public long Bytes; public long Itens; }
-
-    [LibraryImport("shell32.dll", EntryPoint = "SHQueryRecycleBinW", StringMarshalling = StringMarshalling.Utf16)]
-    private static partial int SHQueryRecycleBin(string? raiz, ref InfoLixeira info);
-
-    [LibraryImport("shell32.dll", EntryPoint = "SHEmptyRecycleBinW", StringMarshalling = StringMarshalling.Utf16)]
-    private static partial int SHEmptyRecycleBin(nint janela, string? raiz, uint flags);
 
     [LibraryImport("user32.dll", EntryPoint = "SystemParametersInfoW", SetLastError = true, StringMarshalling = StringMarshalling.Utf16)]
     [return: MarshalAs(UnmanagedType.Bool)]

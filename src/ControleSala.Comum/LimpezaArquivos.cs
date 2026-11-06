@@ -2,7 +2,7 @@ namespace ControleSala.Comum;
 
 /// <summary>
 /// Seleção e remoção dos arquivos da limpeza, dentro do perfil do aluno. É aqui que decidimos o que apagar
-/// (respeitando as exceções). O Recycle Bin e o papel de parede ficam no agente (dependem de API do Windows).
+/// (respeitando as exceções). O papel de parede fica no agente (depende de API do Windows).
 /// </summary>
 public static class LimpezaArquivos
 {
@@ -68,6 +68,10 @@ public static class LimpezaArquivos
         }
         return removidos;
     }
+
+    /// <summary>A Lixeira de uma conta, uma pasta por disco: &lt;disco&gt;\$Recycle.Bin\&lt;SID&gt;. As outras contas não entram.</summary>
+    public static List<string> PastasDaLixeira(IEnumerable<string> discos, string sid) =>
+        discos.Select(disco => Path.Combine(disco, "$Recycle.Bin", sid)).Where(Directory.Exists).ToList();
 
     /// <summary>Quantos bytes um arquivo ou uma pasta ocupam agora. O que não dá para ler não conta, e atalhos de pasta não são seguidos.</summary>
     public static long Tamanho(string caminho)

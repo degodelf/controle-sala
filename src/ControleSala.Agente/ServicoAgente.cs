@@ -288,6 +288,24 @@ static partial class LancadorNaSessao
         }
     }
 
+    /// <summary>SID da conta de quem está usando o PC. Null se não houver sessão. Só no serviço (SYSTEM).</summary>
+    public static string? ContaDaSessao()
+    {
+        uint sessao = WTSGetActiveConsoleSessionId();
+        if (sessao == uint.MaxValue) return null;
+        nint token = 0;
+        try
+        {
+            if (!WTSQueryUserToken(sessao, out token)) return null;
+            using var conta = new System.Security.Principal.WindowsIdentity(token);
+            return conta.User?.Value;
+        }
+        finally
+        {
+            if (token != 0) CloseHandle(token);
+        }
+    }
+
     /// <summary>Sessão do console (a de quem está na frente do PC); uint.MaxValue se não houver.</summary>
     public static uint SessaoAtiva() => WTSGetActiveConsoleSessionId();
 

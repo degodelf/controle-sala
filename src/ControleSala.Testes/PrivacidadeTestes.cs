@@ -331,6 +331,27 @@ public sealed class RelatoriosTestes : IDisposable
     }
 
     [Fact]
+    public void Lixeira_pega_so_a_pasta_da_conta_em_cada_disco()
+    {
+        const string aluno = "S-1-5-21-1-1001", admin = "S-1-5-21-1-500";
+        string discoC = Path.Combine(_pasta, "C"), discoD = Path.Combine(_pasta, "D"), semLixeira = Path.Combine(_pasta, "E");
+        string doAluno = Path.Combine(discoC, "$Recycle.Bin", aluno), doAdmin = Path.Combine(discoC, "$Recycle.Bin", admin);
+        string noOutroDisco = Path.Combine(discoD, "$Recycle.Bin", aluno);
+        foreach (var pasta in new[] { doAluno, doAdmin, noOutroDisco, semLixeira }) Directory.CreateDirectory(pasta);
+        File.WriteAllBytes(Path.Combine(doAluno, "$R1.txt"), new byte[100]);
+        File.WriteAllBytes(Path.Combine(noOutroDisco, "$R2.txt"), new byte[50]);
+        File.WriteAllBytes(Path.Combine(doAdmin, "$R3.txt"), new byte[70]);
+
+        var pastas = LimpezaArquivos.PastasDaLixeira([discoC, discoD, semLixeira], aluno);
+        Assert.Equal([doAluno, noOutroDisco], pastas);
+        foreach (var pasta in pastas) LimpezaArquivos.EsvaziarPasta(pasta, []);
+
+        Assert.Equal(0, LimpezaArquivos.Tamanho(doAluno));
+        Assert.Equal(0, LimpezaArquivos.Tamanho(noOutroDisco));
+        Assert.Equal(70, LimpezaArquivos.Tamanho(doAdmin));   // a Lixeira de outra conta não é tocada
+    }
+
+    [Fact]
     public void Tamanho_soma_a_pasta_inteira()
     {
         string pasta = Path.Combine(_pasta, "t", "sub");

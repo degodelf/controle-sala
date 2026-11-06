@@ -118,7 +118,7 @@ public partial class JanelaSala : Window
         try
         {
             File.WriteAllBytes(salvar.FileName, PacoteSala.Exportar(sala, senha.Senha));
-            TextoMensagem.Text = $"Pacote salvo em {salvar.FileName}. Copie para o pendrive junto com o ControleSala-Setup e apague do pendrive depois de instalar.";
+            TextoMensagem.Text = $"Pacote salvo em {salvar.FileName}. Leve no pendrive junto com o ControleSala-Setup e apague do pendrive depois de instalar. Guarde uma cópia em lugar seguro, com a senha anotada: ela traz a sala de volta se este PC for formatado.";
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
