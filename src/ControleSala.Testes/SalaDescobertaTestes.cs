@@ -16,6 +16,95 @@ public sealed class SalaTestes : IDisposable
     }
 
     static AgenteEncontrado Pc(string nome, string endereco) => new(nome, endereco, Protocolo.PortaPadrao, "etiqueta");
+    static string? NadaOuvido(ComputadorSala _) => null;
+
+    RepositorioSala SalaComTres()
+    {
+        var sala = new RepositorioSala(Arquivo);
+        sala.Adicionar("PC 01", "10.0.0.1");
+        sala.Adicionar("PC 02", "10.0.0.2");
+        sala.Adicionar("PC 03", "10.0.0.3");
+        return sala;
+    }
+
+    static string Enderecos(RepositorioSala sala) => string.Join(" ", sala.Computadores.Select(c => $"{c.Nome}={c.Endereco}"));
+
+    [Fact]
+    public void Pc_que_mudou_para_ip_livre_vai_para_o_endereco_novo_mesmo_com_a_conexao_antiga_aberta()
+    {
+        var sala = SalaComTres();
+        var mudou = sala.Reorganizar(Pc("PC 02", "10.0.0.50"), NadaOuvido);
+        Assert.Equal("PC 02", Assert.Single(mudou).Nome);
+        Assert.Equal("PC 01=10.0.0.1 PC 02=10.0.0.50 PC 03=10.0.0.3", Enderecos(sala));
+    }
+
+    [Fact]
+    public void Dois_pcs_que_trocaram_de_ip_voltam_ao_lugar_certo()
+    {
+        var sala = SalaComTres();
+        Assert.Equal(2, sala.Reorganizar(Pc("PC 01", "10.0.0.2"), NadaOuvido).Count);
+        Assert.Empty(sala.Reorganizar(Pc("PC 02", "10.0.0.1"), NadaOuvido));   // o segundo aviso já encontra tudo certo
+        Assert.Equal("PC 01=10.0.0.2 PC 02=10.0.0.1 PC 03=10.0.0.3", Enderecos(sala));
+    }
+
+    [Fact]
+    public void Rodizio_de_ips_entre_tres_pcs_termina_certo_em_qualquer_ordem()
+    {
+        var sala = SalaComTres();
+        sala.Reorganizar(Pc("PC 02", "10.0.0.3"), NadaOuvido);
+        sala.Reorganizar(Pc("PC 03", "10.0.0.1"), NadaOuvido);
+        sala.Reorganizar(Pc("PC 01", "10.0.0.2"), NadaOuvido);
+        Assert.Equal("PC 01=10.0.0.2 PC 02=10.0.0.3 PC 03=10.0.0.1", Enderecos(new RepositorioSala(Arquivo)));
+    }
+
+    [Fact]
+    public void Pc_renomeado_na_lista_continua_reconhecido_quando_o_ip_muda()
+    {
+        var sala = SalaComTres();
+        sala.Reorganizar(Pc("PC 02", "10.0.0.2"), NadaOuvido);          // ele se anuncia e fica conhecido
+        sala.Atualizar(sala.Computadores[1], "Mesa da frente", "10.0.0.2", Protocolo.PortaPadrao);
+
+        Assert.Equal("Mesa da frente", Assert.Single(sala.Reorganizar(Pc("PC 02", "10.0.0.50"), NadaOuvido)).Nome);
+        Assert.Equal("10.0.0.50", new RepositorioSala(Arquivo).Computadores[1].Endereco);
+    }
+
+    [Fact]
+    public void Pc_com_nome_do_windows_diferente_da_lista_fica_conhecido_no_primeiro_anuncio()
+    {
+        var sala = SalaComTres();
+        Assert.Empty(sala.Reorganizar(Pc("DESKTOP-A1", "10.0.0.2"), NadaOuvido));
+        Assert.Equal("PC 02", Assert.Single(sala.Reorganizar(Pc("DESKTOP-A1", "10.0.0.50"), NadaOuvido)).Nome);
+    }
+
+    [Fact]
+    public void Dois_pcs_com_o_mesmo_nome_nao_ficam_trocando_de_lugar()
+    {
+        var sala = SalaComTres();
+        // O endereço antigo continua anunciando o mesmo nome: é outro PC, não uma mudança de IP.
+        Assert.Empty(sala.Reorganizar(Pc("PC 02", "10.0.0.50"), _ => "PC 02"));
+        Assert.Equal("PC 01=10.0.0.1 PC 02=10.0.0.2 PC 03=10.0.0.3", Enderecos(sala));
+    }
+
+    [Fact]
+    public void Pc_desconhecido_no_endereco_de_outro_nao_toma_a_identidade_dele()
+    {
+        var sala = SalaComTres();
+        sala.Reorganizar(Pc("PC 02", "10.0.0.2"), NadaOuvido);
+        Assert.Empty(sala.Reorganizar(Pc("PC 09", "10.0.0.2"), NadaOuvido));
+
+        // Quando o PC 02 aparece no endereço novo, a lista se acerta e o desconhecido entra como novo.
+        sala.Reorganizar(Pc("PC 02", "10.0.0.50"), NadaOuvido);
+        Assert.NotNull(sala.AdicionarDaRede(Pc("PC 09", "10.0.0.2")));
+        Assert.Equal("PC 01=10.0.0.1 PC 02=10.0.0.50 PC 03=10.0.0.3 PC 09=10.0.0.2", Enderecos(sala));
+    }
+
+    [Fact]
+    public void Nome_de_outro_pc_da_lista_nao_renomeia_quem_conectou_no_ip_errado()
+    {
+        var sala = SalaComTres();
+        Assert.False(sala.AplicarNomeEscolhido(sala.Computadores[0], "PC 02"));
+        Assert.Equal("PC 01", sala.Computadores[0].Nome);
+    }
 
     [Fact]
     public void Pc_da_rede_entra_sozinho_no_lugar_certo_e_fica_gravado()

@@ -105,6 +105,8 @@ sealed unsafe partial class ConexaoComputador : IDisposable
     public void Reconectar()
     {
         _falhas = 0; // volta a tentar já e a mostrar "Conectando" (foi um pedido do professor, ex.: F5)
+        NomeEscolhido = null; // o que veio da conexão anterior pode ser de outro PC, se o endereço mudou
+        Mac = null;
         _tentarJa.Set();
         try { _tcp?.Dispose(); } catch (ObjectDisposedException) { }
     }

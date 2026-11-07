@@ -102,9 +102,8 @@ public partial class MainWindow : Window
     }
 
     /// <summary>
-    /// Ouve os anúncios dos agentes: um PC da lista que não conecta e aparece em outro IP tem o endereço corrigido sozinho,
-    /// e um PC novo que prova ter a chave da sala entra na lista. Mesmo assim, conectar continua exigindo a chave, e PC online
-    /// nunca é mexido.
+    /// Ouve os anúncios dos agentes. Um PC que prova ter a chave da sala entra na lista ou vai para o endereço certo, mesmo que os
+    /// PCs tenham trocado de IP entre si. PC que ainda não assina o anúncio só tem o endereço corrigido se estiver offline.
     /// </summary>
     async Task VigiarEnderecosAsync()
     {
@@ -123,20 +122,54 @@ public partial class MainWindow : Window
     }
 
     readonly HashSet<string> _avisadosNomeRepetido = [];
+    readonly Dictionary<(string, int), Ouvido> _ouvidos = [];
+
+    /// <summary>
+    /// Endereço calado por este tempo: o PC saiu dali. Os PCs se anunciam a cada 3 s, então aviso perdido na rede não engana,
+    /// e o atraso só existe para quem troca de IP ligado (quem liga já com IP novo é corrigido no primeiro aviso).
+    /// </summary>
+    static readonly TimeSpan TempoDeOuvido = TimeSpan.FromSeconds(15);
+
+    sealed record Ouvido(string Nome, DateTime Primeira, DateTime Ultima);
 
     void AoOuvirAgente(AgenteEncontrado achado)
     {
-        CorrigirEndereco(achado);
+        if (achado.Etiqueta.Length == 0)   // PC ainda sem a versão que assina o anúncio
+        {
+            CorrigirEndereco(achado);
+            return;
+        }
+        if (!Descoberta.DaSala(achado, Sessao.Sala?.Chave)) return;   // outro laboratório da mesma rede
+
+        var agora = DateTime.UtcNow;
+        var lugar = (achado.Endereco, achado.Porta);
+        var primeira = _ouvidos.TryGetValue(lugar, out var antes) && antes.Nome == achado.Nome && agora - antes.Ultima < TempoDeOuvido
+            ? antes.Primeira : agora;
+        _ouvidos[lugar] = new Ouvido(achado.Nome, primeira, agora);
+
+        foreach (var computador in _sala.Reorganizar(achado, NomeOuvidoNoEndereco))
+        {
+            if (_tiles.FirstOrDefault(t => t.Conexao.Dados == computador) is not { } tile) continue;
+            tile.AtualizarDados();
+            tile.Conexao.Reconectar();
+            MostrarAviso($"{computador.Nome}: endereço atualizado para {computador.Endereco} ✓");
+        }
+
         // Com outra janela aberta (Computadores, Procurar...) espera: ela mostra uma cópia da lista, e o PC anuncia de novo em 3 s.
-        if (OwnedWindows.Count > 0 || !Descoberta.DaSala(achado, Sessao.Sala?.Chave)) return;
+        if (OwnedWindows.Count > 0) return;
         if (_sala.AdicionarDaRede(achado) is { } novo)
         {
             ReconstruirGrade();
             MostrarAviso($"{novo.Nome} entrou na sala ✓");
         }
-        else if (_sala.NomeRepetido(achado) && _avisadosNomeRepetido.Add(achado.Endereco))
+        // Só avisa depois de um tempo: um PC que acabou de mudar de IP também parece repetido por alguns segundos.
+        else if (agora - primeira > TempoDeOuvido && _sala.NomeRepetido(achado) && _avisadosNomeRepetido.Add(achado.Endereco))
             MostrarAviso($"Outro computador ({achado.Endereco}) também se chama {achado.Nome}. Adicione em Computadores > Procurar na rede e renomeie.");
     }
+
+    string? NomeOuvidoNoEndereco(ComputadorSala computador) =>
+        _ouvidos.TryGetValue((computador.Endereco, computador.Porta), out var ouvido) && DateTime.UtcNow - ouvido.Ultima < TempoDeOuvido
+            ? ouvido.Nome : null;
 
     void CorrigirEndereco(AgenteEncontrado achado)
     {

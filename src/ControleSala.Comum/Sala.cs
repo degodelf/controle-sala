@@ -11,6 +11,8 @@ public sealed class ComputadorSala
     public string? Mac { get; set; }
     /// <summary>Último nome escolhido na instalação do PC que já foi aplicado aqui (ver <see cref="RepositorioSala.AplicarNomeEscolhido"/>).</summary>
     public string? NomeEscolhido { get; set; }
+    /// <summary>Nome que o próprio PC anuncia na rede. Não muda quando o professor renomeia: é assim que o PC é reconhecido se o IP mudar.</summary>
+    public string? NomeNaRede { get; set; }
 }
 
 /// <summary>Os computadores da sala, na ordem em que aparecem na grade. Arquivo: <c>sala.json</c>.</summary>
@@ -67,7 +69,7 @@ public sealed class RepositorioSala
         if (nome.Length == 0 || _removidos.Contains(nome) || TemNome(nome)) return null;
         if (Validar(achado.Nome, achado.Endereco, achado.Porta) != null) return null;
 
-        var c = new ComputadorSala { Nome = achado.Nome.Trim(), Endereco = achado.Endereco, Porta = achado.Porta };
+        var c = new ComputadorSala { Nome = achado.Nome.Trim(), Endereco = achado.Endereco, Porta = achado.Porta, NomeNaRede = achado.Nome.Trim() };
         int lugar = _computadores.FindIndex(outro => CompararNatural(outro.Nome, c.Nome) > 0);
         _computadores.Insert(lugar < 0 ? _computadores.Count : lugar, c);
         Salvar();
@@ -79,8 +81,62 @@ public sealed class RepositorioSala
         TemNome(NomeComparavel(achado.Nome)) && !_computadores.Any(c => c.Porta == achado.Porta
             && string.Equals(c.Endereco, achado.Endereco, StringComparison.OrdinalIgnoreCase));
 
-    bool TemNome(string nome) => _computadores.Any(c => NomeComparavel(c.Nome) == nome
+    bool TemNome(string nome) => _computadores.Any(c => NomeComparavel(c.Nome) == nome || Identidade(c) == nome
         || (c.NomeEscolhido is { } escolhido && NomeComparavel(escolhido) == nome));
+
+    /// <summary>Como o PC se apresenta na rede. O nome da lista só vale enquanto ele ainda não se anunciou.</summary>
+    static string Identidade(ComputadorSala c) => NomeComparavel(c.NomeNaRede ?? c.NomeEscolhido ?? c.Nome);
+
+    /// <summary>
+    /// Um PC que provou ser desta sala anunciou nome e endereço. Se ele estava na lista em outro endereço, vai para o lugar certo,
+    /// mesmo que o endereço novo fosse de outro computador: os dois trocam. Devolve quem mudou, para reconectar.
+    /// <paramref name="nomeOuvidoEm"/> diz que nome foi ouvido há pouco no endereço de um computador da lista. Se o endereço antigo
+    /// ainda anuncia o mesmo nome, são dois PCs com nome igual, e nada muda: a lista ficaria trocando sem parar.
+    /// </summary>
+    public IReadOnlyList<ComputadorSala> Reorganizar(AgenteEncontrado achado, Func<ComputadorSala, string?> nomeOuvidoEm)
+    {
+        string nome = NomeComparavel(achado.Nome);
+        if (nome.Length == 0) return [];
+
+        var ocupante = _computadores.Find(c => c.Porta == achado.Porta
+            && string.Equals(c.Endereco, achado.Endereco, StringComparison.OrdinalIgnoreCase));
+        if (ocupante != null && Identidade(ocupante) == nome)
+        {
+            Lembrar(ocupante, achado.Nome);
+            return [];
+        }
+
+        var donos = _computadores.Where(c => Identidade(c) == nome).ToList();
+        if (donos.Count == 0)
+        {
+            // Primeira vez que este PC se anuncia: o nome do Windows pode ser diferente do nome da lista.
+            if (ocupante is { NomeNaRede: null }) Lembrar(ocupante, achado.Nome);
+            return [];
+        }
+        if (donos.Count > 1) return [];
+
+        var dono = donos[0];
+        if (nomeOuvidoEm(dono) is { } ouvido && NomeComparavel(ouvido) == nome) return [];
+
+        (string endereco, int porta) = (dono.Endereco, dono.Porta);
+        dono.Endereco = achado.Endereco;
+        dono.Porta = achado.Porta;
+        dono.NomeNaRede = achado.Nome;
+        if (ocupante != null)
+        {
+            ocupante.Endereco = endereco;   // fica no endereço livre até se anunciar também
+            ocupante.Porta = porta;
+        }
+        Salvar();
+        return ocupante == null ? [dono] : [dono, ocupante];
+    }
+
+    void Lembrar(ComputadorSala c, string nome)
+    {
+        if (c.NomeNaRede == nome) return;
+        c.NomeNaRede = nome;
+        Salvar();
+    }
 
     /// <summary>Troca os dados por um objeto novo (quem usa a lista percebe que o computador mudou). Mantém a posição.</summary>
     public ComputadorSala Atualizar(ComputadorSala atual, string nome, string endereco, int porta)
@@ -88,7 +144,7 @@ public sealed class RepositorioSala
         int i = _computadores.IndexOf(atual);
         if (i < 0) throw new ArgumentException("Esse computador não está mais na sala.");
         if (Validar(nome, endereco, porta, atual) is { } erro) throw new ArgumentException(erro);
-        var novo = new ComputadorSala { Nome = nome.Trim(), Endereco = endereco.Trim(), Porta = porta, NomeEscolhido = atual.NomeEscolhido };
+        var novo = new ComputadorSala { Nome = nome.Trim(), Endereco = endereco.Trim(), Porta = porta, NomeEscolhido = atual.NomeEscolhido, NomeNaRede = atual.NomeNaRede };
         _computadores[i] = novo;
         Salvar();
         return novo;
@@ -100,6 +156,7 @@ public sealed class RepositorioSala
         Salvar();
         _removidos.Add(NomeComparavel(c.Nome));
         if (c.NomeEscolhido is { } escolhido) _removidos.Add(NomeComparavel(escolhido));
+        if (c.NomeNaRede is { } naRede) _removidos.Add(NomeComparavel(naRede));
         SalvarRemovidos();
         return true;
     }
@@ -120,8 +177,12 @@ public sealed class RepositorioSala
     public bool AplicarNomeEscolhido(ComputadorSala c, string nome)
     {
         if (c.NomeEscolhido == nome || !_computadores.Contains(c)) return false;
+        // O PC que conectou aqui é outro da lista (pegou este IP): quem resolve é o Reorganizar, não uma troca de nome.
+        string identidade = NomeComparavel(nome);
+        if (_computadores.Any(o => o != c && Identidade(o) == identidade)) return false;
         bool mudou = c.Nome != nome;
         c.NomeEscolhido = nome;
+        c.NomeNaRede = nome;
         c.Nome = nome;
         Salvar();
         return mudou;

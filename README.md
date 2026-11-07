@@ -258,7 +258,9 @@ rede). **Duplo clique** em uma tela abre ela em tamanho grande, a ~55 fps; Esc v
 - **Computadores...** — monta a lista da sala (adicionar, editar, remover, mudar a ordem) ou **Procurar na rede...**.
 - Os PCs da sala entram na lista **sozinhos**: cada agente se anuncia na rede a cada 3 s e assina o anúncio com a chave da
   sala, então o programa do professor põe na lista só os da própria sala, em ordem pelo nome, sem pegar outro laboratório da
-  mesma rede. PC removido pelo professor não volta sozinho. **Procurar na rede...** continua valendo para trazer um removido,
+  mesma rede. Se um IP mudar, mesmo que dois PCs troquem de endereço, o PC é reconhecido pelo nome que anuncia e a lista se
+  acerta sozinha, ainda que tenha sido renomeado nela. PC removido pelo professor não volta sozinho. **Procurar na rede...**
+  continua valendo para trazer um removido,
   para PCs com versão antiga e para dois PCs com o mesmo nome.
 - Cada agente se anuncia na rede (`--rede`) e aparece na busca. Para testar no mesmo PC, abra dois agentes:
 
