@@ -1,8 +1,5 @@
-using System.Windows.Controls;
-using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
-using System.Windows.Threading;
 using ControleSala.Comum;
 
 namespace ControleSala.Professor;
@@ -79,63 +76,5 @@ static class Sessao
     {
         try { return System.IO.File.Exists(caminho) ? System.IO.File.ReadAllBytes(caminho) : null; }
         catch (System.IO.IOException) { return null; }
-    }
-}
-
-static class CaixaDePin
-{
-    /// <summary>Deixa digitar só números (o PIN tem de 4 a 8 dígitos).</summary>
-    public static void SoNumeros(object sender, TextCompositionEventArgs e) =>
-        e.Handled = !e.Text.All(char.IsAsciiDigit);
-}
-
-/// <summary>Mostra "PIN incorreto"/"bloqueado" e, no bloqueio, desabilita o botão contando os segundos.</summary>
-sealed class AvisoDePin
-{
-    readonly TextBlock _texto;
-    readonly Button _botao;
-    readonly DispatcherTimer _relogio = new() { Interval = TimeSpan.FromSeconds(1) };
-    DateTime _fim;
-
-    public AvisoDePin(TextBlock texto, Button botao)
-    {
-        _texto = texto;
-        _botao = botao;
-        _relogio.Tick += (_, _) => Atualizar();
-    }
-
-    public void Limpar()
-    {
-        _relogio.Stop();
-        _texto.Text = "";
-        _botao.IsEnabled = true;
-    }
-
-    public void Mostrar(ResultadoPin resultado, PerfilProfessor perfil, TimeSpan espera)
-    {
-        switch (resultado)
-        {
-            case ResultadoPin.Incorreto:
-                int restam = RepositorioPerfis.FalhasAteBloquear - perfil.Falhas;
-                _texto.Text = $"PIN incorreto. Mais {restam} tentativa{(restam == 1 ? "" : "s")} antes do bloqueio.";
-                break;
-            case ResultadoPin.Bloqueado:
-                _fim = DateTime.UtcNow + espera;
-                _botao.IsEnabled = false;
-                Atualizar();
-                _relogio.Start();
-                break;
-        }
-    }
-
-    void Atualizar()
-    {
-        int s = (int)Math.Ceiling((_fim - DateTime.UtcNow).TotalSeconds);
-        if (s <= 0)
-        {
-            Limpar();
-            return;
-        }
-        _texto.Text = $"Muitas tentativas erradas. Tente de novo em {s} s.";
     }
 }

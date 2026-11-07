@@ -228,9 +228,8 @@ O FFmpeg e os demais componentes continuam com as próprias licenças.
 
 O programa mostra telas de alunos, muitos deles crianças e adolescentes. O que foi feito para isso:
 
-- **Entrada:** cada professor se identifica pelo nome e aceita as regras de uso uma vez. O PIN é opcional (4 a 8 números,
-  guardado só como resumo PBKDF2): sem PIN, e com um só professor no PC, o programa abre direto. Dá para definir ou tirar a
-  senha em Professores. Sem PIN, o registro mostra o nome escolhido, sem confirmar quem estava no PC.
+- **Entrada:** o programa abre sem senha. Cada professor se identifica pelo nome e aceita as regras de uso uma vez; com um só
+  professor no PC, abre direto. O registro mostra o nome escolhido, sem confirmar quem estava no PC.
 - **Registro de atividades (Ajuda):** quem fez o quê, quando e em qual computador, só no PC do professor
   (`%AppData%\ControleSala\atividades`), por 6 meses, com exportação para planilha. Não guarda imagens, texto de mensagens
   nem a configuração da limpeza.
@@ -301,15 +300,15 @@ prévia e salve o PNG. Também dá para gerar sem janela:
 ControleSala.Professor.exe --gerar-papel-de-parede saida.png [--config arquivo.json]
 ```
 
-## Professores (PIN)
+## Professores
 
-Ao abrir o Professor, cada professor entra com nome e PIN (4 a 8 números). Em **Professores...** dá para adicionar,
-trocar PIN e remover. Depois de 5 PINs errados o programa bloqueia por 30 s (e vai dobrando até 5 min).
+Ao abrir o Professor, com mais de um professor no PC, o programa pergunta quem está usando; com um só, abre direto. Em
+**Professores...** dá para adicionar e remover professores.
 
 Opções extras do Professor: `--dados <pasta>` (usa outra pasta de configurações) e
 `--capturar <janela> <saida.png> [--esperar <segundos>]` (desenha uma janela numa imagem, para conferir o visual;
 janelas: `principal`, `tela`, `computadores`, `editar`, `procurar`, `papel`, `entrar`, `primeiro`, `novo`,
-`trocarpin`, `confirmar`, `professores`, `sobre`).
+`professores`, `sobre`).
 
 Testes automáticos:
 

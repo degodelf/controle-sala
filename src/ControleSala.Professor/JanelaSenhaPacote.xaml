@@ -1,6 +1,7 @@
 <Window x:Class="ControleSala.Professor.JanelaSenhaPacote"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:ControleSala.Professor"
         Width="420" SizeToContent="Height" ResizeMode="NoResize"
         WindowStartupLocation="CenterOwner" Background="{DynamicResource PincelFundo}" Foreground="{DynamicResource PincelTexto}">
     <StackPanel Margin="24">
@@ -8,11 +9,11 @@
         <TextBlock x:Name="TextoAjuda" TextWrapping="Wrap" Foreground="{DynamicResource PincelTextoFraco}" Margin="0,6,0,16"/>
 
         <TextBlock Text="Senha"/>
-        <PasswordBox x:Name="CampoSenha" Margin="0,4,0,12" Padding="6,4"/>
+        <local:CaixaSenha x:Name="CampoSenha" Margin="0,4,0,12"/>
 
         <StackPanel x:Name="PainelConfirma">
             <TextBlock Text="Repita a senha"/>
-            <PasswordBox x:Name="CampoConfirma" Margin="0,4,0,8" Padding="6,4"/>
+            <local:CaixaSenha x:Name="CampoConfirma" Margin="0,4,0,8"/>
         </StackPanel>
 
         <TextBlock x:Name="TextoErro" Foreground="{DynamicResource PincelOffline}" TextWrapping="Wrap" MinHeight="20"/>

@@ -7,21 +7,8 @@
         <TextBlock x:Name="TextoTitulo" FontSize="19" FontWeight="SemiBold"/>
         <TextBlock x:Name="TextoAjuda" TextWrapping="Wrap" Foreground="{DynamicResource PincelTextoFraco}" Margin="0,6,0,16"/>
 
-        <StackPanel x:Name="PainelNome">
-            <TextBlock Text="Nome do professor"/>
-            <TextBox x:Name="CampoNome" MaxLength="60" Margin="0,4,0,12" Padding="6,4"/>
-        </StackPanel>
-
-        <StackPanel x:Name="PainelPinAtual">
-            <TextBlock Text="PIN atual"/>
-            <PasswordBox x:Name="CampoPinAtual" MaxLength="8" Margin="0,4,0,12" Padding="6,4"/>
-        </StackPanel>
-
-        <TextBlock x:Name="TextoRotuloPin" Text="PIN (4 a 8 números)"/>
-        <PasswordBox x:Name="CampoPin" MaxLength="8" Margin="0,4,0,12" Padding="6,4"/>
-
-        <TextBlock Text="Repita o PIN"/>
-        <PasswordBox x:Name="CampoConfirma" MaxLength="8" Margin="0,4,0,8" Padding="6,4"/>
+        <TextBlock Text="Nome do professor"/>
+        <TextBox x:Name="CampoNome" MaxLength="60" Margin="0,4,0,8" Padding="6,4"/>
 
         <TextBlock x:Name="TextoErro" Foreground="{DynamicResource PincelOffline}" TextWrapping="Wrap" MinHeight="20"/>
 

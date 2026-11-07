@@ -295,11 +295,11 @@ public partial class App : Application
     static void CapturarJanela(string nome, string saida, double esperar)
     {
         // Dados de exemplo (só na pasta indicada por --dados) para as telas terem o que mostrar.
-        var repositorio = new RepositorioPerfis(iteracoes: 1000);
+        var repositorio = new RepositorioPerfis();
         if (repositorio.Perfis.Count == 0)
         {
-            repositorio.Adicionar("Diego", "1234");
-            repositorio.Adicionar("Maria", "5678");
+            repositorio.Adicionar("Diego");
+            repositorio.Adicionar("Maria");
         }
         Sessao.Iniciar(repositorio, repositorio.Perfis[0]);
         Sessao.CarregarSala();
@@ -316,8 +316,6 @@ public partial class App : Application
             "entrar" => new JanelaEntrar(repositorio),
             "primeiro" => new JanelaNovoProfessor(new RepositorioPerfis(Path.GetTempFileName() + ".json"), ModoPerfil.PrimeiroAcesso),
             "novo" => new JanelaNovoProfessor(repositorio, ModoPerfil.Novo),
-            "trocarpin" => new JanelaNovoProfessor(repositorio, ModoPerfil.TrocarPin, repositorio.Perfis[0]),
-            "confirmar" => new JanelaConfirmarPin(repositorio, repositorio.Perfis[0], "Diego, digite o seu PIN para adicionar um professor:"),
             "professores" => new JanelaProfessores(repositorio, repositorio.Perfis[0]),
             "sobre" => new JanelaSobre(),
             "regras" => new JanelaRegrasDeUso(pedirAceite: true),

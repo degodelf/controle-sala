@@ -1,4 +1,3 @@
-using System.Security.Cryptography;
 using System.Text.Json;
 
 namespace ControleSala.Comum;
@@ -6,79 +5,31 @@ namespace ControleSala.Comum;
 public sealed class PerfilProfessor
 {
     public string Nome { get; set; } = "";
-    /// <summary>Sal aleatório (Base64). O PIN nunca é guardado, só o resumo PBKDF2.</summary>
-    public string Sal { get; set; } = "";
-    public string Resumo { get; set; } = "";
-    public int Iteracoes { get; set; }
-    public int Falhas { get; set; }
-    public DateTimeOffset? BloqueadoAte { get; set; }
     /// <summary>Versão das regras de uso que este professor aceitou (0 = ainda não aceitou).</summary>
     public int RegrasAceitas { get; set; }
     public DateTimeOffset? RegrasAceitasEm { get; set; }
 }
 
-public enum ResultadoPin { Correto, Incorreto, Bloqueado }
-
-/// <summary>
-/// Perfis de professor (nome + PIN) do PC do professor. Serve para saber quem está usando o programa
-/// (aviso ao aluno, histórico) e para um aluno que sente ali sem ninguém por perto não conseguir mexer na sala.
-/// O PIN protege contra uso casual; quem tem administrador no PC do professor pode apagar o arquivo.
-/// </summary>
+/// <summary>Professores do PC do professor. Serve para saber quem está usando o programa (aviso ao aluno e registro de atividades).</summary>
 public sealed class RepositorioPerfis
 {
-    public const int FalhasAteBloquear = 5;
-    public static readonly TimeSpan BloqueioInicial = TimeSpan.FromSeconds(30);
-    public static readonly TimeSpan BloqueioMaximo = TimeSpan.FromMinutes(5);
-
     readonly string _caminho;
-    readonly int _iteracoes;
     readonly TimeProvider _tempo;
     readonly List<PerfilProfessor> _perfis;
 
-    public RepositorioPerfis(string? caminho = null, int iteracoes = 600_000, TimeProvider? tempo = null)
+    public RepositorioPerfis(string? caminho = null, TimeProvider? tempo = null)
     {
         _caminho = caminho ?? Path.Combine(Pastas.Dados, "professores.json");
-        _iteracoes = iteracoes;
         _tempo = tempo ?? TimeProvider.System;
-        _perfis = Ler();
+        _perfis = Ler(out bool tinhaPin);
+        if (tinhaPin) ApagarPinAntigo();
     }
 
     public IReadOnlyList<PerfilProfessor> Perfis => _perfis;
 
-    public static bool PinValido(string? pin) =>
-        pin is { Length: >= 4 and <= 8 } && pin.All(char.IsAsciiDigit);
-
-    /// <summary>Esse professor tem PIN? Se não tiver, entra sem pedir senha.</summary>
-    public static bool TemPin(PerfilProfessor perfil) => !string.IsNullOrEmpty(perfil.Resumo);
-
-    /// <summary>Cria um professor SEM PIN (entra direto). O PIN é opcional.</summary>
-    public PerfilProfessor AdicionarSemPin(string nome)
+    public PerfilProfessor Adicionar(string nome)
     {
-        var perfil = new PerfilProfessor { Nome = NomeValido(nome) };   // sem PIN: Resumo fica vazio
-        _perfis.Add(perfil);
-        Salvar();
-        return perfil;
-    }
-
-    /// <summary>Tira o PIN deste professor (passa a entrar sem senha). Mantém o nome e o resto.</summary>
-    public void RemoverPin(PerfilProfessor perfil)
-    {
-        perfil.Sal = "";
-        perfil.Resumo = "";
-        perfil.Iteracoes = 0;
-        perfil.Falhas = 0;
-        perfil.BloqueadoAte = null;
-        Salvar();
-    }
-
-    public PerfilProfessor Adicionar(string nome, string pin)
-    {
-        nome = NomeValido(nome);
-        if (!PinValido(pin))
-            throw new ArgumentException("O PIN deve ter de 4 a 8 números.");
-
-        var perfil = new PerfilProfessor { Nome = nome };
-        DefinirPin(perfil, pin);
+        var perfil = new PerfilProfessor { Nome = NomeValido(nome) };
         _perfis.Add(perfil);
         Salvar();
         return perfil;
@@ -108,57 +59,6 @@ public sealed class RepositorioPerfis
         Salvar();
     }
 
-    public ResultadoPin Verificar(PerfilProfessor perfil, string pin, out TimeSpan espera)
-    {
-        espera = TimeSpan.Zero;
-        if (!TemPin(perfil)) return ResultadoPin.Correto;   // professor sem senha: entra direto
-
-        var agora = _tempo.GetUtcNow();
-        if (perfil.BloqueadoAte is { } ate && ate > agora)
-        {
-            espera = ate - agora;
-            return ResultadoPin.Bloqueado;
-        }
-        espera = TimeSpan.Zero;
-
-        if (PinConfere(perfil, pin))
-        {
-            if (perfil.Falhas != 0 || perfil.BloqueadoAte != null)
-            {
-                perfil.Falhas = 0;
-                perfil.BloqueadoAte = null;
-                Salvar();
-            }
-            return ResultadoPin.Correto;
-        }
-
-        perfil.Falhas++;
-        if (perfil.Falhas >= FalhasAteBloquear)
-        {
-            // 30 s, 60 s, 120 s... até 5 min, a cada nova falha depois da quinta.
-            int dobras = Math.Min(perfil.Falhas - FalhasAteBloquear, 10);
-            var bloqueio = TimeSpan.FromTicks(Math.Min(BloqueioInicial.Ticks << dobras, BloqueioMaximo.Ticks));
-            perfil.BloqueadoAte = agora + bloqueio;
-            espera = bloqueio;
-        }
-        Salvar();
-        return perfil.BloqueadoAte > agora ? ResultadoPin.Bloqueado : ResultadoPin.Incorreto;
-    }
-
-    /// <summary>Troca o PIN se o atual estiver certo. Lança ArgumentException se o PIN novo for inválido.</summary>
-    public ResultadoPin TrocarPin(PerfilProfessor perfil, string pinAtual, string pinNovo, out TimeSpan espera)
-    {
-        if (!PinValido(pinNovo))
-            throw new ArgumentException("O PIN deve ter de 4 a 8 números.");
-        var resultado = Verificar(perfil, pinAtual, out espera);
-        if (resultado == ResultadoPin.Correto)
-        {
-            DefinirPin(perfil, pinNovo);
-            Salvar();
-        }
-        return resultado;
-    }
-
     /// <summary>Remove o perfil. Não remove o último (o programa ficaria sem ninguém para entrar).</summary>
     public bool Remover(PerfilProfessor perfil)
     {
@@ -168,39 +68,17 @@ public sealed class RepositorioPerfis
         return true;
     }
 
-    void DefinirPin(PerfilProfessor perfil, string pin)
+    List<PerfilProfessor> Ler(out bool tinhaPin)
     {
-        var sal = RandomNumberGenerator.GetBytes(16);
-        perfil.Sal = Convert.ToBase64String(sal);
-        perfil.Iteracoes = _iteracoes;
-        perfil.Resumo = Convert.ToBase64String(Calcular(pin, sal, _iteracoes));
-        perfil.Falhas = 0;
-        perfil.BloqueadoAte = null;
-    }
-
-    static bool PinConfere(PerfilProfessor perfil, string pin)
-    {
-        try
-        {
-            var esperado = Convert.FromBase64String(perfil.Resumo);
-            var obtido = Calcular(pin, Convert.FromBase64String(perfil.Sal), perfil.Iteracoes);
-            return CryptographicOperations.FixedTimeEquals(esperado, obtido);
-        }
-        catch (FormatException)
-        {
-            return false; // arquivo adulterado: ninguém entra com este perfil
-        }
-    }
-
-    static byte[] Calcular(string pin, byte[] sal, int iteracoes) =>
-        Rfc2898DeriveBytes.Pbkdf2(pin, sal, Math.Max(iteracoes, 1), HashAlgorithmName.SHA256, 32);
-
-    List<PerfilProfessor> Ler()
-    {
+        tinhaPin = false;
         try
         {
             if (File.Exists(_caminho))
-                return JsonSerializer.Deserialize<List<PerfilProfessor>>(File.ReadAllText(_caminho)) ?? [];
+            {
+                string texto = File.ReadAllText(_caminho);
+                tinhaPin = texto.Contains("\"Resumo\"");
+                return JsonSerializer.Deserialize<List<PerfilProfessor>>(texto) ?? [];
+            }
         }
         catch (Exception ex) when (ex is JsonException or IOException)
         {
@@ -208,6 +86,13 @@ public sealed class RepositorioPerfis
             try { File.Move(_caminho, _caminho + ".corrompido", overwrite: true); } catch (IOException) { }
         }
         return [];
+    }
+
+    /// <summary>Versões antigas guardavam aqui o resumo do PIN: regrava o arquivo sem ele.</summary>
+    void ApagarPinAntigo()
+    {
+        try { Salvar(); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
     }
 
     void Salvar()

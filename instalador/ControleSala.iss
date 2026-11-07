@@ -123,6 +123,7 @@ var
   PaginaManter: TInputOptionWizardPage;
   PaginaSala: TInputFileWizardPage;
   PaginaSenha: TInputQueryWizardPage;
+  BotaoVerSenha: TNewButton;        { olhinho: mostra ou esconde a senha digitada }
   SalaEscola, SalaNome: String;
   TipoAnterior: String;             { 'professor' ou 'aluno' da instalação anterior; vazio = primeira instalação }
   AtualEscola, AtualNome: String;   { sala já gravada neste PC de aluno (atualização) }
@@ -358,6 +359,26 @@ begin
     Result := 'professor';
 end;
 
+{ Olhinho da página de senha: mostra ou esconde o que foi digitado. }
+procedure VerSenhaClick(Sender: TObject);
+var
+  Mostrando: Boolean;
+begin
+  Mostrando := PaginaSenha.Edits[0].Password;
+  PaginaSenha.Edits[0].Password := not Mostrando;
+  if Mostrando then
+  begin
+    BotaoVerSenha.Caption := #$ED1A;
+    BotaoVerSenha.Hint := 'Esconder a senha';
+  end
+  else
+  begin
+    BotaoVerSenha.Caption := #$E7B3;
+    BotaoVerSenha.Hint := 'Mostrar a senha';
+  end;
+  WizardForm.ActiveControl := PaginaSenha.Edits[0];
+end;
+
 procedure InitializeWizard;
 var
   Tipo, Pacote: String;
@@ -416,6 +437,18 @@ begin
     'Digite a senha da chave da sala',
     'É a senha que o professor escolheu ao gerar a chave.');
   PaginaSenha.Add('Senha:', True);
+  BotaoVerSenha := TNewButton.Create(WizardForm);
+  BotaoVerSenha.Parent := PaginaSenha.Surface;
+  BotaoVerSenha.Width := ScaleX(32);
+  BotaoVerSenha.Height := PaginaSenha.Edits[0].Height;
+  BotaoVerSenha.Top := PaginaSenha.Edits[0].Top;
+  BotaoVerSenha.Left := PaginaSenha.SurfaceWidth - BotaoVerSenha.Width;
+  BotaoVerSenha.Font.Name := 'Segoe MDL2 Assets';
+  BotaoVerSenha.Caption := #$E7B3;
+  BotaoVerSenha.Hint := 'Mostrar a senha';
+  BotaoVerSenha.ShowHint := True;
+  BotaoVerSenha.OnClick := @VerSenhaClick;
+  PaginaSenha.Edits[0].Width := BotaoVerSenha.Left - ScaleX(6);
 
   { Arrastar e soltar o .controlesala na janela + uma dica visível na página da sala. }
   LigarArrastarSoltar;

@@ -69,6 +69,12 @@
     <!-- Internet: globo ligado a uma linha de rede, com o ponto de conexão no meio. -->
     <StreamGeometry x:Key="IconeInternet">M12,2 A7,7 0 1 0 12,16 A7,7 0 1 0 12,2 Z M5,9 L19,9 M12,2 A3,7 0 0 0 12,16 A3,7 0 0 0 12,2 M12,16 L12,17.8 M12,17.8 A2.2,2.2 0 1 0 12,22.2 A2.2,2.2 0 1 0 12,17.8 Z M2.5,20 L9.8,20 M14.2,20 L21.5,20</StreamGeometry>
 
+    <!-- Mostrar a senha: olho aberto. -->
+    <StreamGeometry x:Key="IconeOlho">M2,12 C5,7 8.5,5 12,5 C15.5,5 19,7 22,12 C19,17 15.5,19 12,19 C8.5,19 5,17 2,12 Z M12,9 A3,3 0 1 0 12,15 A3,3 0 1 0 12,9 Z</StreamGeometry>
+
+    <!-- Esconder a senha: olho riscado. -->
+    <StreamGeometry x:Key="IconeOlhoFechado">M2,12 C5,7 8.5,5 12,5 C15.5,5 19,7 22,12 C19,17 15.5,19 12,19 C8.5,19 5,17 2,12 Z M12,9 A3,3 0 1 0 12,15 A3,3 0 1 0 12,9 Z M4,4 L20,20</StreamGeometry>
+
     <!-- Atualizar: seta em círculo. -->
     <StreamGeometry x:Key="IconeAtualizar">M19.5,12 A7.5,7.5 0 1 1 17.3,6.7 M18,3 L18,7.5 L13.5,7.5</StreamGeometry>
 

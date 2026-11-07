@@ -12,7 +12,7 @@ public partial class JanelaRegrasDeUso : Window
         "Se aparecer algo pessoal (conversa, conta, dado de família), sair daquela tela e não comentar com a turma.",
         "Se vir algo que indique risco a um aluno, avisar a direção da escola.",
         "Avisar a turma antes de limpar: a limpeza apaga arquivos.",
-        "Fechar o programa ao sair da sala e, se usar PIN, não passar a ninguém.",
+        "Fechar o programa ao sair da sala.",
     ];
 
     public JanelaRegrasDeUso(bool pedirAceite)
