@@ -50,6 +50,7 @@ sealed unsafe partial class ConexaoComputador : IDisposable
 
     long _bytes;
     long _ultimoPedidoChave;
+    long _onlineDesde;
 
     // Envio de arquivos: cada envio tem um canal onde chegam as respostas do agente.
     readonly ConcurrentDictionary<uint, Channel<RespostaArquivo>> _transferencias = new();
@@ -67,14 +68,22 @@ sealed unsafe partial class ConexaoComputador : IDisposable
     public volatile string? Mac;
     /// <summary>Versão do agente ("0.3.0"); null até chegar (agentes até a 0.2.0 não informam).</summary>
     public volatile string? VersaoAgente;
+    /// <summary>Esta conexão já está aberta há tempo de sobra para o agente ter dito a versão dele?</summary>
+    public bool TeveTempoDeInformarVersao => Environment.TickCount64 - Volatile.Read(ref _onlineDesde) > 15_000;
     /// <summary>Nome escolhido na instalação daquele PC; null até chegar (ou se ninguém escolheu).</summary>
     public volatile string? NomeEscolhido;
     /// <summary>Último resultado do Windows Defender informado pelo agente; null se ainda não rodou.</summary>
     public volatile ResultadoDefender? Defender;
+    /// <summary>Como o PC conectado se apresenta (o mesmo nome que ele anuncia); null até chegar.</summary>
+    public string? NomeDoAgente => NomeEscolhido ?? Ola?.Maquina;
     ResultadoLimpeza? _limpezaNova;
+    string? _configDoAgente;
 
     /// <summary>Entrega uma vez o resultado de limpeza que chegou; null se não chegou nada novo.</summary>
     public ResultadoLimpeza? TomarLimpezaNova() => Interlocked.Exchange(ref _limpezaNova, null);
+
+    /// <summary>Entrega uma vez a configuração de limpeza guardada no PC conectado; null se não chegou nada novo.</summary>
+    public string? TomarConfigDoAgente() => Interlocked.Exchange(ref _configDoAgente, null);
     public long BytesRecebidos => Interlocked.Read(ref _bytes);
 
     /// <summary>O que o professor quer receber. Muda na hora, também com a conexão já aberta.</summary>
@@ -105,10 +114,19 @@ sealed unsafe partial class ConexaoComputador : IDisposable
     public void Reconectar()
     {
         _falhas = 0; // volta a tentar já e a mostrar "Conectando" (foi um pedido do professor, ex.: F5)
-        NomeEscolhido = null; // o que veio da conexão anterior pode ser de outro PC, se o endereço mudou
-        Mac = null;
+        EsquecerAgente();
         _tentarJa.Set();
         try { _tcp?.Dispose(); } catch (ObjectDisposedException) { }
+    }
+
+    /// <summary>O que veio da conexão anterior pode ser de outro PC, se o endereço mudou: cada conexão começa do zero.</summary>
+    void EsquecerAgente()
+    {
+        _ola = null;
+        Mac = null;
+        NomeEscolhido = null;
+        VersaoAgente = null;
+        Defender = null;
     }
 
     void Executar()
@@ -133,7 +151,8 @@ sealed unsafe partial class ConexaoComputador : IDisposable
                 var fluxo = Handshake.Professor(tcp.GetStream(), _chave, aceitaSemChave: local);
                 tcp.ReceiveTimeout = 0;
                 _fluxo = fluxo;
-                VersaoAgente = null; // pode ter sido atualizado desde a última conexão: o agente informa de novo
+                EsquecerAgente();
+                Volatile.Write(ref _onlineDesde, Environment.TickCount64);
                 _estado = EstadoConexao.Online;
                 _detalhe = "";
                 conectou = true;
@@ -216,6 +235,9 @@ sealed unsafe partial class ConexaoComputador : IDisposable
                     break;
                 case TipoMensagem.NomeEscolhido:
                     NomeEscolhido = NomeDoPc.Validar(Protocolo.LerNomeEscolhido(buffer.AsSpan(0, msg.Tamanho)));
+                    break;
+                case TipoMensagem.ConfigLimpeza:
+                    Interlocked.Exchange(ref _configDoAgente, Protocolo.LerConfigLimpeza(buffer.AsSpan(0, msg.Tamanho)));
                     break;
                 case TipoMensagem.ArquivoResposta:
                     if (Protocolo.LerArquivoResposta(buffer.AsSpan(0, msg.Tamanho)) is { } resposta
@@ -308,7 +330,7 @@ sealed unsafe partial class ConexaoComputador : IDisposable
     {
         var pacote = Sessao.PacoteLimpeza;
         if (pacote == null) return;
-        Enviar(Protocolo.MontarConfigLimpeza(pacote.Json));
+        if (pacote.Json != null) Enviar(Protocolo.MontarConfigLimpeza(pacote.Json));
         if (pacote.PapelDeParede != null)
             Enviar(Protocolo.MontarArquivoConfig(ArquivoConfigTipo.PapelDeParede, pacote.PapelDeParede));
         if (pacote.ImagemLimpeza != null)

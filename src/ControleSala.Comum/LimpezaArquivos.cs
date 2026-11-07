@@ -14,7 +14,7 @@ public static class LimpezaArquivos
         if (c.AreaTrabalho) lista.Add(Path.Combine(perfil, "Desktop"));
         if (c.Documentos) lista.Add(Path.Combine(perfil, "Documents"));
         if (c.Temporarios) lista.Add(Path.Combine(perfil, "AppData", "Local", "Temp"));
-        return lista;
+        return SemAtalhos(perfil, lista);
     }
 
     /// <summary>Arquivos/pastas de dados dos navegadores (cache, histórico, cookies) dentro do perfil.</summary>
@@ -52,13 +52,36 @@ public static class LimpezaArquivos
             foreach (var p in SafeDir(ffCache))
                 alvos.Add(Path.Combine(p, "cache2"));
 
-        return alvos;
+        return SemAtalhos(perfil, alvos);
+    }
+
+    /// <summary>
+    /// O caminho, abaixo de <paramref name="raiz"/>, passa por um atalho de pasta (junção ou link)? O aluno consegue criar um sem
+    /// ser administrador: trocar a pasta Documents por um atalho para o Windows faria a limpeza apagar outra coisa.
+    /// </summary>
+    public static bool PassaPorAtalho(string raiz, string caminho)
+    {
+        int tamanhoDaRaiz = Path.TrimEndingDirectorySeparator(Path.GetFullPath(raiz)).Length;
+        for (string? atual = Path.GetFullPath(caminho); atual != null && atual.Length > tamanhoDaRaiz; atual = Path.GetDirectoryName(atual))
+            if (EhAtalho(atual))
+                return true;
+        return false;
+    }
+
+    static List<string> SemAtalhos(string perfil, List<string> caminhos) => caminhos.Where(c => !PassaPorAtalho(perfil, c)).ToList();
+
+    /// <summary>Sem poder olhar o caminho, conta como atalho: na dúvida, a limpeza não toca.</summary>
+    static bool EhAtalho(string caminho)
+    {
+        try { return (File.GetAttributes(caminho) & FileAttributes.ReparsePoint) != 0; }
+        catch (UnauthorizedAccessException) { return true; }
+        catch (IOException) { return false; }   // não existe
     }
 
     /// <summary>Apaga tudo dentro de <paramref name="pasta"/>, menos o que casar com as exceções. Devolve quantos itens removeu.</summary>
     public static int EsvaziarPasta(string pasta, IReadOnlyCollection<string> excecoes)
     {
-        if (!Directory.Exists(pasta)) return 0;
+        if (!Directory.Exists(pasta) || EhAtalho(pasta)) return 0;
         int removidos = 0;
         foreach (var item in SafeEntries(pasta))
         {
@@ -96,8 +119,8 @@ public static class LimpezaArquivos
         {
             if (Directory.Exists(caminho))
             {
-                LimparSomenteLeitura(caminho);
-                Directory.Delete(caminho, recursive: true);
+                if (!EhAtalho(caminho)) LimparSomenteLeitura(caminho);
+                Directory.Delete(caminho, recursive: true);   // de um atalho, apaga só o atalho, nunca o destino
                 return true;
             }
             if (File.Exists(caminho))
@@ -121,7 +144,8 @@ public static class LimpezaArquivos
     {
         try
         {
-            foreach (var f in Directory.EnumerateFiles(pasta, "*", SearchOption.AllDirectories))
+            var opcoes = new EnumerationOptions { RecurseSubdirectories = true, IgnoreInaccessible = true, AttributesToSkip = FileAttributes.ReparsePoint };
+            foreach (var f in Directory.EnumerateFiles(pasta, "*", opcoes))
             {
                 var attr = File.GetAttributes(f);
                 if (attr.HasFlag(FileAttributes.ReadOnly)) File.SetAttributes(f, attr & ~FileAttributes.ReadOnly);

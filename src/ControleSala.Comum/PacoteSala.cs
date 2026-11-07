@@ -139,6 +139,18 @@ public static class ConfigAgente
         File.WriteAllText(c, JsonSerializer.Serialize(new Arquivo(sala.Escola, sala.Sala, Convert.ToBase64String(sala.Chave))));
     }
 
+    /// <summary>
+    /// Deixa os usuários comuns lerem um arquivo da pasta restrita, sem verem o resto dela: o Windows deixa abrir um arquivo pelo
+    /// caminho completo sem exigir permissão nas pastas do caminho.
+    /// </summary>
+    public static void PermitirLeitura(string arquivo)
+    {
+        var info = new FileInfo(arquivo);
+        var regras = info.GetAccessControl();
+        regras.AddAccessRule(new FileSystemAccessRule(new SecurityIdentifier(WellKnownSidType.BuiltinUsersSid, null), FileSystemRights.Read, AccessControlType.Allow));
+        info.SetAccessControl(regras);
+    }
+
     public static void RestringirPasta(string pasta)
     {
         var regras = new DirectorySecurity();

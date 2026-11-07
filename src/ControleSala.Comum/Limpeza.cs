@@ -46,6 +46,9 @@ public sealed class LimpezaConfig
         return $"{string.Join(", ", dias)} às {Hora}";
     }
 
+    /// <summary>Alguém já salvou uma configuração aqui? Se não, <see cref="Carregar"/> só devolve os valores padrão.</summary>
+    public static bool Existe(string? caminho = null) => File.Exists(caminho ?? Caminho);
+
     public static LimpezaConfig Carregar(string? caminho = null)
     {
         string c = caminho ?? Caminho;

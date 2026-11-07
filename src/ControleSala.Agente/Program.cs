@@ -52,7 +52,7 @@ static partial class Programa
 
         PrepararConsole();
         if (opcoes.CartaoCaptura != null) return Bandeja.CapturarCartao(opcoes.CartaoCaptura);
-        if (opcoes.DefinirPapel != null) { LimpezaExecutor.DefinirPapelDeParede(opcoes.DefinirPapel); return 0; }
+        if (opcoes.DefinirPapel != null) return LimpezaExecutor.DefinirPapelDeParede(opcoes.DefinirPapel) ? 0 : 1;
         if (opcoes.DefinirNome != null) return DefinirNomeDoPc(opcoes.DefinirNome);
         if (opcoes.Limpar)
         {

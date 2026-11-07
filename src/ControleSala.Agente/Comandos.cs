@@ -222,8 +222,8 @@ static class Comandos
             return BloquearSites(sites);
 
         // Bloqueia toda a internet, mas mantém a rede local (para o professor continuar alcançando o agente).
-        // remoteip = tudo, menos as faixas privadas (10/8, 172.16/12, 192.168/16).
-        const string publico = "1.0.0.0-9.255.255.255,11.0.0.0-172.15.255.255,172.32.0.0-192.167.255.255,192.169.0.0-223.255.255.255";
+        // remoteip = tudo, menos as faixas privadas (10/8, 172.16/12, 192.168/16). No IPv6, 2000::/3 é a internet: sobram os endereços locais.
+        const string publico = "1.0.0.0-9.255.255.255,11.0.0.0-172.15.255.255,172.32.0.0-192.167.255.255,192.169.0.0-223.255.255.255,2000::/3";
         Netsh($"advfirewall firewall delete rule name=\"{RegraFirewall}\"");
         int r = Netsh($"advfirewall firewall add rule name=\"{RegraFirewall}\" dir=out action=block " +
                       $"remoteip={publico} profile=any enable=yes");

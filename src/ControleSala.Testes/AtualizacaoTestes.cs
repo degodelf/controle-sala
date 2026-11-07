@@ -127,6 +127,16 @@ public class VersoesTestes
     [InlineData("0.3.0", null, true)]       // agente que não informa versão (antigo)
     public void MaisNova(string versao, string? atual, bool esperado) => Assert.Equal(esperado, Versoes.MaisNova(versao, atual));
 
+    [Theory]
+    [InlineData("0.7.8", "0.7.7", false, true)]
+    [InlineData("0.7.8", "0.7.8", true, false)]
+    [InlineData("0.7.9", null, true, true)]    // perdeu a versão ao conectar: é anterior à 0.7.8
+    [InlineData("0.7.8", null, false, false)]  // acabou de conectar: ainda pode chegar
+    [InlineData("0.7.7", null, true, false)]   // instalador antigo: pode já estar nessa versão
+    [InlineData("abc", null, true, false)]
+    public void Desatualizado(string versao, string? informada, bool teveTempo, bool esperado) =>
+        Assert.Equal(esperado, Versoes.Desatualizado(versao, informada, teveTempo));
+
     [Fact]
     public void Atual_tem_tres_partes() => Assert.Matches(@"^\d+\.\d+\.\d+$", Versoes.Atual);
 }

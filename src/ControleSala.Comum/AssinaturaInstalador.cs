@@ -19,6 +19,15 @@ public static class Versoes
         return Normalizar(v) > Normalizar(a);
     }
 
+    /// <summary>
+    /// Este agente precisa de <paramref name="versao"/>? Até a 0.7.7 a versão podia se perder ao conectar, e daqui em diante ela sempre
+    /// chega: quem teve tempo de informar e ficou calado é mais antigo que a 0.7.8, e o próprio agente confere o instalador.
+    /// </summary>
+    public static bool Desatualizado(string versao, string? informada, bool teveTempoDeInformar) =>
+        informada != null ? MaisNova(versao, informada) : teveTempoDeInformar && !MaisNova(SempreInforma, versao);
+
+    const string SempreInforma = "0.7.8";
+
     static Version Normalizar(Version v) => new(v.Major, v.Minor, Math.Max(v.Build, 0));
 }
 

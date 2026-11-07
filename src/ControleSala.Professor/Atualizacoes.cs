@@ -53,9 +53,9 @@ static class Atualizacoes
         catch (Exception e) when (e is IOException or UnauthorizedAccessException) { return null; }
     }
 
-    /// <summary>Agente online com versão conhecida e mais antiga que <paramref name="versao"/>.</summary>
+    /// <summary>Agente online com versão mais antiga que <paramref name="versao"/>, ou que não informou a dele.</summary>
     public static bool Desatualizado(ConexaoComputador c, string versao) =>
-        c.Estado == EstadoConexao.Online && c.VersaoAgente is { } v && Versoes.MaisNova(versao, v);
+        c.Estado == EstadoConexao.Online && Versoes.Desatualizado(versao, c.VersaoAgente, c.TeveTempoDeInformarVersao);
 
     /// <summary>Entre os instaladores guardados neste PC, o de versão mais nova com a assinatura do autor (null se não houver).</summary>
     public static async Task<string?> InstaladorMaisNovoAsync(params string[] caminhos)

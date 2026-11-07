@@ -28,6 +28,20 @@ static class ConfigLimpezaAgente
         }
     }
 
+    /// <summary>A configuração guardada neste PC, para o professor recuperar se o PC dele foi formatado. Null se não houver.</summary>
+    public static string? Guardada()
+    {
+        string caminho = Path.Combine(LimpezaExecutor.PastaDados, "limpeza.json");
+        try
+        {
+            return File.Exists(caminho) ? File.ReadAllText(caminho) : null;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return null;
+        }
+    }
+
     /// <summary>Recebe uma imagem de configuração (papel de parede ou tela de limpeza) e salva no lugar certo.</summary>
     public static void ReceberImagem(ArquivoConfigTipo tipo, byte[] conteudo)
     {

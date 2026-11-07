@@ -20,9 +20,9 @@ public static class AgendaLimpeza
     {
         if (!c.Agendada) return false; // pausada: nem o adiamento roda
 
-        // Adiamento ("adiar 1 hora") tem prioridade: quando chega a hora adiada, roda — mesmo fora dos dias marcados.
-        if (adiadoPara is { } ad && agora >= ad)
-            return ultimaExecucao is not { } ue || ue < ad;
+        // Adiamento ("adiar 1 hora") tem prioridade: nada roda antes da hora adiada e, quando ela chega, roda mesmo fora dos dias marcados.
+        if (adiadoPara is { } ad)
+            return agora >= ad && (ultimaExecucao is not { } ue || ue < ad);
 
         if (c.Dias.Count == 0 || !LimpezaConfig.HoraValida(c.Hora)) return false;
         if (!c.Dias.Contains((int)agora.DayOfWeek)) return false;

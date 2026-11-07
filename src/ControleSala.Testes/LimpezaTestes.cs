@@ -53,14 +53,63 @@ public class LimpezaConfigTestes
     }
 
     [Fact]
+    public void Existe_so_depois_de_alguem_salvar()
+    {
+        string arquivo = Path.Combine(Path.GetTempPath(), "cs-limpeza-" + Guid.NewGuid().ToString("N") + ".json");
+        Assert.False(LimpezaConfig.Existe(arquivo));
+        new LimpezaConfig().Salvar(arquivo);
+        Assert.True(LimpezaConfig.Existe(arquivo));
+        File.Delete(arquivo);
+    }
+
+    [Fact]
     public void Desserializar_lixo_devolve_nulo() => Assert.Null(LimpezaConfig.Desserializar("não é json"));
+}
+
+public class PermissaoDoPapelTestes
+{
+    [Fact]
+    public void Aluno_le_o_papel_de_parede_sem_ver_o_resto_da_pasta()
+    {
+        string pasta = Path.Combine(Path.GetTempPath(), "cs-papel-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(pasta);
+        string papel = Path.Combine(pasta, "papel-de-parede.png");
+        File.WriteAllBytes(papel, [1, 2, 3]);
+        var info = new DirectoryInfo(pasta);
+        try
+        {
+            ConfigAgente.PermitirLeitura(papel);
+            ConfigAgente.RestringirPasta(pasta);    // igual ao PC do aluno: só administradores e SYSTEM
+
+            Assert.Equal([1, 2, 3], File.ReadAllBytes(papel));
+            var conta = new System.Security.Principal.WindowsPrincipal(System.Security.Principal.WindowsIdentity.GetCurrent());
+            if (!conta.IsInRole(System.Security.Principal.WindowsBuiltInRole.Administrator))
+                Assert.Throws<UnauthorizedAccessException>(() => Directory.GetFiles(pasta));
+        }
+        finally
+        {
+            var regras = info.GetAccessControl();
+            regras.AddAccessRule(new System.Security.AccessControl.FileSystemAccessRule(System.Security.Principal.WindowsIdentity.GetCurrent().User!,
+                System.Security.AccessControl.FileSystemRights.FullControl,
+                System.Security.AccessControl.InheritanceFlags.ContainerInherit | System.Security.AccessControl.InheritanceFlags.ObjectInherit,
+                System.Security.AccessControl.PropagationFlags.None, System.Security.AccessControl.AccessControlType.Allow));
+            info.SetAccessControl(regras);
+            Directory.Delete(pasta, true);
+        }
+    }
 }
 
 public sealed class LimpezaArquivosTestes : IDisposable
 {
     readonly string _raiz = Path.Combine(Path.GetTempPath(), "cs-limpeza-" + Guid.NewGuid().ToString("N"));
 
-    public void Dispose() { if (Directory.Exists(_raiz)) Directory.Delete(_raiz, true); }
+    readonly List<string> _atalhos = [];
+
+    public void Dispose()
+    {
+        foreach (var atalho in _atalhos.Where(Directory.Exists)) Directory.Delete(atalho);   // só o atalho, sem o destino
+        if (Directory.Exists(_raiz)) Directory.Delete(_raiz, true);
+    }
 
     string Criar(params string[] partes)
     {
@@ -104,6 +153,66 @@ public sealed class LimpezaArquivosTestes : IDisposable
     [Fact]
     public void Esvaziar_pasta_inexistente_nao_quebra() =>
         Assert.Equal(0, LimpezaArquivos.EsvaziarPasta(Path.Combine(_raiz, "NaoExiste"), []));
+
+    string Atalho(string destino, params string[] partes)
+    {
+        string p = Path.Combine([_raiz, .. partes]);
+        Directory.CreateDirectory(Path.GetDirectoryName(p)!);
+        using var cmd = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("cmd.exe", $"/c mklink /J \"{p}\" \"{destino}\"")
+            { CreateNoWindow = true, UseShellExecute = false, RedirectStandardOutput = true })!;
+        cmd.WaitForExit();
+        Assert.Equal(0, cmd.ExitCode);
+        _atalhos.Add(p);
+        return p;
+    }
+
+    [Fact]
+    public void Pasta_trocada_por_atalho_nao_e_esvaziada()
+    {
+        string doWindows = Criar("Windows", "sistema.dll");
+        string pasta = Atalho(Path.GetDirectoryName(doWindows)!, "perfil", "Documents");
+
+        Assert.Equal(0, LimpezaArquivos.EsvaziarPasta(pasta, []));
+        Assert.True(File.Exists(doWindows));
+    }
+
+    [Fact]
+    public void Atalho_dentro_da_pasta_some_sem_tocar_no_destino()
+    {
+        string doWindows = Criar("Windows", "sistema.dll");
+        File.SetAttributes(doWindows, FileAttributes.ReadOnly);
+        string atalho = Atalho(Path.GetDirectoryName(doWindows)!, "perfil", "Documents", "atalho");
+
+        LimpezaArquivos.EsvaziarPasta(Path.Combine(_raiz, "perfil", "Documents"), []);
+
+        Assert.False(Directory.Exists(atalho));
+        Assert.True(File.Exists(doWindows));
+        Assert.True(File.GetAttributes(doWindows).HasFlag(FileAttributes.ReadOnly));
+        File.SetAttributes(doWindows, FileAttributes.Normal);
+    }
+
+    [Fact]
+    public void Caminho_que_passa_por_atalho_sai_da_lista()
+    {
+        string doWindows = Criar("Windows", "Local", "Temp", "sistema.dll");
+        string perfil = Path.Combine(_raiz, "perfil");
+        Criar("perfil", "Downloads", "a.pdf");
+        Atalho(Path.Combine(_raiz, "Windows"), "perfil", "AppData");
+
+        var pastas = LimpezaArquivos.PastasParaEsvaziar(perfil, new LimpezaConfig { Temporarios = true });
+
+        Assert.Contains(Path.Combine(perfil, "Downloads"), pastas);
+        Assert.DoesNotContain(Path.Combine(perfil, "AppData", "Local", "Temp"), pastas);
+        Assert.True(File.Exists(doWindows));
+    }
+
+    [Fact]
+    public void Caminhos_comuns_nao_contam_como_atalho()
+    {
+        string f = Criar("perfil", "Downloads", "a.pdf");
+        Assert.False(LimpezaArquivos.PassaPorAtalho(Path.Combine(_raiz, "perfil"), f));
+        Assert.False(LimpezaArquivos.PassaPorAtalho(Path.Combine(_raiz, "perfil"), Path.Combine(_raiz, "perfil", "NaoExiste", "x")));
+    }
 
     [Fact]
     public void Remover_apaga_readonly()

@@ -65,9 +65,7 @@ public sealed class RepositorioSala
     /// </summary>
     public ComputadorSala? AdicionarDaRede(AgenteEncontrado achado)
     {
-        string nome = NomeComparavel(achado.Nome);
-        if (nome.Length == 0 || _removidos.Contains(nome) || TemNome(nome)) return null;
-        if (Validar(achado.Nome, achado.Endereco, achado.Porta) != null) return null;
+        if (!PodeEntrarDaRede(achado)) return null;
 
         var c = new ComputadorSala { Nome = achado.Nome.Trim(), Endereco = achado.Endereco, Porta = achado.Porta, NomeNaRede = achado.Nome.Trim() };
         int lugar = _computadores.FindIndex(outro => CompararNatural(outro.Nome, c.Nome) > 0);
@@ -76,10 +74,19 @@ public sealed class RepositorioSala
         return c;
     }
 
+    /// <summary>O PC anunciado ainda não está na lista e pode entrar sozinho?</summary>
+    public bool PodeEntrarDaRede(AgenteEncontrado achado)
+    {
+        string nome = NomeComparavel(achado.Nome);
+        return nome.Length > 0 && !_removidos.Contains(nome) && !TemNome(nome) && Validar(achado.Nome, achado.Endereco, achado.Porta) == null;
+    }
+
     /// <summary>True se o PC anunciado é outro computador com o nome de um que já está na lista: ele não entra sozinho.</summary>
-    public bool NomeRepetido(AgenteEncontrado achado) =>
-        TemNome(NomeComparavel(achado.Nome)) && !_computadores.Any(c => c.Porta == achado.Porta
-            && string.Equals(c.Endereco, achado.Endereco, StringComparison.OrdinalIgnoreCase));
+    public bool NomeRepetido(AgenteEncontrado achado) => TemNome(NomeComparavel(achado.Nome)) && NoLugar(achado) == null;
+
+    /// <summary>O computador da lista que está no endereço anunciado.</summary>
+    ComputadorSala? NoLugar(AgenteEncontrado achado) => _computadores.Find(c => c.Porta == achado.Porta
+        && string.Equals(c.Endereco, achado.Endereco, StringComparison.OrdinalIgnoreCase));
 
     bool TemNome(string nome) => _computadores.Any(c => NomeComparavel(c.Nome) == nome || Identidade(c) == nome
         || (c.NomeEscolhido is { } escolhido && NomeComparavel(escolhido) == nome));
@@ -88,36 +95,26 @@ public sealed class RepositorioSala
     static string Identidade(ComputadorSala c) => NomeComparavel(c.NomeNaRede ?? c.NomeEscolhido ?? c.Nome);
 
     /// <summary>
-    /// Um PC que provou ser desta sala anunciou nome e endereço. Se ele estava na lista em outro endereço, vai para o lugar certo,
-    /// mesmo que o endereço novo fosse de outro computador: os dois trocam. Devolve quem mudou, para reconectar.
+    /// O anúncio mostra um PC da lista em outro endereço? Quem responde sim não muda nada: antes de chamar <see cref="Reorganizar"/>,
+    /// confira o anúncio com <see cref="ConferenciaDeAgente"/>, porque ele pode ser cópia de outro.
+    /// </summary>
+    public bool QuerMudar(AgenteEncontrado achado, Func<ComputadorSala, string?> nomeOuvidoEm) => DonoEmOutroLugar(achado, nomeOuvidoEm) != null;
+
+    /// <summary>
+    /// Um PC anunciado e conferido estava na lista em outro endereço: ele vai para o lugar certo, mesmo que o endereço novo fosse de
+    /// outro computador, e os dois trocam. Devolve quem mudou, para reconectar.
     /// <paramref name="nomeOuvidoEm"/> diz que nome foi ouvido há pouco no endereço de um computador da lista. Se o endereço antigo
     /// ainda anuncia o mesmo nome, são dois PCs com nome igual, e nada muda: a lista ficaria trocando sem parar.
     /// </summary>
     public IReadOnlyList<ComputadorSala> Reorganizar(AgenteEncontrado achado, Func<ComputadorSala, string?> nomeOuvidoEm)
     {
-        string nome = NomeComparavel(achado.Nome);
-        if (nome.Length == 0) return [];
-
-        var ocupante = _computadores.Find(c => c.Porta == achado.Porta
-            && string.Equals(c.Endereco, achado.Endereco, StringComparison.OrdinalIgnoreCase));
-        if (ocupante != null && Identidade(ocupante) == nome)
+        if (DonoEmOutroLugar(achado, nomeOuvidoEm) is not { } dono)
         {
-            Lembrar(ocupante, achado.Nome);
+            Aprender(achado);
             return [];
         }
 
-        var donos = _computadores.Where(c => Identidade(c) == nome).ToList();
-        if (donos.Count == 0)
-        {
-            // Primeira vez que este PC se anuncia: o nome do Windows pode ser diferente do nome da lista.
-            if (ocupante is { NomeNaRede: null }) Lembrar(ocupante, achado.Nome);
-            return [];
-        }
-        if (donos.Count > 1) return [];
-
-        var dono = donos[0];
-        if (nomeOuvidoEm(dono) is { } ouvido && NomeComparavel(ouvido) == nome) return [];
-
+        var ocupante = NoLugar(achado);
         (string endereco, int porta) = (dono.Endereco, dono.Porta);
         dono.Endereco = achado.Endereco;
         dono.Porta = achado.Porta;
@@ -130,6 +127,30 @@ public sealed class RepositorioSala
         Salvar();
         return ocupante == null ? [dono] : [dono, ocupante];
     }
+
+    /// <summary>Guarda como o PC daquele endereço se chama na rede. Na primeira vez, o nome do Windows pode ser diferente do nome da lista.</summary>
+    public void Aprender(AgenteEncontrado achado)
+    {
+        string nome = NomeComparavel(achado.Nome);
+        if (nome.Length == 0 || NoLugar(achado) is not { } ocupante) return;
+        if (Identidade(ocupante) == nome || (ocupante.NomeNaRede == null && !_computadores.Any(c => Identidade(c) == nome)))
+            Lembrar(ocupante, achado.Nome);
+    }
+
+    ComputadorSala? DonoEmOutroLugar(AgenteEncontrado achado, Func<ComputadorSala, string?> nomeOuvidoEm)
+    {
+        string nome = NomeComparavel(achado.Nome);
+        if (nome.Length == 0 || (NoLugar(achado) is { } ocupante && Identidade(ocupante) == nome)) return null;
+        var donos = _computadores.Where(c => Identidade(c) == nome).ToList();
+        if (donos.Count != 1) return null;
+        return nomeOuvidoEm(donos[0]) is { } ouvido && NomeComparavel(ouvido) == nome ? null : donos[0];
+    }
+
+    /// <summary>
+    /// A conexão deste computador caiu em outro PC, que pegou o IP dele? O que vier por ela (MAC, por exemplo) não é deste computador.
+    /// Só dá para saber depois que o PC da lista se anunciou uma vez.
+    /// </summary>
+    public bool EhOutroPc(ComputadorSala c, string nomeConectado) => c.NomeNaRede is { } naRede && !MesmoNome(naRede, nomeConectado);
 
     void Lembrar(ComputadorSala c, string nome)
     {
@@ -144,7 +165,7 @@ public sealed class RepositorioSala
         int i = _computadores.IndexOf(atual);
         if (i < 0) throw new ArgumentException("Esse computador não está mais na sala.");
         if (Validar(nome, endereco, porta, atual) is { } erro) throw new ArgumentException(erro);
-        var novo = new ComputadorSala { Nome = nome.Trim(), Endereco = endereco.Trim(), Porta = porta, NomeEscolhido = atual.NomeEscolhido, NomeNaRede = atual.NomeNaRede };
+        var novo = new ComputadorSala { Nome = nome.Trim(), Endereco = endereco.Trim(), Porta = porta, Mac = atual.Mac, NomeEscolhido = atual.NomeEscolhido, NomeNaRede = atual.NomeNaRede };
         _computadores[i] = novo;
         Salvar();
         return novo;
@@ -194,15 +215,16 @@ public sealed class RepositorioSala
     /// </summary>
     public ComputadorSala? MudouDeEndereco(AgenteEncontrado achado)
     {
-        if (_computadores.Any(c => c.Porta == achado.Porta
-                && string.Equals(c.Endereco, achado.Endereco, StringComparison.OrdinalIgnoreCase)))
-            return null;
+        if (NoLugar(achado) != null) return null;
         string nome = NomeComparavel(achado.Nome);
         var mesmos = _computadores.Where(c => c.Porta == achado.Porta && NomeComparavel(c.Nome) == nome).ToList();
         return mesmos.Count == 1 ? mesmos[0] : null;
     }
 
     static string NomeComparavel(string nome) => string.Concat(nome.Where(char.IsLetterOrDigit)).ToUpperInvariant();
+
+    /// <summary>O mesmo nome, sem contar espaços, hífens e maiúsculas: "PC18" é "PC 18".</summary>
+    public static bool MesmoNome(string a, string b) => NomeComparavel(a) == NomeComparavel(b);
 
     /// <summary>Troca só o endereço, no mesmo objeto: a conexão aberta para este computador passa a usar o novo.</summary>
     public void DefinirEndereco(ComputadorSala c, string endereco)

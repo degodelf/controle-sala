@@ -1,6 +1,5 @@
 using System.Net;
 using System.Net.Sockets;
-using System.Threading.Channels;
 using ControleSala.Comum;
 
 namespace ControleSala.Agente;
@@ -80,33 +79,20 @@ sealed class ServidorVideo : IDisposable
         _ = AceitarAsync();
     }
 
-    async Task AceitarAsync()
-    {
-        while (true)
+    Task AceitarAsync() => LacoDeAceite.ExecutarAsync(
+        () => _ouvinte.AcceptTcpClientAsync(),
+        () => _ouvinte.Server.IsBound,
+        tcp =>
         {
-            TcpClient tcp;
-            try
-            {
-                tcp = await _ouvinte.AcceptTcpClientAsync();
-            }
-            catch (Exception) when (!_ouvinte.Server.IsBound)
-            {
-                return;
-            }
-            catch (ObjectDisposedException)
-            {
-                return;
-            }
-
             // O aperto de mão roda fora do laço de aceitar: um cliente lento ou mal-intencionado não trava os outros.
             if (!_vagasHandshake.Wait(0))
             {
                 tcp.Dispose();
-                continue;
+                return;
             }
             _ = Task.Run(() => IniciarConexao(tcp));
-        }
-    }
+        },
+        m => Aviso?.Invoke(m));
 
     void IniciarConexao(TcpClient tcp)
     {
@@ -142,7 +128,9 @@ sealed class ServidorVideo : IDisposable
                 conexao.EnfileirarControle(DefenderMsg);
             if (LimpezaMsg != null)
                 conexao.EnfileirarControle(LimpezaMsg);
-            conexao.EnfileirarControle(Protocolo.MontarVersaoAgente(Versoes.Atual)); // o professor vê quem precisa atualizar
+            if (ConfigLimpezaAgente.Guardada() is { } config)
+                conexao.EnfileirarControle(Protocolo.MontarConfigLimpeza(config));
+            conexao.EnfileirarControle(Protocolo.MontarVersaoAgente(Versoes.Atual)); // o professor vê quem precisa atualizar (sempre a última)
             conexao.Iniciar();
             AvisarMudanca();
         }
@@ -234,8 +222,7 @@ sealed class ServidorVideo : IDisposable
 
 sealed class ConexaoProfessor(TcpClient tcp, Stream fluxo, ServidorVideo servidor)
 {
-    // Poucos quadros na fila: se encher, é melhor descartar do que acumular atraso.
-    readonly Channel<byte[]> _fila = Channel.CreateBounded<byte[]>(new BoundedChannelOptions(4) { SingleReader = true });
+    readonly FilaDeEnvio _fila = new();
     volatile bool _esperandoChave = true;
     int _modo = -1; // -1 = ainda não escolheu: só recebe o "Olá"
     int _fechado;
@@ -264,20 +251,9 @@ sealed class ConexaoProfessor(TcpClient tcp, Stream fluxo, ServidorVideo servido
         new Thread(Ler) { IsBackground = true, Name = $"Leitura {Endereco}" }.Start();
     }
 
-    public void EnfileirarControle(byte[] mensagem) => _fila.Writer.TryWrite(mensagem);
+    public void EnfileirarControle(byte[] mensagem) => _fila.Controle(mensagem);
 
-    /// <summary>Resposta que não pode se perder (ao contrário dos quadros de vídeo): espera ter lugar na fila.</summary>
-    void Responder(uint id, EstadoArquivo estado, string mensagem)
-    {
-        try
-        {
-            _fila.Writer.WriteAsync(Protocolo.MontarArquivoResposta(id, estado, mensagem)).AsTask().Wait(5000);
-        }
-        catch (Exception ex) when (ex is AggregateException or System.Threading.Channels.ChannelClosedException or OperationCanceledException)
-        {
-            // a conexão já fechou
-        }
-    }
+    void Responder(uint id, EstadoArquivo estado, string mensagem) => _fila.Controle(Protocolo.MontarArquivoResposta(id, estado, mensagem));
 
     void ErroDeArquivo(uint id, string mensagem)
     {
@@ -291,14 +267,7 @@ sealed class ConexaoProfessor(TcpClient tcp, Stream fluxo, ServidorVideo servido
         if (Protocolo.LerComando(corpo) is not { } comando) return;
         var (ok, mensagem) = Comandos.Executar(comando, Nome);
         servidor.RegistrarAviso($"Comando \"{comando.Acao}\" de {Nome ?? Endereco}: {(ok ? "ok" : "falhou")} — {mensagem}");
-        try
-        {
-            _fila.Writer.WriteAsync(Protocolo.MontarComandoResposta(comando.Id, ok, mensagem)).AsTask().Wait(5000);
-        }
-        catch (Exception ex) when (ex is AggregateException or System.Threading.Channels.ChannelClosedException or OperationCanceledException)
-        {
-            // a conexão já fechou
-        }
+        _fila.Controle(Protocolo.MontarComandoResposta(comando.Id, ok, mensagem));
     }
 
     void ReceberArquivo(TipoMensagem tipo, ReadOnlySpan<byte> corpo)
@@ -409,7 +378,7 @@ sealed class ConexaoProfessor(TcpClient tcp, Stream fluxo, ServidorVideo servido
         // Sem o quadro-chave, os quadros seguintes não podem ser decodificados.
         if (_esperandoChave && !chave)
             return;
-        if (_fila.Writer.TryWrite(mensagem))
+        if (_fila.Video(mensagem))
         {
             if (chave) _esperandoChave = false;
             return;
@@ -423,7 +392,7 @@ sealed class ConexaoProfessor(TcpClient tcp, Stream fluxo, ServidorVideo servido
     {
         try
         {
-            await foreach (var msg in _fila.Reader.ReadAllAsync())
+            await foreach (var msg in _fila.LerTudo())
                 await fluxo.WriteAsync(msg);
         }
         catch (Exception ex)
@@ -502,7 +471,7 @@ sealed class ConexaoProfessor(TcpClient tcp, Stream fluxo, ServidorVideo servido
             _recebedor?.Dispose(); // envio pela metade: apaga o temporário
             _recebedorAtualizacao?.Dispose();
         }
-        _fila.Writer.TryComplete();
+        _fila.Encerrar();
         try { fluxo.Dispose(); } catch (Exception) { /* já estava fechado */ }
         tcp.Dispose();
         servidor.Remover(this, motivo);

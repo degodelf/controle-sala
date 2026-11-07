@@ -58,6 +58,15 @@ public class AgendaLimpezaTestes
     }
 
     [Fact]
+    public void Adiar_segura_a_limpeza_mesmo_dentro_do_horario_marcado()
+    {
+        var adiadoPara = Em("2026-10-14 19:00");
+        Assert.False(AgendaLimpeza.DeveRodar(Quarta18h, Em("2026-10-14 18:01"), null, adiadoPara));
+        Assert.False(AgendaLimpeza.DeveRodar(Quarta18h, Em("2026-10-14 18:59"), null, adiadoPara));
+        Assert.True(AgendaLimpeza.DeveRodar(Quarta18h, Em("2026-10-14 19:00"), null, adiadoPara));
+    }
+
+    [Fact]
     public void Pausada_nao_roda_nem_o_que_estava_adiado()
     {
         var pausada = new LimpezaConfig { Agendada = false, Dias = [3], Hora = "18:00" };

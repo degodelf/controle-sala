@@ -236,6 +236,8 @@ static partial class LancadorNaSessao
 
     [LibraryImport("kernel32.dll")] private static partial uint WTSGetActiveConsoleSessionId();
     [LibraryImport("kernel32.dll")] [return: MarshalAs(UnmanagedType.Bool)] private static partial bool CloseHandle(nint handle);
+    [LibraryImport("kernel32.dll")] private static partial uint WaitForSingleObject(nint handle, uint milissegundos);
+    [LibraryImport("kernel32.dll")] [return: MarshalAs(UnmanagedType.Bool)] private static partial bool GetExitCodeProcess(nint processo, out uint codigo);
 
     [LibraryImport("advapi32.dll", SetLastError = true)] [return: MarshalAs(UnmanagedType.Bool)]
     private static partial bool OpenProcessToken(nint processo, uint acesso, out nint token);
@@ -306,6 +308,24 @@ static partial class LancadorNaSessao
         }
     }
 
+    /// <summary>Roda <paramref name="acao"/> com as permissões de quem está usando o PC. Só no serviço (SYSTEM).</summary>
+    /// <exception cref="System.ComponentModel.Win32Exception">Não há ninguém usando o PC, ou o Windows não entregou a conta.</exception>
+    public static T NaContaDaSessao<T>(Func<T> acao)
+    {
+        uint sessao = WTSGetActiveConsoleSessionId();
+        if (sessao == uint.MaxValue) throw new System.ComponentModel.Win32Exception("ninguém está usando o computador");
+        if (!WTSQueryUserToken(sessao, out nint token)) throw new System.ComponentModel.Win32Exception(Marshal.GetLastWin32Error());
+        try
+        {
+            using var conta = new System.Security.Principal.WindowsIdentity(token);
+            return System.Security.Principal.WindowsIdentity.RunImpersonated(conta.AccessToken, acao);
+        }
+        finally
+        {
+            CloseHandle(token);
+        }
+    }
+
     /// <summary>Sessão do console (a de quem está na frente do PC); uint.MaxValue se não houver.</summary>
     public static uint SessaoAtiva() => WTSGetActiveConsoleSessionId();
 
@@ -320,8 +340,21 @@ static partial class LancadorNaSessao
     /// Abre um processo como o USUÁRIO que está usando o PC (não como SYSTEM). É o que serve para abrir o navegador,
     /// um programa etc. — rodando na conta do aluno, com o ambiente dele. Só funciona quando o agente é SYSTEM (serviço).
     /// </summary>
-    public static bool IniciarComoUsuario(string exe, string argumentos, out string erro)
+    public static bool IniciarComoUsuario(string exe, string argumentos, out string erro) =>
+        AbrirComoUsuario(exe, argumentos, esperarMs: 0, out _, out erro);
+
+    /// <summary>Como <see cref="IniciarComoUsuario"/>, mas espera o programa terminar e confere se ele terminou bem.</summary>
+    public static bool RodarComoUsuario(string exe, string argumentos, out string erro)
     {
+        if (!AbrirComoUsuario(exe, argumentos, esperarMs: 15000, out uint codigo, out erro)) return false;
+        if (codigo == 0) return true;
+        erro = $"o programa terminou com erro ({codigo})";
+        return false;
+    }
+
+    static bool AbrirComoUsuario(string exe, string argumentos, uint esperarMs, out uint codigo, out string erro)
+    {
+        codigo = 0;
         erro = "";
         uint sessao = WTSGetActiveConsoleSessionId();
         if (sessao == uint.MaxValue) { erro = "ninguém está usando o computador agora"; return false; }
@@ -342,6 +375,11 @@ static partial class LancadorNaSessao
             {
                 erro = $"não foi possível abrir ({Marshal.GetLastWin32Error()})";
                 return false;
+            }
+            if (esperarMs > 0)
+            {
+                WaitForSingleObject(info.hProcess, esperarMs);
+                GetExitCodeProcess(info.hProcess, out codigo);
             }
             CloseHandle(info.hThread);
             CloseHandle(info.hProcess);

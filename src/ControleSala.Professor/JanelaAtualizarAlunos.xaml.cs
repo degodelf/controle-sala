@@ -114,9 +114,7 @@ public partial class JanelaAtualizarAlunos : Window
         if (_instalador == null) return;
         foreach (var a in _alvos.Where(a => a.PodeMarcar)) a.Marcado = Atualizacoes.Desatualizado(a.Conexao, _instalador.Versao);
         int n = _alvos.Count(a => a.Marcado);
-        int antigos = _alvos.Count(a => a.Online && a.Conexao.VersaoAgente == null);
-        TextoMensagem.Text = (n == 0 ? "Nenhum computador online precisa desta atualização." : $"{n} computador{(n == 1 ? "" : "es")} para atualizar.")
-            + (antigos > 0 ? $" {antigos} com versão antiga demais (anterior à 0.3.0): atualize esses com o instalador, no próprio computador." : "");
+        TextoMensagem.Text = n == 0 ? "Nenhum computador online precisa desta atualização." : $"{n} computador{(n == 1 ? "" : "es")} para atualizar.";
     }
 
     void Desatualizados_Click(object sender, RoutedEventArgs e) => MarcarDesatualizados();

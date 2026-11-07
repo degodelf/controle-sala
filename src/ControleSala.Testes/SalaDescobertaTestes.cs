@@ -39,6 +39,48 @@ public sealed class SalaTestes : IDisposable
     }
 
     [Fact]
+    public void Querer_mudar_nao_muda_nada_ate_a_conferencia()
+    {
+        var sala = SalaComTres();
+        Assert.True(sala.QuerMudar(Pc("PC 02", "10.0.0.50"), NadaOuvido));
+        Assert.Equal("PC 01=10.0.0.1 PC 02=10.0.0.2 PC 03=10.0.0.3", Enderecos(sala));
+
+        sala.Reorganizar(Pc("PC 02", "10.0.0.50"), NadaOuvido);
+        Assert.False(sala.QuerMudar(Pc("PC 02", "10.0.0.50"), NadaOuvido));
+    }
+
+    [Fact]
+    public void Pode_entrar_da_rede_so_quem_ainda_nao_esta_na_lista()
+    {
+        var sala = SalaComTres();
+        Assert.True(sala.PodeEntrarDaRede(Pc("PC 04", "10.0.0.4")));
+        Assert.False(sala.PodeEntrarDaRede(Pc("PC 02", "10.0.0.50")));   // já está, em outro endereço
+        Assert.False(sala.PodeEntrarDaRede(Pc("PC 04", "10.0.0.1")));    // endereço já é de outro
+        Assert.Equal(3, sala.Computadores.Count);
+    }
+
+    [Fact]
+    public void Editar_um_computador_nao_apaga_o_mac()
+    {
+        var sala = SalaComTres();
+        sala.DefinirMac(sala.Computadores[0], "AA:BB:CC:DD:EE:FF");
+        sala.Atualizar(sala.Computadores[0], "Mesa da frente", "10.0.0.1", Protocolo.PortaPadrao);
+        Assert.Equal("AA:BB:CC:DD:EE:FF", new RepositorioSala(Arquivo).Computadores[0].Mac);
+    }
+
+    [Fact]
+    public void Conexao_em_outro_pc_e_reconhecida_depois_que_o_pc_da_lista_se_anunciou()
+    {
+        var sala = SalaComTres();
+        var pc = sala.Computadores[0];
+        Assert.False(sala.EhOutroPc(pc, "DESKTOP-A"));      // ainda não se anunciou: não dá para saber
+
+        sala.Reorganizar(Pc("PC 01", "10.0.0.1"), NadaOuvido);
+        Assert.True(sala.EhOutroPc(pc, "PC 02"));
+        Assert.False(sala.EhOutroPc(pc, "PC-01"));          // o mesmo nome escrito de outro jeito
+    }
+
+    [Fact]
     public void Dois_pcs_que_trocaram_de_ip_voltam_ao_lugar_certo()
     {
         var sala = SalaComTres();

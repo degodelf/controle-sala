@@ -37,7 +37,8 @@ static class Sessao
 
     // ---- limpeza: configuração + imagens enviadas aos agentes ----
 
-    public sealed record PacoteLimpezaDados(string Json, byte[]? PapelDeParede, byte[]? ImagemLimpeza);
+    /// <param name="Json">Null se este PC ainda não tem configuração (ex.: formatado): os alunos continuam com a deles.</param>
+    public sealed record PacoteLimpezaDados(string? Json, byte[]? PapelDeParede, byte[]? ImagemLimpeza);
 
     /// <summary>Caminho do papel de parede composto (fundo + logo) que vai para os alunos.</summary>
     public static string CaminhoPapelComposto => System.IO.Path.Combine(Pastas.Dados, "papel-de-parede.png");
@@ -49,7 +50,7 @@ static class Sessao
     {
         var config = LimpezaConfig.Carregar();
         byte[]? papel = config.RestaurarPapelDeParede ? LerSeExiste(CaminhoPapelComposto) : null;
-        PacoteLimpeza = new PacoteLimpezaDados(config.Serializar(), papel, LogoParaLimpeza());
+        PacoteLimpeza = new PacoteLimpezaDados(LimpezaConfig.Existe() ? config.Serializar() : null, papel, LogoParaLimpeza());
     }
 
     /// <summary>O logotipo da escola (o do papel de parede) em tamanho leve, porque é reenviado a cada PC que conecta.</summary>

@@ -73,7 +73,8 @@ Rode o Setup da versão nova **por cima** da instalada (mesmo `AppId`): os arqui
 - **PC de aluno:** se já tem sala gravada, oferece **"Manter a sala atual"** (padrão) e não pede chave nem senha;
   escolha "Trocar de sala" só se o PC mudou de sala. O serviço é parado antes e religado depois.
 - **PC do professor:** sala, chave, professores, papel de parede, limpeza etc. ficam em `%AppData%\ControleSala` e não
-  são tocados. Se o programa estiver aberto, o instalador pede para fechar.
+  são tocados. Se o programa estiver aberto, o instalador pede para fechar. PC do professor formatado: depois de **Inserir
+  chave**, a agenda e as exceções da limpeza voltam sozinhas do primeiro PC de aluno que conectar.
 - Silencioso (vários PCs): `ControleSala-Setup-0.3.0.exe /VERYSILENT` — sem `/TIPO`, `/SALA` nem `/SENHA`.
   Com `/SALA=... /SENHA=...` troca a sala junto.
 - Testado com administrador (2026-10-12): 0.1.0 aluno → 0.2.0 silencioso, serviço parado e religado, sala mantida,
@@ -83,7 +84,7 @@ Rode o Setup da versão nova **por cima** da instalada (mesmo `AppId`): os arqui
 
 No uso real: o autor gera o Setup novo (assinado) → o professor instala por cima no PC dele → no programa,
 **Computadores → Atualizar o ControleSala dos alunos...** (ou o aviso "⚠ N computadores com versão antiga" na barra de
-status) → marca os desatualizados → **Atualizar**. Cada PC recebe o instalador pela conexão da sala, confere e se
+status; PC que não informa a versão conta como desatualizado) → marca os desatualizados → **Atualizar**. Cada PC recebe o instalador pela conexão da sala, confere e se
 atualiza sozinho em ~1 minuto (some da grade e volta). Ninguém passa de PC em PC.
 
 - **Onde está o instalador:** o Setup do professor guarda uma cópia de si mesmo em
@@ -199,12 +200,13 @@ a contagem). Precisa do agente instalado como serviço.
 alguma vez (o ControleSala guarda o endereço de rede — MAC — de cada um) e com o Wake-on-LAN ativado na BIOS.
 Funciona mesmo com o PC desligado (é enviado pelo professor, não pelo agente).
 
-**Bloquear a internet / sites:** Comandos tem três opções. **Bloquear TODA a internet** corta o acesso à internet
-(a rede local e o ControleSala continuam funcionando) via regra de firewall. **Bloquear sites da lista** bloqueia só
+**Bloquear a internet / sites:** Comandos tem três opções. **Bloquear TODA a internet** corta o acesso à internet,
+em IPv4 e IPv6 (a rede local e o ControleSala continuam funcionando), via regra de firewall. **Bloquear sites da lista** bloqueia só
 os sites de **Sites bloqueados...** (ex.: redes sociais), via arquivo hosts, deixando o resto funcionar.
 **Liberar a internet** desfaz os dois. Precisa do agente como serviço.
 
-**Limpeza automatizada:** Comandos → Limpeza automática (configurar). O professor escolhe o que apagar na conta do
+**Limpeza automatizada:** Comandos → Limpeza automática (configurar). Os arquivos são apagados com as permissões do
+aluno, não como SYSTEM, e atalhos de pasta (junções) não são seguidos. O professor escolhe o que apagar na conta do
 aluno (Downloads, Área de Trabalho, Documentos, histórico/cache/cookies dos navegadores, Lixeira, %TEMP%), exceções
 (pastas/arquivos a preservar), se **restaura o papel de parede** (fundo+logo) e a **agenda** (dias da semana + horário).
 A tela de limpeza mostra o **logotipo da escola** escolhido em Papel de parede (sem logotipo, o ícone do programa).
@@ -259,7 +261,8 @@ rede). **Duplo clique** em uma tela abre ela em tamanho grande, a ~55 fps; Esc v
 - Os PCs da sala entram na lista **sozinhos**: cada agente se anuncia na rede a cada 3 s e assina o anúncio com a chave da
   sala, então o programa do professor põe na lista só os da própria sala, em ordem pelo nome, sem pegar outro laboratório da
   mesma rede. Se um IP mudar, mesmo que dois PCs troquem de endereço, o PC é reconhecido pelo nome que anuncia e a lista se
-  acerta sozinha, ainda que tenha sido renomeado nela. PC removido pelo professor não volta sozinho. **Procurar na rede...**
+  acerta sozinha, ainda que tenha sido renomeado nela. Antes de mudar a lista, o programa se conecta ao endereço anunciado e
+  confere a chave da sala e o nome do PC: copiar o aviso de outro PC não adianta. PC removido pelo professor não volta sozinho. **Procurar na rede...**
   continua valendo para trazer um removido,
   para PCs com versão antiga e para dois PCs com o mesmo nome.
 - Cada agente se anuncia na rede (`--rede`) e aparece na busca. Para testar no mesmo PC, abra dois agentes:

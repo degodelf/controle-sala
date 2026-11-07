@@ -102,7 +102,7 @@ public partial class MainWindow : Window
     }
 
     /// <summary>
-    /// Ouve os anúncios dos agentes. Um PC que prova ter a chave da sala entra na lista ou vai para o endereço certo, mesmo que os
+    /// Ouve os anúncios dos agentes. Um PC conferido com a chave da sala entra na lista ou vai para o endereço certo, mesmo que os
     /// PCs tenham trocado de IP entre si. PC que ainda não assina o anúncio só tem o endereço corrigido se estiver offline.
     /// </summary>
     async Task VigiarEnderecosAsync()
@@ -123,6 +123,8 @@ public partial class MainWindow : Window
 
     readonly HashSet<string> _avisadosNomeRepetido = [];
     readonly Dictionary<(string, int), Ouvido> _ouvidos = [];
+    readonly Dictionary<(string, int), DateTime> _conferidoEm = [];
+    static readonly TimeSpan EntreConferencias = TimeSpan.FromSeconds(3);
 
     /// <summary>
     /// Endereço calado por este tempo: o PC saiu dali. Os PCs se anunciam a cada 3 s, então aviso perdido na rede não engana,
@@ -147,6 +149,28 @@ public partial class MainWindow : Window
             ? antes.Primeira : agora;
         _ouvidos[lugar] = new Ouvido(achado.Nome, primeira, agora);
 
+        // Com outra janela aberta (Computadores, Procurar...), o PC novo espera: ela mostra uma cópia da lista, e ele anuncia de novo em 3 s.
+        if (_sala.QuerMudar(achado, NomeOuvidoNoEndereco) || (OwnedWindows.Count == 0 && _sala.PodeEntrarDaRede(achado)))
+        {
+            _ = ConferirEMudarAsync(achado);
+            return;
+        }
+        _sala.Aprender(achado);
+
+        // Só avisa depois de um tempo: um PC que acabou de mudar de IP também parece repetido por alguns segundos.
+        if (OwnedWindows.Count == 0 && agora - primeira > TempoDeOuvido && _sala.NomeRepetido(achado) && _avisadosNomeRepetido.Add(achado.Endereco))
+            MostrarAviso($"Outro computador ({achado.Endereco}) também se chama {achado.Nome}. Adicione em Computadores > Procurar na rede e renomeie.");
+    }
+
+    /// <summary>A lista só muda se quem está no endereço anunciado provar que tem a chave da sala e disser o mesmo nome.</summary>
+    async Task ConferirEMudarAsync(AgenteEncontrado achado)
+    {
+        var lugar = (achado.Endereco, achado.Porta);
+        var agora = DateTime.UtcNow;
+        if (_conferidoEm.TryGetValue(lugar, out var quando) && agora - quando < EntreConferencias) return;
+        _conferidoEm[lugar] = agora;
+        if (Sessao.Sala?.Chave is not { } chave || !await ConferenciaDeAgente.ConfirmaAsync(achado, chave)) return;
+
         foreach (var computador in _sala.Reorganizar(achado, NomeOuvidoNoEndereco))
         {
             if (_tiles.FirstOrDefault(t => t.Conexao.Dados == computador) is not { } tile) continue;
@@ -154,17 +178,11 @@ public partial class MainWindow : Window
             tile.Conexao.Reconectar();
             MostrarAviso($"{computador.Nome}: endereço atualizado para {computador.Endereco} ✓");
         }
-
-        // Com outra janela aberta (Computadores, Procurar...) espera: ela mostra uma cópia da lista, e o PC anuncia de novo em 3 s.
-        if (OwnedWindows.Count > 0) return;
-        if (_sala.AdicionarDaRede(achado) is { } novo)
+        if (OwnedWindows.Count == 0 && _sala.AdicionarDaRede(achado) is { } novo)
         {
             ReconstruirGrade();
             MostrarAviso($"{novo.Nome} entrou na sala ✓");
         }
-        // Só avisa depois de um tempo: um PC que acabou de mudar de IP também parece repetido por alguns segundos.
-        else if (agora - primeira > TempoDeOuvido && _sala.NomeRepetido(achado) && _avisadosNomeRepetido.Add(achado.Endereco))
-            MostrarAviso($"Outro computador ({achado.Endereco}) também se chama {achado.Nome}. Adicione em Computadores > Procurar na rede e renomeie.");
     }
 
     string? NomeOuvidoNoEndereco(ComputadorSala computador) =>
@@ -480,8 +498,18 @@ public partial class MainWindow : Window
     }
 
     void LimparAgora_Click(object sender, RoutedEventArgs e)
-        => Comando(AcaoComando.Limpeza, "Limpar agora", LimpezaConfig.Carregar().Serializar(),
+        => Comando(AcaoComando.Limpeza, "Limpar agora", LimpezaConfig.Existe() ? LimpezaConfig.Carregar().Serializar() : "",   // vazio: vale a do PC do aluno
             confirmar: "Limpar agora os computadores selecionados? O aluno recebe um aviso de 30 segundos para salvar o trabalho. Depois, serão apagados os arquivos marcados na configuração da limpeza (a conta de administrador não é tocada).");
+
+    /// <summary>PC do professor formatado: traz de volta a agenda e as exceções que os alunos guardam, antes que alguém salve por cima.</summary>
+    void RecuperarLimpeza(string json)
+    {
+        if (LimpezaConfig.Existe() || LimpezaConfig.Desserializar(json) is not { } config) return;
+        config.Salvar();
+        Sessao.AtualizarLimpeza();
+        AtualizarAgendaLimpeza();
+        MostrarAviso("Configuração da limpeza recuperada dos computadores ✓");
+    }
 
     void AoRenderizar(object? sender, EventArgs e)
     {
@@ -494,9 +522,12 @@ public partial class MainWindow : Window
                 t.AtualizarImagem();
             t.AtualizarEstado();
             if (t.Conexao.Estado == EstadoConexao.Online) online++;
-            if (t.Conexao.Mac is { } mac) _sala.DefinirMac(t.Conexao.Dados, mac); // guarda o MAC assim que chega (para Wake-on-LAN)
+            // Guarda o MAC assim que chega (para Wake-on-LAN), a não ser que a conexão tenha caído em outro PC que pegou este IP.
+            if (t.Conexao.Mac is { } mac && t.Conexao.NomeDoAgente is { } conectado && !_sala.EhOutroPc(t.Conexao.Dados, conectado))
+                _sala.DefinirMac(t.Conexao.Dados, mac);
             if (t.Conexao.NomeEscolhido is { } nome && _sala.AplicarNomeEscolhido(t.Conexao.Dados, nome)) renomeou = true;
             if (t.Conexao.TomarLimpezaNova() is { } limpeza) RegistrarLimpeza(t, limpeza);
+            if (t.Conexao.TomarConfigDoAgente() is { } configDoAgente) RecuperarLimpeza(configDoAgente);
         }
         if (renomeou)
         {
