@@ -20,4 +20,4 @@ O programa é entregue como está, sem garantia de qualquer tipo. Quem usa respo
 6. COMPONENTES DE TERCEIROS
 O FFmpeg (LGPL v3) e os demais componentes de terceiros continuam com as próprias licenças.
 
-Contato do autor: github.com/degodelf
+Contato do autor: degodelf@gmail.com
