@@ -2,6 +2,15 @@ using System.Text.Json;
 
 namespace ControleSala.Comum;
 
+/// <summary>Uma limpeza por vez neste PC, contando desde o aviso ao aluno: "Limpar agora" e a limpeza agendada usam a mesma trava.</summary>
+public sealed class TravaDeLimpeza
+{
+    int _ocupada;
+
+    public bool TentarPegar() => Interlocked.Exchange(ref _ocupada, 1) == 0;
+    public void Soltar() => Volatile.Write(ref _ocupada, 0);
+}
+
 /// <summary>O que a limpeza apaga na conta do aluno, as exceções e quando ela roda. Guardada pelo professor e enviada aos agentes.</summary>
 public sealed class LimpezaConfig
 {

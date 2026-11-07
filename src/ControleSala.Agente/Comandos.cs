@@ -180,7 +180,7 @@ static class Comandos
             : LimpezaConfig.Desserializar(argumento);
         if (config == null) return (false, "Configuração de limpeza inválida.");
         if (LimpezaExecutor.Impedimento() is { } motivo) return (false, motivo);
-        if (Interlocked.Exchange(ref _limpando, 1) == 1) return (false, "Já há uma limpeza em andamento neste computador.");
+        if (!LimpezaExecutor.Trava.TentarPegar()) return (false, "Já há uma limpeza em andamento neste computador.");
 
         // Responde na hora: o professor não fica esperando a contagem nem a limpeza terminar.
         _ = Task.Run(() =>
@@ -188,7 +188,8 @@ static class Comandos
             try
             {
                 JanelasAluno.PerguntarLimpeza(SegundosAvisoLimpeza, ImagemDaLimpeza(), podeAdiar: false);
-                var (_, mensagem) = LimpezaExecutor.Executar(config, pedida: professor ?? "");
+                var (ok, mensagem) = LimpezaExecutor.Executar(config, pedida: professor ?? "");
+                if (ok) AgendadorLimpeza.MarcarLimpezaFeita();
                 Programa.Log($"Limpar agora: {mensagem}");
             }
             catch (Exception ex)
@@ -197,14 +198,13 @@ static class Comandos
             }
             finally
             {
-                Interlocked.Exchange(ref _limpando, 0);
+                LimpezaExecutor.Trava.Soltar();
             }
         });
         return (true, $"Aviso enviado ao aluno. A limpeza começa em {SegundosAvisoLimpeza} segundos.");
     }
 
     const int SegundosAvisoLimpeza = 30;
-    static int _limpando;
 
     static string? ImagemDaLimpeza() => File.Exists(LimpezaExecutor.CaminhoImagemLimpeza) ? LimpezaExecutor.CaminhoImagemLimpeza : null;
 

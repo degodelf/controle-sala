@@ -52,27 +52,45 @@ sealed class AgendadorLimpeza : IDisposable
             }
             if (!AgendaLimpeza.DeveRodar(config, DateTime.Now, estado.UltimaExecucao, estado.AdiadoPara)) return;
             if (LancadorNaSessao.SessaoAtiva() == uint.MaxValue) return; // ninguém usando o PC
-
-            var escolha = JanelasAluno.PerguntarLimpeza(SegundosAviso,
-                File.Exists(LimpezaExecutor.CaminhoImagemLimpeza) ? LimpezaExecutor.CaminhoImagemLimpeza : null);
-
-            config = LimpezaConfig.Carregar(caminhoConfig); // o professor pode ter pausado com o aviso na tela
-            if (!config.Agendada) return;
-
-            if (escolha == ResultadoAviso.Adiar)
-            {
-                estado.AdiadoPara = DateTime.Now.AddHours(1);
-                SalvarEstado(estado);
-                return;
-            }
-
-            LimpezaExecutor.Executar(config, automatica: true); // mostra a tela de carregamento e limpa
-            estado.UltimaExecucao = DateTime.Now;
-            estado.AdiadoPara = null;
-            SalvarEstado(estado);
+            if (!LimpezaExecutor.Trava.TentarPegar()) return; // "Limpar agora" em andamento: confere de novo no próximo tique
+            try { Limpar(caminhoConfig); }
+            finally { LimpezaExecutor.Trava.Soltar(); }
         }
         catch (Exception) { /* nunca derruba o agente por causa do agendamento */ }
         finally { lock (_trava) _ocupado = false; }
+    }
+
+    /// <summary>Avisa o aluno e limpa. Chamado com a trava: um "Limpar agora" pode ter acabado de terminar, então confere tudo de novo.</summary>
+    static void Limpar(string caminhoConfig)
+    {
+        var config = LimpezaConfig.Carregar(caminhoConfig);
+        var estado = LerEstado();
+        if (!AgendaLimpeza.DeveRodar(config, DateTime.Now, estado.UltimaExecucao, estado.AdiadoPara)) return;
+
+        var escolha = JanelasAluno.PerguntarLimpeza(SegundosAviso,
+            File.Exists(LimpezaExecutor.CaminhoImagemLimpeza) ? LimpezaExecutor.CaminhoImagemLimpeza : null);
+
+        config = LimpezaConfig.Carregar(caminhoConfig); // o professor pode ter pausado com o aviso na tela
+        if (!config.Agendada) return;
+
+        if (escolha == ResultadoAviso.Adiar)
+        {
+            estado.AdiadoPara = DateTime.Now.AddHours(1);
+            SalvarEstado(estado);
+            return;
+        }
+
+        LimpezaExecutor.Executar(config, automatica: true); // mostra a tela de carregamento e limpa
+        MarcarLimpezaFeita();
+    }
+
+    /// <summary>Esta limpeza vale pela agendada ou adiada daquele horário: o aluno não passa por outra logo em seguida.</summary>
+    public static void MarcarLimpezaFeita()
+    {
+        var estado = LerEstado();
+        estado.UltimaExecucao = DateTime.Now;
+        estado.AdiadoPara = null;
+        SalvarEstado(estado);
     }
 
     static Estado LerEstado()

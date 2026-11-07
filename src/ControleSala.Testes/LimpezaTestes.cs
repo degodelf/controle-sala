@@ -66,6 +66,19 @@ public class LimpezaConfigTestes
     public void Desserializar_lixo_devolve_nulo() => Assert.Null(LimpezaConfig.Desserializar("não é json"));
 }
 
+public class TravaDeLimpezaTestes
+{
+    [Fact]
+    public void Segunda_limpeza_so_comeca_depois_que_a_primeira_termina()
+    {
+        var trava = new TravaDeLimpeza();
+        Assert.True(trava.TentarPegar());
+        Assert.False(trava.TentarPegar());
+        trava.Soltar();
+        Assert.True(trava.TentarPegar());
+    }
+}
+
 public class PermissaoDoPapelTestes
 {
     [Fact]

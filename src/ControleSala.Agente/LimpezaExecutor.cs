@@ -12,6 +12,7 @@ static partial class LimpezaExecutor
     public static string PastaDados => Path.GetDirectoryName(ConfigAgente.CaminhoPadrao)!;
     public static string CaminhoPapel => Path.Combine(PastaDados, "papel-de-parede.png");
     public static string CaminhoImagemLimpeza => Path.Combine(PastaDados, "imagem-limpeza.png");
+    public static TravaDeLimpeza Trava { get; } = new();
 
     static bool EhSystem { get { try { return WindowsIdentity.GetCurrent().IsSystem; } catch { return false; } } }
 

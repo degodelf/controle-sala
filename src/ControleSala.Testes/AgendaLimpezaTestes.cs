@@ -58,6 +58,12 @@ public class AgendaLimpezaTestes
     }
 
     [Fact]
+    public void Limpar_agora_depois_do_horario_marcado_vale_pela_agendada()
+    {
+        Assert.False(AgendaLimpeza.DeveRodar(Quarta18h, Em("2026-10-14 18:10"), Em("2026-10-14 18:05"), null));
+    }
+
+    [Fact]
     public void Adiar_segura_a_limpeza_mesmo_dentro_do_horario_marcado()
     {
         var adiadoPara = Em("2026-10-14 19:00");
