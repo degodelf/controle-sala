@@ -23,41 +23,81 @@ sealed partial class ConexaoComputador
         }
     }
 
+    /// <summary>Pede o diagnóstico do PC (logs, rede, eventos). Null se não está online ou não respondeu (agente até a 0.7.10).</summary>
+    public async Task<string?> PedirDiagnosticoAsync(TimeSpan limite, CancellationToken ct)
+    {
+        if (Estado != EstadoConexao.Online) return null;
+        var espera = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
+        _diagnostico = espera;
+        if (!TentarEnviar(Protocolo.MontarPedirDiagnostico())) return null;
+        try { return await espera.Task.WaitAsync(limite, ct); }
+        catch (TimeoutException) { return null; }
+        finally { _diagnostico = null; }
+    }
+
     /// <summary>Envia um comando ao agente, espera o resultado (ou um tempo-limite) e anota no registro de atividades.</summary>
     public async Task<(bool Ok, string Mensagem)> EnviarComandoAsync(AcaoComando acao, string argumento, CancellationToken ct)
     {
+        // Fica valendo mesmo se este PC estiver reconectando agora: quando ele voltar, recebe de novo.
+        LembrarEstado(acao, argumento);
         var resultado = await ExecutarComandoAsync(acao, argumento, ct);
+        if (resultado.Ok && acao is AcaoComando.Desligar or AcaoComando.Reiniciar)
+            MarcarDesligamento(reiniciar: acao == AcaoComando.Reiniciar);
         string detalhe = RegistroAtividades.DetalheDoComando(acao, argumento);
         Sessao.Registrar(RegistroAtividades.NomeDoComando(acao), Dados.Nome, resultado.Ok ? detalhe : $"falhou: {resultado.Mensagem} {detalhe}");
         return resultado;
     }
 
+    /// <summary>
+    /// Manda o comando e espera a resposta. Um PC reconectando (queda de poucos segundos) é esperado antes de desistir; se a
+    /// conexão cair antes da resposta, os comandos que podem ser repetidos (bloquear, liberar...) vão de novo quando ele voltar.
+    /// </summary>
     async Task<(bool Ok, string Mensagem)> ExecutarComandoAsync(AcaoComando acao, string argumento, CancellationToken ct)
     {
-        if (Estado != EstadoConexao.Online)
-            return (false, "computador offline");
-        uint id = (uint)Interlocked.Increment(ref _proximoIdComando);
-        var canal = Channel.CreateUnbounded<RespostaComando>();
-        _comandos[id] = canal;
         try
         {
-            if (!TentarEnviar(Protocolo.MontarComando(id, acao, argumento)))
-                return (false, "sem conexão com o computador");
-            using var tempo = CancellationTokenSource.CreateLinkedTokenSource(ct);
-            tempo.CancelAfter(TimeSpan.FromSeconds(15));
-            try
+            for (int tentativa = 0; ; tentativa++)
             {
-                var r = await canal.Reader.ReadAsync(tempo.Token);
-                return (r.Ok, r.Mensagem);
-            }
-            catch (OperationCanceledException) when (!ct.IsCancellationRequested)
-            {
-                return (false, "o computador não respondeu");
+                if (!await EsperarOnlineAsync(EsperaPorReconexao, ct))
+                    return (false, ct.IsCancellationRequested ? "cancelado" : "computador offline");
+                var (resposta, entregue, caiu) = await EnviarEsperarAsync(acao, argumento, ct);
+                if (!entregue && tentativa == 0) continue; // nem chegou a sair: manda de novo quando reconectar
+                if (!caiu) return resposta;
+                // Desligar/reiniciar/sair: a conexão cair logo depois é o próprio comando funcionando.
+                if (RegrasDeComando.SaiDaRede(acao))
+                    return (true, "o computador recebeu o comando e saiu da rede");
+                if (tentativa > 0 || !RegrasDeComando.PodeRepetir(acao)) return resposta;
             }
         }
         catch (OperationCanceledException)
         {
             return (false, "cancelado");
+        }
+    }
+
+    /// <param name="ct">Cancelamento de quem pediu.</param>
+    /// <returns>A resposta; se o comando saiu deste PC; e se a conexão caiu antes da resposta (aí não dá para saber se o agente executou).</returns>
+    async Task<((bool Ok, string Mensagem) Resposta, bool Entregue, bool Caiu)> EnviarEsperarAsync(AcaoComando acao, string argumento, CancellationToken ct)
+    {
+        uint id = (uint)Interlocked.Increment(ref _proximoIdComando);
+        if (id == 0) id = (uint)Interlocked.Increment(ref _proximoIdComando); // 0 é a marca de "a conexão caiu"
+        var canal = Channel.CreateUnbounded<RespostaComando>();
+        _comandos[id] = canal;
+        try
+        {
+            if (!TentarEnviar(Protocolo.MontarComando(id, acao, argumento)))
+                return ((false, "sem conexão com o computador"), false, false);
+            using var tempo = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            tempo.CancelAfter(TimeSpan.FromSeconds(15));
+            try
+            {
+                var r = await canal.Reader.ReadAsync(tempo.Token);
+                return ((r.Ok, r.Mensagem), true, r.Id == 0);
+            }
+            catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+            {
+                return ((false, "o computador não respondeu"), true, false);
+            }
         }
         finally
         {

@@ -8,21 +8,10 @@ using ControleSala.Comum;
 
 namespace ControleSala.Professor;
 
-public enum PosicaoLogo
-{
-    SuperiorEsquerdo, SuperiorCentro, SuperiorDireito,
-    CentroEsquerdo, Centro, CentroDireito,
-    InferiorEsquerdo, InferiorCentro, InferiorDireito,
-}
-
 /// <summary>Escolhas do professor para o papel de parede padrão da sala.</summary>
 public sealed class ConfigPapelDeParede
 {
     public string? Fundo { get; set; }
-    public string? Logo { get; set; }
-    public PosicaoLogo Posicao { get; set; } = PosicaoLogo.InferiorDireito;
-    /// <summary>Largura do logo em % da largura da imagem.</summary>
-    public int TamanhoPercent { get; set; } = 15;
     public int Largura { get; set; } = 1920;
     public int Altura { get; set; } = 1080;
     public bool MostrarCredito { get; set; } = true;
@@ -67,8 +56,8 @@ public static class PapelDeParede
         return img;
     }
 
-    /// <summary>Junta fundo + logo (+ crédito discreto) numa imagem do tamanho configurado.</summary>
-    public static BitmapSource Compor(ConfigPapelDeParede c, BitmapSource? fundo, BitmapSource? logo)
+    /// <summary>A imagem de fundo (+ crédito discreto) no tamanho configurado.</summary>
+    public static BitmapSource Compor(ConfigPapelDeParede c, BitmapSource? fundo)
     {
         int w = c.Largura, h = c.Altura;
         var desenho = new DrawingVisual();
@@ -84,22 +73,12 @@ public static class PapelDeParede
                 dc.DrawImage(fundo, new Rect((w - dw) / 2, (h - dh) / 2, dw, dh));
             }
 
-            if (logo != null)
-            {
-                double lw = w * Math.Clamp(c.TamanhoPercent, 1, 100) / 100.0;
-                double lh = lw * logo.PixelHeight / logo.PixelWidth;
-                double margem = w * 0.03;
-                double x = ColunaDe(c.Posicao) switch { 0 => margem, 1 => (w - lw) / 2, _ => w - lw - margem };
-                double y = LinhaDe(c.Posicao) switch { 0 => margem, 1 => (h - lh) / 2, _ => h - lh - margem };
-                dc.DrawImage(logo, new Rect(x, y, lw, lh));
-            }
-
             if (c.MostrarCredito)
             {
                 var texto = new FormattedText(Creditos.Linha, CultureInfo.GetCultureInfo("pt-BR"),
                     FlowDirection.LeftToRight, new Typeface("Segoe UI"), Math.Max(10, h / 90.0),
                     new SolidColorBrush(Color.FromArgb(110, 255, 255, 255)), 1.0);
-                // Canto inferior esquerdo, pequeno e translúcido; se o logo estiver ali, ele fica por cima.
+                // Canto inferior esquerdo, pequeno e translúcido.
                 dc.DrawText(texto, new Point(w * 0.012, h - texto.Height - h * 0.012));
             }
         }
@@ -118,6 +97,4 @@ public static class PapelDeParede
         encoder.Save(arquivo);
     }
 
-    static int LinhaDe(PosicaoLogo p) => (int)p / 3;
-    static int ColunaDe(PosicaoLogo p) => (int)p % 3;
 }

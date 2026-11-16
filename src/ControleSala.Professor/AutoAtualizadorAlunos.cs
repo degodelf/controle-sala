@@ -10,11 +10,12 @@ namespace ControleSala.Professor;
 /// </summary>
 sealed class AutoAtualizadorAlunos(Func<IReadOnlyList<ConexaoComputador>> conexoes, Action<string> avisar)
 {
-    // Depois de enviar, o agente some da rede ~1 min enquanto troca os arquivos; não reenvia nesse meio-tempo.
-    static readonly TimeSpan EsperaReenvio = TimeSpan.FromMinutes(3);
+    // Depois de enviar, o agente some da rede ~1 min enquanto troca os arquivos; não reenvia nesse meio-tempo
+    // (espera em RegrasDeComando.EsperaParaReenviarAtualizacao, maior a cada falha).
 
     readonly HashSet<ConexaoComputador> _enviando = [];
     readonly Dictionary<ConexaoComputador, DateTime> _ultimoEnvio = [];
+    readonly Dictionary<ConexaoComputador, int> _falhas = []; // envios seguidos que não deram certo, por PC
     readonly HashSet<ConexaoComputador> _aguardandoVoltar = [];
     InstaladorParaAlunos? _instalador;
 
@@ -53,6 +54,7 @@ sealed class AutoAtualizadorAlunos(Func<IReadOnlyList<ConexaoComputador>> conexo
             {
                 _aguardandoVoltar.Remove(c);
                 _ultimoEnvio.Remove(c);
+                _falhas.Remove(c);
                 avisar($"{c.Dados.Nome} atualizado para a versão {inst.Versao} ✓");
             }
         }
@@ -61,7 +63,8 @@ sealed class AutoAtualizadorAlunos(Func<IReadOnlyList<ConexaoComputador>> conexo
         {
             if (_enviando.Contains(c)) continue;
             if (!Atualizacoes.Desatualizado(c, inst.Versao)) continue;
-            if (_ultimoEnvio.TryGetValue(c, out var quando) && DateTime.UtcNow - quando < EsperaReenvio) continue;
+            var espera = RegrasDeComando.EsperaParaReenviarAtualizacao(_falhas.GetValueOrDefault(c));
+            if (_ultimoEnvio.TryGetValue(c, out var quando) && DateTime.UtcNow - quando < espera) continue;
             _ = EnviarAsync(inst, c);
         }
     }
@@ -75,8 +78,9 @@ sealed class AutoAtualizadorAlunos(Func<IReadOnlyList<ConexaoComputador>> conexo
         {
             int ok = await Atualizacoes.EnviarAsync(inst, [c], null, CancellationToken.None);
             if (ok > 0) _aguardandoVoltar.Add(c);
+            else _falhas[c] = _falhas.GetValueOrDefault(c) + 1;
         }
-        catch (Exception e) when (e is IOException or OperationCanceledException) { }
+        catch (Exception e) when (e is IOException or OperationCanceledException) { _falhas[c] = _falhas.GetValueOrDefault(c) + 1; }
         finally { _enviando.Remove(c); }
     }
 }

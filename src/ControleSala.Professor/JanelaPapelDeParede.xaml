@@ -17,33 +17,6 @@
                 <TextBox x:Name="CampoFundo" IsReadOnly="True" VerticalContentAlignment="Center"/>
             </DockPanel>
 
-            <TextBlock Text="Logotipo da escola (PNG)" FontWeight="SemiBold"/>
-            <TextBlock Text="Também aparece na tela de limpeza dos alunos." Style="{StaticResource Rotulo}" Margin="0,2,0,0"/>
-            <DockPanel Margin="0,4,0,12">
-                <Button DockPanel.Dock="Right" Content="Escolher..." Padding="10,3" Margin="6,0,0,0" Click="EscolherLogo_Click"/>
-                <TextBox x:Name="CampoLogo" IsReadOnly="True" VerticalContentAlignment="Center"/>
-            </DockPanel>
-
-            <TextBlock Text="Posição do logo" FontWeight="SemiBold"/>
-            <ComboBox x:Name="ListaPosicao" Margin="0,4,0,12" SelectionChanged="Opcao_Alterada">
-                <ComboBoxItem Content="Superior esquerdo"/>
-                <ComboBoxItem Content="Superior centro"/>
-                <ComboBoxItem Content="Superior direito"/>
-                <ComboBoxItem Content="Meio esquerdo"/>
-                <ComboBoxItem Content="Centro"/>
-                <ComboBoxItem Content="Meio direito"/>
-                <ComboBoxItem Content="Inferior esquerdo"/>
-                <ComboBoxItem Content="Inferior centro"/>
-                <ComboBoxItem Content="Inferior direito"/>
-            </ComboBox>
-
-            <DockPanel>
-                <TextBlock x:Name="TextoTamanho" DockPanel.Dock="Right"/>
-                <TextBlock Text="Tamanho do logo" FontWeight="SemiBold"/>
-            </DockPanel>
-            <Slider x:Name="DeslizeTamanho" Minimum="5" Maximum="60" Margin="0,4,0,12"
-                    TickFrequency="5" IsSnapToTickEnabled="True" ValueChanged="Tamanho_Alterado"/>
-
             <TextBlock Text="Resolução dos PCs dos alunos" FontWeight="SemiBold"/>
             <ComboBox x:Name="ListaResolucao" Margin="0,4,0,12" SelectionChanged="Opcao_Alterada">
                 <ComboBoxItem Content="1920 x 1080 (Full HD)"/>
@@ -58,7 +31,7 @@
             <Button Content="Salvar imagem..." Padding="12,6" Click="SalvarImagem_Click"/>
             <TextBlock x:Name="TextoAviso" Margin="0,12,0,0" TextWrapping="Wrap" Foreground="{DynamicResource PincelAviso}"/>
             <TextBlock Margin="0,12,0,0" TextWrapping="Wrap" Foreground="{DynamicResource PincelTextoFraco}" FontSize="11"
-                       Text="O envio automático para os PCs dos alunos vem junto com a parte de segurança da sala. Por enquanto, a imagem pode ser salva e aplicada manualmente."/>
+                       Text="Para colocar nos alunos: menu Sala &gt; Aplicar papel de parede agora (ou deixe a limpeza automática restaurar)."/>
         </StackPanel>
 
         <Border Grid.Column="1" Background="Black" BorderBrush="{DynamicResource PincelBorda}" BorderThickness="1">

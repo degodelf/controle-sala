@@ -32,7 +32,29 @@ public static class Programas
         new("Word", "winword.exe"),
         new("Excel", "excel.exe"),
         new("PowerPoint", "powerpnt.exe"),
+        new("Google Chrome", "chrome.exe"),
+        new("Microsoft Edge", "msedge.exe"),
     ];
+
+    /// <summary>Programas que entraram na lista inicial depois (versão 0.8.0): vão uma vez para listas já salvas.</summary>
+    static readonly ProgramaPermitido[] Novos = [new("Google Chrome", "chrome.exe"), new("Microsoft Edge", "msedge.exe")];
+
+    /// <summary>
+    /// Põe na lista já salva os programas novos da lista inicial, cada um só uma vez (se o professor tirar, não volta).
+    /// Devolve true se a lista mudou. <paramref name="jaOferecidos"/> guarda os que já foram oferecidos.
+    /// </summary>
+    public static bool AcrescentarNovos(List<ProgramaPermitido> lista, ISet<string> jaOferecidos)
+    {
+        bool mudou = false;
+        foreach (var p in Novos)
+        {
+            if (!jaOferecidos.Add(p.NomeProcesso)) continue;
+            if (lista.Any(x => x.NomeProcesso.Equals(p.NomeProcesso, StringComparison.OrdinalIgnoreCase))) continue;
+            lista.Add(p);
+            mudou = true;
+        }
+        return mudou;
+    }
 
     /// <summary>Mensagem de erro, ou null se o programa pode entrar na lista / ser aberto.</summary>
     public static string? ValidarComando(string? comando)
@@ -69,7 +91,21 @@ public static class Programas
         try
         {
             if (File.Exists(c))
-                return JsonSerializer.Deserialize<List<ProgramaPermitido>>(File.ReadAllText(c)) ?? [.. Padrao];
+            {
+                var lista = JsonSerializer.Deserialize<List<ProgramaPermitido>>(File.ReadAllText(c)) ?? [.. Padrao];
+                // Lista salva antes de Chrome/Edge entrarem na lista inicial: acrescenta uma vez.
+                string marcador = Path.ChangeExtension(c, ".oferecidos.txt");
+                var oferecidos = new HashSet<string>(File.Exists(marcador) ? File.ReadAllLines(marcador) : [], StringComparer.OrdinalIgnoreCase);
+                int antes = oferecidos.Count;
+                bool mudou = AcrescentarNovos(lista, oferecidos);
+                try
+                {
+                    if (mudou) Salvar(lista, c);
+                    if (oferecidos.Count != antes) File.WriteAllLines(marcador, oferecidos);
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
+                return lista;
+            }
         }
         catch (Exception ex) when (ex is JsonException or IOException)
         {

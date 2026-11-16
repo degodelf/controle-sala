@@ -20,7 +20,7 @@ e escreva o que der errado no fim (seção **Problemas**), para corrigirmos depo
 1. [ ] Instale o `ControleSala-Setup` escolhendo **Professor**. (Precisa da senha de administrador.)
 2. [ ] Abra o programa. Cadastre o **primeiro professor** (nome + PIN) no primeiro acesso.
 3. [ ] Clique em **Sala...** → **Criar sala** (nome da escola + nome da sala).
-4. [ ] Clique em **Papel de parede...**, escolha o fundo e a logo da escola, e feche (salva sozinho).
+4. [ ] Clique em **Papel de parede...**, escolha a imagem de fundo e feche (salva sozinho).
 5. [ ] Em **Sala... → Gerar pacote para os alunos...**, escolha uma **senha do pacote** e salve o
        arquivo `.controlesala` no **pendrive**, junto com o `ControleSala-Setup`.
 6. [ ] **Backup da chave de assinatura** (uma vez só, importante): no PC do professor rode
@@ -84,7 +84,7 @@ e escreva o que der errado no fim (seção **Problemas**), para corrigirmos depo
 
 ## Parte 9 — Desligar / reiniciar (cuidado)
 
-40. [ ] **Comandos → Reiniciar os computadores** → confirme → o aluno vê o **aviso de 20 segundos** e reinicia?
+40. [ ] **Comandos → Reiniciar os computadores** → confirme → o PC reinicia **na hora** e a grade mostra "Reiniciando..."?
 41. [ ] Depois que o PC do aluno volta, ele **reaparece sozinho** na grade do professor?
 
 ## Parte 10 — Wake-on-LAN (se a BIOS permitir)

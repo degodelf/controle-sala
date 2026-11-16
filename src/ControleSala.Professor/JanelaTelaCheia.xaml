@@ -14,7 +14,7 @@
                               Checked="Travar_Checked" Unchecked="Travar_Unchecked"/>
                 <TextBlock x:Name="TextoDica" DockPanel.Dock="Left" Foreground="{DynamicResource PincelTextoFraco}" FontSize="11"
                            VerticalAlignment="Center" Margin="0,0,12,0"
-                           Text="Você já está controlando este computador. Esc fecha a janela."/>
+                           Text="Você está controlando este computador. Copiar e colar (Ctrl+C / Ctrl+V) funciona entre os dois PCs. Esc fecha."/>
                 <TextBlock x:Name="TextoEstatisticas" Foreground="{DynamicResource PincelRealce}" FontFamily="Consolas" FontSize="13"
                            VerticalAlignment="Center"/>
             </DockPanel>

@@ -103,6 +103,7 @@
             <MenuItem Header="_Ajuda">
                 <MenuItem Header="Regras de uso e privacidade..." Click="MenuRegras_Click"/>
                 <MenuItem Header="Registro de atividades..." Click="MenuAtividades_Click"/>
+                <MenuItem Header="Coletar diagnóstico da sala..." Click="ColetarDiagnostico_Click"/>
                 <Separator/>
                 <MenuItem Header="Sobre o ControleSala" Click="BotaoSobre_Click">
                     <MenuItem.Icon><Path Style="{StaticResource Icone}" Data="{StaticResource IconeSobre}"/></MenuItem.Icon>
@@ -151,10 +152,18 @@
                             <TextBlock Text="Abrir link" FontSize="11" Margin="0,3,0,0" HorizontalAlignment="Center"/>
                         </StackPanel>
                     </Button>
-                    <Button Style="{StaticResource BotaoFerramenta}" Click="ComandoAbrirPrograma_Click" ToolTip="Abrir um programa nos computadores">
+                    <Button Style="{StaticResource BotaoFerramenta}" Click="MenuDaBarra_Click" ToolTip="Abrir ou fechar um programa nos computadores">
+                        <Button.ContextMenu>
+                            <ContextMenu>
+                                <MenuItem Header="Abrir programa..." Click="ComandoAbrirPrograma_Click"/>
+                                <MenuItem Header="Fechar programa..." Click="ComandoFecharPrograma_Click"/>
+                                <Separator/>
+                                <MenuItem Header="Programas permitidos..." Click="GerenciarProgramas_Click"/>
+                            </ContextMenu>
+                        </Button.ContextMenu>
                         <StackPanel>
                             <Path Style="{StaticResource Icone}" Data="{StaticResource IconePrograma}" HorizontalAlignment="Center"/>
-                            <TextBlock Text="Abrir programa" FontSize="11" Margin="0,3,0,0" HorizontalAlignment="Center"/>
+                            <TextBlock Text="Programas ▾" FontSize="11" Margin="0,3,0,0" HorizontalAlignment="Center"/>
                         </StackPanel>
                     </Button>
                     <Button Style="{StaticResource BotaoFerramenta}" Click="BotaoEnviarArquivos_Click" ToolTip="Enviar arquivos aos alunos">
@@ -273,7 +282,7 @@
 
         <!-- Grade de telas (a parte preta fica só no vídeo de cada tela) -->
         <Grid x:Name="AreaGrade" Background="{DynamicResource PincelFundo}"
-              MouseLeftButtonDown="Fundo_MouseDown" MouseMove="Area_MouseMove" MouseLeftButtonUp="Area_MouseUp"
+              MouseMove="Area_MouseMove" MouseLeftButtonUp="Area_MouseUp"
               ClipToBounds="True">
             <ScrollViewer VerticalScrollBarVisibility="Auto">
                 <ItemsControl x:Name="Grade" Margin="8">
@@ -305,6 +314,7 @@
                                         <MenuItem Header="Bloquear TODA a internet..." Click="BloquearInternet_Click"/>
                                         <MenuItem Header="Liberar a internet..." Click="LiberarInternet_Click"/>
                                         <Separator/>
+                                        <MenuItem Header="Ligar" Click="WakeOnLan_Click"/>
                                         <MenuItem Header="Desligar..." Click="ComandoDesligar_Click"/>
                                         <MenuItem Header="Reiniciar..." Click="ComandoReiniciar_Click"/>
                                         <Separator/>

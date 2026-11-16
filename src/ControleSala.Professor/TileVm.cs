@@ -13,6 +13,7 @@ sealed class TileVm : INotifyPropertyChanged
     static readonly Brush Verde = Pincel(0x4C, 0xAF, 0x50);
     static readonly Brush Ambar = Pincel(0xFF, 0xC1, 0x07);
     static readonly Brush Vermelho = Pincel(0xE5, 0x39, 0x35);
+    static readonly Brush Cinza = Pincel(0x9A, 0x9A, 0x9A);
     static readonly Brush BordaNormal = Pincel(0x3C, 0x3C, 0x3C);
     static readonly Brush BordaOffline = Pincel(0x5A, 0x2B, 0x2B);
 
@@ -30,6 +31,7 @@ sealed class TileVm : INotifyPropertyChanged
     double _opacidade = 1;
     bool _selecionado;
     EstadoConexao? _ultimoEstado;
+    Desligamento _ultimoDesligamento;
     string _ultimoDetalhe = "";
 
     public ConexaoComputador Conexao { get; }
@@ -76,11 +78,25 @@ sealed class TileVm : INotifyPropertyChanged
     /// <summary>Atualiza cor, texto e transparência quando a situação da conexão muda (chamado a cada quadro da tela).</summary>
     public void AtualizarEstado()
     {
-        var estado = Conexao.Estado;
+        var estado = Conexao.EstadoVisivel;
+        var desligamento = Conexao.DesligamentoAtual;
         string detalhe = Conexao.Detalhe;
-        if (estado == _ultimoEstado && detalhe == _ultimoDetalhe) return;
+        if (estado == _ultimoEstado && detalhe == _ultimoDetalhe && desligamento == _ultimoDesligamento) return;
         _ultimoEstado = estado;
         _ultimoDetalhe = detalhe;
+        _ultimoDesligamento = desligamento;
+
+        // Desligado/reiniciado pelo professor: some a última imagem (ela não é mais a tela do aluno).
+        if (desligamento != Desligamento.Nenhum)
+        {
+            Imagem = null;
+            CorBorda = BordaNormal;
+            Opacidade = 1;
+            bool reiniciando = desligamento == Desligamento.Reiniciando;
+            CorEstado = reiniciando ? Ambar : Cinza;
+            Mensagem = reiniciando ? "Reiniciando..." : estado == EstadoConexao.Online ? "Desligando..." : "Desligado";
+            return;
+        }
 
         switch (estado)
         {
@@ -97,16 +113,21 @@ sealed class TileVm : INotifyPropertyChanged
                 Mensagem = "Conectando...";
                 break;
             default:
+                // Sem conexão: a última imagem já não diz nada (o PC pode estar desligado).
+                Imagem = null;
                 CorEstado = Vermelho;
                 CorBorda = BordaOffline;
-                Opacidade = 0.35;
+                Opacidade = 1;
                 Mensagem = detalhe.Length == 0 ? "Offline" : $"Offline — {detalhe}";
                 break;
         }
     }
 
     /// <summary>Pega o quadro novo (se houver) e desenha na miniatura. Retorna true se desenhou.</summary>
-    public bool AtualizarImagem() => Conexao.PegarQuadroNovo(Desenhar);
+    public bool AtualizarImagem() =>
+        Conexao.DesligamentoAtual == Desligamento.Nenhum ? Conexao.PegarQuadroNovo(Desenhar) : Conexao.PegarQuadroNovo(Descartar);
+
+    static void Descartar(IntPtr bgra, int largura, int altura, int stride, long momentoRecebido, int usAgente) { }
 
     void Desenhar(IntPtr bgra, int largura, int altura, int stride, long momentoRecebido, int usAgente)
     {

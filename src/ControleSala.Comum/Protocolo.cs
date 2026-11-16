@@ -19,7 +19,7 @@ public enum TipoMensagem : byte
     DefinirModo = 11,
     /// <summary>
     /// Professor → agente: controle remoto (mouse/teclado). [byte sub][...]; o agente aplica o evento na sessão do aluno.
-    /// Só o professor com a chave da sala chega aqui, e o aluno vê um aviso de "sendo controlado". Ver <see cref="TipoEntrada"/>.
+    /// Só o professor com a chave da sala chega aqui (o ícone do ControleSala perto do relógio fica vermelho). Ver <see cref="TipoEntrada"/>.
     /// </summary>
     Entrada = 12,
     /// <summary>Professor → agente: [string UTF-8] nome do professor que está vendo a tela (mostrado ao aluno).</summary>
@@ -57,6 +57,15 @@ public enum TipoMensagem : byte
     ResultadoDefender = 38,
     /// <summary>Agente → professor: [string JSON] resultado da última limpeza, ao conectar e quando muda.</summary>
     ResultadoLimpeza = 39,
+    /// <summary>
+    /// Nos dois sentidos: [string UTF-8] texto copiado (Ctrl+C). Só enquanto o professor está com a tela do aluno aberta:
+    /// o que o aluno copia vai para o professor, e o que o professor copiou vai para o aluno antes de ele colar lá.
+    /// </summary>
+    AreaDeTransferencia = 40,
+    /// <summary>Professor → agente: pede o diagnóstico deste PC (logs do agente e do serviço, rede, eventos do Windows).</summary>
+    PedirDiagnostico = 41,
+    /// <summary>Agente → professor: [string UTF-8] o diagnóstico pedido. Não tem nada do aluno: só horários, endereços e eventos.</summary>
+    Diagnostico = 42,
 }
 
 public enum ArquivoConfigTipo : byte { PapelDeParede = 0, ImagemLimpeza = 1 }
@@ -293,6 +302,22 @@ public static class Protocolo
         Montar(TipoMensagem.NomeEscolhido, Encoding.UTF8.GetBytes(nome));
 
     public static string LerNomeEscolhido(ReadOnlySpan<byte> corpo) => Encoding.UTF8.GetString(corpo);
+
+    /// <summary>Texto maior que isso não é copiado entre os PCs (um texto de aula cabe com folga).</summary>
+    public const int MaxTextoCopiado = 1_000_000;
+
+    /// <summary>Null se o texto for vazio ou grande demais.</summary>
+    public static byte[]? MontarAreaDeTransferencia(string texto) =>
+        string.IsNullOrEmpty(texto) || texto.Length > MaxTextoCopiado ? null
+            : Montar(TipoMensagem.AreaDeTransferencia, Encoding.UTF8.GetBytes(texto));
+
+    public static string LerAreaDeTransferencia(ReadOnlySpan<byte> corpo) => Encoding.UTF8.GetString(corpo);
+
+    public static byte[] MontarPedirDiagnostico() => Montar(TipoMensagem.PedirDiagnostico, []);
+
+    public static byte[] MontarDiagnostico(string texto) => Montar(TipoMensagem.Diagnostico, Encoding.UTF8.GetBytes(texto));
+
+    public static string LerDiagnostico(ReadOnlySpan<byte> corpo) => Encoding.UTF8.GetString(corpo);
 
     public static byte[] MontarResultadoDefender(string json) =>
         Montar(TipoMensagem.ResultadoDefender, Encoding.UTF8.GetBytes(json));

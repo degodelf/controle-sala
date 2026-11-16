@@ -26,6 +26,8 @@ sealed class ServidorVideo : IDisposable
     public event Action<string[]>? ProfessoresMudaram;
     /// <summary>Um arquivo do professor chegou inteiro e conferido: (professor, nome do arquivo).</summary>
     public event Action<string, string>? ArquivoRecebido;
+    /// <summary>O professor que está com a tela aberta mandou um texto copiado (para colar aqui).</summary>
+    public event Action<string>? TextoCopiadoRecebido;
 
     readonly string _pastaRecebidos;
     readonly bool _liberarParaAlunos;
@@ -106,6 +108,7 @@ sealed class ServidorVideo : IDisposable
                 return;
             }
             tcp.NoDelay = true;
+            ConexaoViva.Ligar(tcp.Client); // professor que some sem fechar (rede, energia) sai da lista em ~20 s
             tcp.ReceiveTimeout = tcp.SendTimeout = 5000; // quem não completa o aperto de mão em 5 s é descartado
             var fluxo = Handshake.Agente(tcp.GetStream(), _chave);
             _tentativas.Acertou(ip);
@@ -137,7 +140,10 @@ sealed class ServidorVideo : IDisposable
         catch (Exception ex)
         {
             if (ex is AutenticacaoException) _tentativas.Falhou(ip);
-            Aviso?.Invoke($"Conexão recusada de {origem}: {ex.Message}");
+            // A conferência do serviço (conecta em 127.0.0.1 e solta na hora) não é tentativa de acesso: não enche o log.
+            bool conferenciaDoServico = IPAddress.TryParse(ip, out var endereco) && IPAddress.IsLoopback(endereco)
+                && ex is EndOfStreamException or IOException;
+            if (!conferenciaDoServico) Aviso?.Invoke($"Conexão recusada de {origem}: {ex.Message}");
             tcp.Dispose();
         }
         finally
@@ -154,6 +160,18 @@ sealed class ServidorVideo : IDisposable
             if (c.Modo == modo)
                 c.EnfileirarVideo(mensagem, chave);
     }
+
+    /// <summary>Só para quem está com a tela deste aluno aberta (o texto copiado não vai para as miniaturas).</summary>
+    public void TransmitirParaTelaAberta(byte[] mensagem)
+    {
+        ConexaoProfessor[] lista;
+        lock (_trava) lista = [.. _conexoes];
+        foreach (var c in lista)
+            if (c.Modo == ModoVideo.Completo)
+                c.EnfileirarControle(mensagem);
+    }
+
+    internal void ReceberTextoCopiado(string texto) => TextoCopiadoRecebido?.Invoke(texto);
 
     public void TransmitirControle(byte[] mensagem)
     {
@@ -322,6 +340,13 @@ sealed class ConexaoProfessor(TcpClient tcp, Stream fluxo, ServidorVideo servido
         {
             case TipoMensagem.AtualizacaoInicio:
                 var inicio = Protocolo.LerArquivoInicio(corpo) ?? throw new InvalidDataException("início de atualização inválido");
+                if (AtualizacaoAgente.EmAndamento)
+                {
+                    // Recusa já no começo: o professor não manda os 105 MB de novo à toa.
+                    _idAtualizacao = null;
+                    ErroDeArquivo(id, "Já há uma atualização sendo instalada neste computador.");
+                    break;
+                }
                 _recebedorAtualizacao?.Cancelar();
                 _recebedorAtualizacao = AtualizacaoAgente.NovoRecebedor();
                 var ini = _recebedorAtualizacao.Iniciar(id, AtualizacaoAgente.NomeArquivo, inicio.Tamanho);
@@ -415,7 +440,7 @@ sealed class ConexaoProfessor(TcpClient tcp, Stream fluxo, ServidorVideo servido
                         Volatile.Write(ref _modo, (int)novo);
                         _esperandoChave = true; // o fluxo novo começa num quadro-chave
                         servidor.SolicitarQuadroChave(novo);
-                        servidor.AvisarMudanca(); // o aluno vê a faixa quando abrem a tela dele em tamanho grande
+                        servidor.AvisarMudanca();
                         break;
                     case TipoMensagem.PedirQuadroChave:
                         if (Modo is { } atual) servidor.SolicitarQuadroChave(atual);
@@ -438,12 +463,27 @@ sealed class ConexaoProfessor(TcpClient tcp, Stream fluxo, ServidorVideo servido
                     case TipoMensagem.Entrada:
                         if (Protocolo.LerEntrada(buffer.AsSpan(0, msg.Tamanho)) is { } ev)
                         {
-                            IndicadorControle.Tocar(Nome); // aviso visível ao aluno
                             if (ev.Tipo == TipoEntrada.Travar)
                                 TravaAluno.Definir(ev.Pressionado); // trava/destrava o mouse+teclado do aluno
                             else
                                 InterfaceAgente.Postar(() => EntradaRemota.Aplicar(ev)); // injeta na área de trabalho ativa
                         }
+                        break;
+                    case TipoMensagem.PedirDiagnostico:
+                        // Fora da thread de leitura: ler os eventos do Windows leva alguns segundos.
+                        _ = Task.Run(() =>
+                        {
+                            string texto;
+                            try { texto = DiagnosticoAgente.Montar(); }
+                            catch (Exception ex) { texto = $"Não foi possível montar o diagnóstico: {ex.Message}"; }
+                            _fila.Controle(Protocolo.MontarDiagnostico(texto));
+                            servidor.RegistrarAviso($"Diagnóstico enviado a {Nome ?? Endereco}.");
+                        });
+                        break;
+                    case TipoMensagem.AreaDeTransferencia:
+                        // Só de quem está com a tela aberta, controlando (não de uma conexão só de miniatura).
+                        if (Modo == ModoVideo.Completo)
+                            servidor.ReceberTextoCopiado(Protocolo.LerAreaDeTransferencia(buffer.AsSpan(0, msg.Tamanho)));
                         break;
                     case TipoMensagem.ConfigLimpeza:
                         ConfigLimpezaAgente.Receber(Protocolo.LerConfigLimpeza(buffer.AsSpan(0, msg.Tamanho)));

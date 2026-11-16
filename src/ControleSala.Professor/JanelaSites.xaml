@@ -1,34 +1,58 @@
 <Window x:Class="ControleSala.Professor.JanelaSites"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Sites bloqueados" Width="520" Height="480" MinWidth="420" MinHeight="360"
+        Title="Sites bloqueados" Width="620" Height="560" MinWidth="480" MinHeight="420"
         WindowStartupLocation="CenterOwner" Background="{DynamicResource PincelFundo}">
+    <Window.Resources>
+        <!-- Uma linha da lista (e das sugestões): nome do site e, embaixo, os endereços que ele bloqueia. -->
+        <DataTemplate x:Key="ModeloSite">
+            <StackPanel Margin="2,3">
+                <TextBlock Text="{Binding Titulo}" Foreground="{DynamicResource PincelTexto}" FontWeight="SemiBold"/>
+                <TextBlock Text="{Binding Detalhe}" Foreground="{DynamicResource PincelTextoFraco}" FontSize="11" TextTrimming="CharacterEllipsis"/>
+            </StackPanel>
+        </DataTemplate>
+    </Window.Resources>
     <Grid Margin="20">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="12"/>
+            <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
         <TextBlock Grid.Row="0" Text="Sites bloqueados" Style="{StaticResource Titulo}"/>
         <TextBlock Grid.Row="1" Style="{StaticResource Rotulo}" Margin="0,6,0,10" TextWrapping="Wrap"
-                   Text="Monte a lista de sites para bloquear durante a aula (ex.: facebook.com, youtube.com). Depois use Comandos → Bloquear sites da lista. Cada site é bloqueado com e sem o www."/>
+                   Text="Digite o nome do site (ex.: youtube) e escolha na lista que aparece. Cada site é bloqueado com todos os endereços dele, inclusive os subdomínios. Depois use Comandos → Bloquear sites da lista."/>
 
-        <ListBox Grid.Row="2" x:Name="Lista"/>
+        <Grid Grid.Row="2">
+            <DockPanel>
+                <Button DockPanel.Dock="Right" Content="Adicionar" Padding="14,5" Click="Adicionar_Click"/>
+                <TextBox x:Name="CampoNovo" Padding="6,5" VerticalContentAlignment="Center" Margin="0,0,8,0"
+                         PreviewKeyDown="Campo_PreviewKeyDown" TextChanged="Campo_TextChanged" LostKeyboardFocus="Campo_LostFocus"/>
+            </DockPanel>
+            <Popup x:Name="PainelSugestoes" PlacementTarget="{Binding ElementName=CampoNovo}" Placement="Bottom"
+                   StaysOpen="True" AllowsTransparency="True" Width="{Binding ActualWidth, ElementName=CampoNovo}">
+                <Border Background="{DynamicResource PincelSuperficie}" BorderBrush="{DynamicResource PincelBorda}" BorderThickness="1"
+                        CornerRadius="4" Padding="2">
+                    <ListBox x:Name="ListaSugestoes" MaxHeight="300" BorderThickness="0" Background="Transparent"
+                             ItemTemplate="{StaticResource ModeloSite}" Focusable="False"
+                             PreviewMouseLeftButtonUp="Sugestao_Click"/>
+                </Border>
+            </Popup>
+        </Grid>
 
-        <DockPanel Grid.Row="3" Margin="0,12,0,0">
-            <Button DockPanel.Dock="Right" Content="Adicionar" Padding="14,5" Click="Adicionar_Click"/>
-            <TextBox x:Name="CampoNovo" Padding="6,5" VerticalContentAlignment="Center" Margin="0,0,8,0" KeyDown="Campo_KeyDown"/>
-        </DockPanel>
+        <ListBox Grid.Row="4" x:Name="Lista" ItemTemplate="{StaticResource ModeloSite}" SelectionMode="Extended"
+                 HorizontalContentAlignment="Stretch"/>
 
-        <WrapPanel Grid.Row="4" Margin="0,8,0,0">
+        <WrapPanel Grid.Row="5" Margin="0,8,0,0">
             <Button Content="Remover selecionado" Padding="12,6" Margin="0,0,8,6" Click="Remover_Click"/>
+            <Button Content="Remover todos" Padding="12,6" Margin="0,0,8,6" Click="RemoverTodos_Click"/>
         </WrapPanel>
 
-        <DockPanel Grid.Row="5" Margin="0,10,0,0">
+        <DockPanel Grid.Row="6" Margin="0,10,0,0">
             <Button DockPanel.Dock="Right" Content="Fechar" IsCancel="True" Padding="18,6"/>
             <TextBlock x:Name="TextoMensagem" Foreground="{DynamicResource PincelAviso}" TextWrapping="Wrap" VerticalAlignment="Center"/>
         </DockPanel>

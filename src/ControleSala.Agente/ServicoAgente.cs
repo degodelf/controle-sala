@@ -114,12 +114,15 @@ sealed class ServicoAgente : ServiceBase
     {
         try
         {
-            return IPGlobalProperties.GetIPGlobalProperties().GetActiveTcpListeners().Any(e => e.Port == Protocolo.PortaPadrao);
+            if (IPGlobalProperties.GetIPGlobalProperties().GetActiveTcpListeners().Any(e => e.Port == Protocolo.PortaPadrao))
+                return true;
         }
         catch (NetworkInformationException)
         {
             return true; // sem como saber: não derruba um agente que pode estar bem
         }
+        // A lista do Windows às vezes não mostra o agente funcionando: só conta como "sem porta" se nem conectar der.
+        return VigiaAgente.AceitaConexao(Protocolo.PortaPadrao, TimeSpan.FromSeconds(3));
     }
 
     /// <summary>

@@ -141,10 +141,13 @@ public class ProgramasTestes
         {
             var lista = new List<ProgramaPermitido> { new("Calculadora", "calc.exe"), new("Word", "winword.exe") };
             Programas.Salvar(lista, arq);
-            var volta = Programas.Carregar(arq);
-            Assert.Equal(lista, volta);
+            // Na primeira carga a lista antiga ganha Chrome e Edge (uma vez só); depois volta igual ao que foi salvo.
+            var primeira = Programas.Carregar(arq);
+            Assert.Equal(lista, primeira.Take(2));
+            Programas.Salvar(lista, arq);
+            Assert.Equal(lista, Programas.Carregar(arq));
         }
-        finally { File.Delete(arq); }
+        finally { File.Delete(arq); File.Delete(Path.ChangeExtension(arq, ".oferecidos.txt")); }
     }
 
     [Fact]

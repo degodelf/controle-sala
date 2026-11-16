@@ -1,5 +1,3 @@
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
 using ControleSala.Comum;
 
 namespace ControleSala.Professor;
@@ -40,7 +38,7 @@ static class Sessao
     /// <param name="Json">Null se este PC ainda não tem configuração (ex.: formatado): os alunos continuam com a deles.</param>
     public sealed record PacoteLimpezaDados(string? Json, byte[]? PapelDeParede, byte[]? ImagemLimpeza);
 
-    /// <summary>Caminho do papel de parede composto (fundo + logo) que vai para os alunos.</summary>
+    /// <summary>Caminho do papel de parede pronto que vai para os alunos.</summary>
     public static string CaminhoPapelComposto => System.IO.Path.Combine(Pastas.Dados, "papel-de-parede.png");
 
     public static PacoteLimpezaDados? PacoteLimpeza { get; private set; }
@@ -50,27 +48,8 @@ static class Sessao
     {
         var config = LimpezaConfig.Carregar();
         byte[]? papel = config.RestaurarPapelDeParede ? LerSeExiste(CaminhoPapelComposto) : null;
-        PacoteLimpeza = new PacoteLimpezaDados(LimpezaConfig.Existe() ? config.Serializar() : null, papel, LogoParaLimpeza());
-    }
-
-    /// <summary>O logotipo da escola (o do papel de parede) em tamanho leve, porque é reenviado a cada PC que conecta.</summary>
-    static byte[]? LogoParaLimpeza()
-    {
-        if (ConfigPapelDeParede.Carregar().Logo is not { Length: > 0 } caminho) return null;
-        try
-        {
-            var logo = PapelDeParede.CarregarImagem(caminho);
-            double escala = Math.Min(1, 512.0 / Math.Max(logo.PixelWidth, logo.PixelHeight));
-            var codificador = new PngBitmapEncoder();
-            codificador.Frames.Add(BitmapFrame.Create(new TransformedBitmap(logo, new ScaleTransform(escala, escala))));
-            using var memoria = new System.IO.MemoryStream();
-            codificador.Save(memoria);
-            return memoria.ToArray();
-        }
-        catch (Exception)
-        {
-            return null; // logo apagado ou inválido: a tela de limpeza usa o ícone do programa
-        }
+        // Sem logotipo: o papel de parede é só a imagem escolhida, e a tela de limpeza usa o ícone do programa.
+        PacoteLimpeza = new PacoteLimpezaDados(LimpezaConfig.Existe() ? config.Serializar() : null, papel, null);
     }
 
     static byte[]? LerSeExiste(string caminho)

@@ -97,6 +97,7 @@ static partial class Programa
             return 2;
         }
         if (opcoes.Sessao) AbrirLogEmArquivo();
+        RegistrarErrosInesperados();
 
         Console.Title = "ControleSala — Agente";
         Log("ControleSala — Agente");
@@ -177,7 +178,12 @@ static partial class Programa
         {
             InterfaceAgente.NaInterface(() => bandeja = new Bandeja(sala, servidor));
             agendador = AgendadorLimpeza.Iniciar(); // limpeza agendada: avisa o aluno e limpa, aqui na sessão
+            FiltroAgente.Iniciar(); // apostas e +18 sempre bloqueados (só no agente instalado, que roda como SYSTEM)
         }
+
+        // Copiar e colar com o professor, enquanto ele estiver com esta tela aberta.
+        using var areaDeTransferencia = new AreaDeTransferenciaAluno(servidor);
+        servidor.TextoCopiadoRecebido += areaDeTransferencia.Colocar;
 
         Executar(servidor, opcoes); // bloqueia nesta thread até Ctrl+C / parada do serviço
 
@@ -185,6 +191,31 @@ static partial class Programa
         if (bandeja != null) InterfaceAgente.NaInterface(bandeja.Dispose);
         Log("Agente encerrado.");
         return 0;
+    }
+
+    /// <summary>
+    /// Erro que escapa de alguma thread vai para o agente.log (com o detalhe), em vez de sumir: é o que mostra por que um agente
+    /// caiu. Na thread de interface, o erro é anotado e o agente segue (sem a caixa de erro do Windows na tela do aluno).
+    /// </summary>
+    static void RegistrarErrosInesperados()
+    {
+        AppDomain.CurrentDomain.UnhandledException += (_, e) =>
+            Log($"ERRO FATAL (o agente vai fechar; o serviço abre de novo): {e.ExceptionObject}");
+        TaskScheduler.UnobservedTaskException += (_, e) =>
+        {
+            Log($"Erro em segundo plano (ignorado): {e.Exception.GetBaseException().Message}");
+            e.SetObserved();
+        };
+        try
+        {
+            System.Windows.Forms.Application.SetUnhandledExceptionMode(System.Windows.Forms.UnhandledExceptionMode.CatchException);
+            System.Windows.Forms.Application.ThreadException += (_, e) =>
+                Log($"Erro na interface do agente (continua rodando): {e.Exception}");
+        }
+        catch (InvalidOperationException)
+        {
+            // Alguma janela já foi criada antes: fica o comportamento padrão.
+        }
     }
 
     /// <summary>MAC da placa de rede ativa usada para sair para a rede (a que o professor alcança). Null se não achar.</summary>
@@ -328,6 +359,7 @@ static partial class Programa
     {
         var (ok, msg) = Comandos.LiberarInternet();
         Console.WriteLine(msg);
+        FiltroAgente.Remover();
         ConfigLimpezaAgente.RemoverAgendamento();
         Console.WriteLine("Limpeza agendada removida.");
         return ok ? 0 : 1;
@@ -466,7 +498,7 @@ static partial class Programa
 
     internal static void Log(string mensagem)
     {
-        string linha = $"[{DateTime.Now:HH:mm:ss}] {mensagem}";
+        string linha = $"[{DateTime.Now:dd/MM HH:mm:ss}] {mensagem}"; // com o dia: o log junta vários dias de aula
         try { Console.WriteLine(linha); } catch (IOException) { /* sem console */ }
         lock (_travaLog) _log?.WriteLine(linha);
     }

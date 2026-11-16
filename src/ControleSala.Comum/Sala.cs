@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 
 namespace ControleSala.Comum;
 
@@ -40,13 +40,26 @@ public sealed class RepositorioSala
         nome = (nome ?? "").Trim();
         endereco = (endereco ?? "").Trim();
         if (nome.Length == 0 || nome.Length > 40) return "Digite um nome com até 40 letras (por exemplo, \"Mesa 05\").";
-        if (endereco.Length == 0 || endereco.Length > 255 || Uri.CheckHostName(endereco) == UriHostNameType.Unknown)
-            return "Digite o endereço IP (por exemplo, 192.168.0.15) ou o nome do computador.";
+        if (!EnderecoIpValido(endereco))
+            return "Digite o endereço IP do computador (por exemplo, 192.168.0.15). O nome do computador não funciona aqui.";
         if (porta is < 1 or > 65535) return "A porta deve estar entre 1 e 65535.";
         if (_computadores.Any(c => c != ignorar && c.Porta == porta
                 && string.Equals(c.Endereco, endereco, StringComparison.OrdinalIgnoreCase)))
             return "Esse computador já está na sala.";
         return null;
+    }
+
+    /// <summary>
+    /// Só IP de verdade: o professor conecta pelo endereço, e o nome do PC nem sempre é encontrado na rede da escola.
+    /// IPv4 precisa dos quatro números (o Windows aceitaria "192.168.0" como outro endereço).
+    /// </summary>
+    public static bool EnderecoIpValido(string? endereco)
+    {
+        endereco = (endereco ?? "").Trim();
+        if (endereco.Length is 0 or > 45 || !System.Net.IPAddress.TryParse(endereco, out var ip)) return false;
+        if (ip.AddressFamily == System.Net.Sockets.AddressFamily.InterNetworkV6) return true;
+        var partes = endereco.Split('.');
+        return partes.Length == 4 && partes.All(p => p.Length is > 0 and <= 3 && p.All(char.IsAsciiDigit));
     }
 
     public ComputadorSala Adicionar(string nome, string endereco, int porta = Protocolo.PortaPadrao)

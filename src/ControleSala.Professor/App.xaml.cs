@@ -102,8 +102,7 @@ public partial class App : Application
             int c = Array.IndexOf(e.Args, "--config");
             var config = ConfigPapelDeParede.Carregar(c >= 0 && c + 1 < e.Args.Length ? e.Args[c + 1] : null);
             var fundo = string.IsNullOrEmpty(config.Fundo) ? null : PapelDeParede.CarregarImagem(config.Fundo);
-            var logo = string.IsNullOrEmpty(config.Logo) ? null : PapelDeParede.CarregarImagem(config.Logo);
-            PapelDeParede.SalvarPng(PapelDeParede.Compor(config, fundo, logo), e.Args[i + 1]);
+            PapelDeParede.SalvarPng(PapelDeParede.Compor(config, fundo), e.Args[i + 1]);
             Shutdown(0);
             return;
         }
@@ -311,7 +310,7 @@ public partial class App : Application
         Window janela = nome switch
         {
             "principal" => MostrarBannerDeTeste(new MainWindow()),
-            "exemplo" => MostrarSalaDeExemplo(new MainWindow()),
+            "exemplo" or "clique-vazio" => MostrarSalaDeExemplo(new MainWindow()),
             "papel" => new JanelaPapelDeParede(),
             "entrar" => new JanelaEntrar(repositorio),
             "primeiro" => new JanelaNovoProfessor(new RepositorioPerfis(Path.GetTempFileName() + ".json"), ModoPerfil.PrimeiroAcesso),
@@ -374,6 +373,8 @@ public partial class App : Application
             encoder.Save(arquivo);
         if (janela is JanelaTelaCheia tela)
             File.WriteAllText(saida + ".txt", tela.Resumo);
+        if (nome == "clique-vazio" && janela is MainWindow principal)
+            File.WriteAllText(saida + ".txt", principal.TestarCliqueNoVazioParaTeste());
         janela.Close();
         conexao?.Dispose();
     }

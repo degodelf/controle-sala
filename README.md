@@ -191,8 +191,9 @@ abre na conta do aluno. Interpretadores (cmd, powershell, wscript...) são recus
 para o programa sair com jeito (deixa salvar) e, se não sair em 2 s, encerra. Lista em `%AppData%\ControleSala\programas.json`.
 
 **Desligar / reiniciar / encerrar sessão (logoff):** Comandos → Desligar/Reiniciar/Logoff. O professor **confirma antes**
-(Sim/Não, dizendo quantos computadores) e cada aluno vê um **aviso de 20 segundos** antes de acontecer (o Windows mostra
-a contagem). Precisa do agente instalado como serviço.
+(Sim/Não, dizendo quantos computadores). **Desligar e reiniciar acontecem na hora**, sem contagem (o que o aluno não salvou
+se perde); o logoff avisa o aluno 20 segundos antes. Na grade, o PC desligado aparece como **Desligado**, sem a última
+imagem. Precisa do agente instalado como serviço.
 
 **Silenciar / reativar o som:** Comandos → Silenciar o som / Reativar o som. Liga/desliga o mudo do PC do aluno.
 
@@ -202,14 +203,32 @@ Funciona mesmo com o PC desligado (é enviado pelo professor, não pelo agente).
 
 **Bloquear a internet / sites:** Comandos tem três opções. **Bloquear TODA a internet** corta o acesso à internet,
 em IPv4 e IPv6 (a rede local e o ControleSala continuam funcionando), via regra de firewall. **Bloquear sites da lista** bloqueia só
-os sites de **Sites bloqueados...** (ex.: redes sociais), via arquivo hosts, deixando o resto funcionar.
-**Liberar a internet** desfaz os dois. Precisa do agente como serviço.
+os sites de **Sites bloqueados...** (ex.: redes sociais), deixando o resto funcionar. Na lista, é só digitar o nome
+(ex.: "youtube") e escolher a sugestão: a lista começa vazia, e cada site do catálogo vai com **todos os endereços
+dele** (o YouTube também bloqueia youtu.be, googlevideo.com...). O bloqueio é feito no arquivo hosts (site e www) e numa
+regra de DNS do Windows (NRPT) que pega também todos os subdomínios. **Liberar a internet** desfaz tudo. Precisa do
+agente como serviço.
+
+**Filtro permanente (técnico, não aparece no programa):** o agente instalado deixa sempre bloqueados casas de apostas (do
+Brasil e do exterior: tudo em `.bet.br`, `.bet`, `.casino`, `.poker`, `.bingo` e as casas mais conhecidas) e sites adultos
+(`.xxx`, `.porn`, `.sex`, `.adult` e os mais conhecidos). Usa uma seção própria no hosts e uma regra de DNS própria
+("ControleSala filtro"), separadas das do professor: "Liberar a internet" não mexe nelas, só a desinstalação. A lista
+fica em `src/ControleSala.Comum/FiltroPermanente.cs`.
+
+**Comandos e quedas de conexão:** um PC que está reconectando (queda de poucos segundos) também recebe o comando: o
+professor espera ele voltar. Se a conexão cair no meio, bloquear/liberar vão de novo sozinhos. Tela e internet bloqueadas
+continuam bloqueadas se o PC reconectar ou o agente reiniciar. A barra de status diz em quais PCs um comando não chegou.
+Quedas curtas não piscam "Conectando" na grade; cada queda fica anotada em `%AppData%\ControleSala\logs\conexoes.log`
+(para comparar com o `agente.log` do aluno).
+
+**Diagnóstico da sala (Ajuda → Coletar diagnóstico da sala):** pede a cada PC online o fim do `agente.log` e do
+`servico.log`, as placas de rede e os eventos de erro/aviso do Windows dos últimos 3 dias (cabo caindo, IP repetido...), e
+junta tudo com o `conexoes.log` do professor num .zip na Área de Trabalho. Não tem nada dos alunos.
 
 **Limpeza automatizada:** Comandos → Limpeza automática (configurar). Os arquivos são apagados com as permissões do
 aluno, não como SYSTEM, e atalhos de pasta (junções) não são seguidos. O professor escolhe o que apagar na conta do
 aluno (Downloads, Área de Trabalho, Documentos, histórico/cache/cookies dos navegadores, Lixeira, %TEMP%), exceções
-(pastas/arquivos a preservar), se **restaura o papel de parede** (fundo+logo) e a **agenda** (dias da semana + horário).
-A tela de limpeza mostra o **logotipo da escola** escolhido em Papel de parede (sem logotipo, o ícone do programa).
+(pastas/arquivos a preservar), se **restaura o papel de parede** e a **agenda** (dias da semana + horário).
 Também pode **atualizar o Windows Defender** e **fazer uma verificação** (rápida ou completa) depois da limpeza: o Defender
 roda em segundo plano, a verificação acontece mesmo se a atualização falhar, e o resultado de cada PC aparece em
 **Computadores > Situação do Windows Defender**. **Pausar** / **Retomar**, no alto da janela, vale na hora para os
@@ -235,8 +254,8 @@ O programa mostra telas de alunos, muitos deles crianças e adolescentes. O que 
 - **Registro de atividades (Ajuda):** quem fez o quê, quando e em qual computador, só no PC do professor
   (`%AppData%\ControleSala\atividades`), por 6 meses, com exportação para planilha. Não guarda imagens, texto de mensagens
   nem a configuração da limpeza.
-- **O aluno sabe:** o ícone perto do relógio fica vermelho com o nome do professor; com a tela aberta em tamanho grande, ou
-  sob controle, aparece uma faixa no topo.
+- **O aluno sabe:** o ícone perto do relógio fica vermelho com o nome do professor (clicando nele, vê quem está vendo a tela).
+- **Copiar e colar:** só com a tela do aluno aberta pelo professor, e só texto. O que o aluno copia fora disso não sai do PC dele.
 - **Tentativas:** 5 erros seguidos de chave da sala bloqueiam aquele endereço por 1 minuto.
 - **O que o programa não faz:** não grava tela nem áudio, não usa câmera nem microfone, não registra o que é digitado e não
   tem cadastro de aluno. As telas não saem da rede da escola.
@@ -298,8 +317,8 @@ e aparece um aviso perto do relógio. Enviar de novo um arquivo com o mesmo nome
 
 ## Papel de parede da sala
 
-No Professor, botão **Papel de parede...**: escolha o fundo e o logotipo da escola, a posição e o tamanho, veja a
-prévia e salve o PNG. Também dá para gerar sem janela:
+No Professor, botão **Papel de parede...**: escolha a imagem de fundo e a resolução dos PCs, veja a prévia e salve o
+PNG. Também dá para gerar sem janela:
 
 ```bash
 ControleSala.Professor.exe --gerar-papel-de-parede saida.png [--config arquivo.json]

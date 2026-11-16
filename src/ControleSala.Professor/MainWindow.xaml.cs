@@ -18,6 +18,8 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        // Clique no vazio da grade: ouvido mesmo se a área de rolagem já tratou o clique (senão ele nunca chega).
+        AreaGrade.AddHandler(MouseLeftButtonDownEvent, new MouseButtonEventHandler(Fundo_MouseDown), handledEventsToo: true);
         TextoCreditos.Text = Creditos.LinhaComVersao(Versoes.Atual);
         MostrarProfessor();
         MostrarSala();
@@ -73,6 +75,32 @@ public partial class MainWindow : Window
         new JanelaRegrasDeUso(pedirAceite: false) { Owner = this, WindowStartupLocation = WindowStartupLocation.CenterOwner }.ShowDialog();
 
     void MenuAtividades_Click(object sender, RoutedEventArgs e) => new JanelaAtividades { Owner = this }.ShowDialog();
+
+    /// <summary>
+    /// Junta num .zip na Área de Trabalho o diagnóstico de cada PC online (logs do agente e do serviço, rede, eventos do Windows)
+    /// e o diário de quedas deste PC. É o que mostra por que uma conexão cai, sem precisar ir PC por PC.
+    /// </summary>
+    async void ColetarDiagnostico_Click(object sender, RoutedEventArgs e)
+    {
+        if (_tiles.Count == 0) { MostrarAviso("Não há computadores na sala."); return; }
+        MostrarAviso($"Coletando o diagnóstico de {_tiles.Count} computadores (até 30 segundos)...");
+        Cursor = Cursors.Wait;
+        try
+        {
+            var (zip, faltaram) = await DiagnosticoSala.ColetarAsync(_tiles.Select(t => t.Conexao).ToList());
+            Sessao.Registrar("Coletou o diagnóstico da sala");
+            MostrarAviso($"Diagnóstico salvo na Área de Trabalho: {System.IO.Path.GetFileName(zip)} ✓");
+            string aviso = faltaram.Count == 0 ? "" : $"\n\nSem diagnóstico (offline ou versão antiga): {string.Join(", ", faltaram)}.";
+            MessageBox.Show(this, $"O diagnóstico foi salvo na Área de Trabalho:\n{zip}{aviso}\n\nMande esse arquivo para análise. Ele não tem nada dos alunos: só horários, endereços e eventos do Windows.",
+                "Diagnóstico da sala", MessageBoxButton.OK, MessageBoxImage.Information);
+            try { System.Diagnostics.Process.Start("explorer.exe", $"/select,\"{zip}\""); } catch (Exception) { }
+        }
+        catch (Exception ex) when (ex is System.IO.IOException or UnauthorizedAccessException)
+        {
+            MessageBox.Show(this, $"Não foi possível salvar o diagnóstico: {ex.Message}", "Diagnóstico da sala", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+        finally { Cursor = null; }
+    }
 
     /// <summary>Tempo para as telas conectarem antes de abrir o aviso de versão nova no meio da tela.</summary>
     static readonly TimeSpan EsperaAvisoVersao = TimeSpan.FromSeconds(15);
@@ -263,6 +291,31 @@ public partial class MainWindow : Window
         TextoEstado.Text = $"{_tiles.Count} de {_tiles.Count} online";
     }
 
+    /// <summary>Só para a ferramenta de captura: marca 3 PCs, "clica" num ponto vazio da grade e diz quantos ficaram marcados.</summary>
+    internal string TestarCliqueNoVazioParaTeste()
+    {
+        UpdateLayout();
+        SelecionarParaTeste(3);
+        int antes = _tiles.Count(t => t.Selecionado);
+        var ponto = new Point(AreaGrade.ActualWidth - 30, AreaGrade.ActualHeight - 30); // canto vazio, abaixo e à direita dos PCs
+        var alvo = AreaGrade.InputHitTest(ponto) as UIElement ?? AreaGrade;
+        alvo.RaiseEvent(new MouseButtonEventArgs(Mouse.PrimaryDevice, Environment.TickCount, MouseButton.Left)
+            { RoutedEvent = Mouse.MouseDownEvent, Source = alvo });
+        bool marcadoDepoisDoDown = _tiles.Any(t => t.Selecionado);
+        Area_MouseUp(AreaGrade, new MouseButtonEventArgs(Mouse.PrimaryDevice, Environment.TickCount, MouseButton.Left)
+            { RoutedEvent = Mouse.MouseUpEvent });
+        int depois = _tiles.Count(t => t.Selecionado);
+
+        // Clique num PC continua marcando só ele.
+        var tile = _tiles.Count > 1 ? Grade.ItemContainerGenerator.ContainerFromIndex(1) as FrameworkElement : null;
+        var noPc = tile == null ? null : VisualTreeHelper.HitTest(tile, new Point(20, 20))?.VisualHit as UIElement;
+        noPc?.RaiseEvent(new MouseButtonEventArgs(Mouse.PrimaryDevice, Environment.TickCount, MouseButton.Left)
+            { RoutedEvent = Mouse.MouseDownEvent, Source = noPc });
+        int aposPc = _tiles.Count(t => t.Selecionado);
+        return $"alvo do clique vazio: {alvo.GetType().Name}; marcados antes: {antes}; depois do clique no vazio: {depois}" +
+               $" (ainda marcado no meio do clique: {marcadoDepoisDoDown}); depois de clicar no 2º PC: {aposPc}";
+    }
+
     /// <summary>Só para a ferramenta de captura: marca os primeiros computadores, para conferir o visual da seleção.</summary>
     internal void SelecionarParaTeste(int quantidade)
     {
@@ -375,10 +428,13 @@ public partial class MainWindow : Window
         { Owner = this, ConfirmacaoAntesDeEnviar = confirmar }.ShowDialog();
     }
 
-    /// <summary>Envia o comando aos marcados que estão online e avisa o resultado na barra de status.</summary>
+    /// <summary>
+    /// Envia o comando aos marcados que estão online (ou reconectando: o envio espera eles voltarem) e avisa o resultado na
+    /// barra de status, dizendo em quais não chegou.
+    /// </summary>
     async void ExecutarDireto(AcaoComando acao, string argumento, string nomeComando, string? confirmar)
     {
-        var alvos = _tiles.Where(t => t.Selecionado && t.Conexao.Estado == EstadoConexao.Online).Select(t => t.Conexao).ToList();
+        var alvos = _tiles.Where(t => t.Selecionado && t.Conexao.Estado != EstadoConexao.Offline).Select(t => t.Conexao).ToList();
         if (alvos.Count == 0) { MostrarAviso("Nenhum computador selecionado está online."); return; }
         if (confirmar != null &&
             MessageBox.Show(this, $"{confirmar}\n\nComputadores selecionados: {alvos.Count}.", nomeComando,
@@ -386,15 +442,13 @@ public partial class MainWindow : Window
             return;
 
         MostrarAviso($"{nomeComando}: enviando a {alvos.Count}...");
-        int falhas = 0;
+        var falharam = new System.Collections.Concurrent.ConcurrentBag<string>();
         await Task.WhenAll(alvos.Select(async c =>
         {
-            try { var (ok, _) = await c.EnviarComandoAsync(acao, argumento, CancellationToken.None); if (!ok) Interlocked.Increment(ref falhas); }
-            catch { Interlocked.Increment(ref falhas); }
+            try { var (ok, _) = await c.EnviarComandoAsync(acao, argumento, CancellationToken.None); if (!ok) falharam.Add(c.Dados.Nome); }
+            catch { falharam.Add(c.Dados.Nome); }
         }));
-        MostrarAviso(falhas == 0
-            ? $"{nomeComando}: enviado a {alvos.Count} computador{(alvos.Count == 1 ? "" : "es")} ✓"
-            : $"{nomeComando}: {alvos.Count - falhas} ok, {falhas} com erro.");
+        MostrarAviso(RegrasDeComando.ResumoDoEnvio(nomeComando, alvos.Count, falharam));
     }
 
     void ComandoLink_Click(object sender, RoutedEventArgs e)
@@ -437,11 +491,11 @@ public partial class MainWindow : Window
 
     void ComandoDesligar_Click(object sender, RoutedEventArgs e)
         => Comando(AcaoComando.Desligar, "Desligar os computadores",
-            confirmar: "Desligar os computadores selecionados? Os alunos verão um aviso de 20 segundos antes.");
+            confirmar: "Desligar os computadores selecionados agora? Eles desligam na hora, sem contagem: o que o aluno não salvou será perdido.");
 
     void ComandoReiniciar_Click(object sender, RoutedEventArgs e)
         => Comando(AcaoComando.Reiniciar, "Reiniciar os computadores",
-            confirmar: "Reiniciar os computadores selecionados? Os alunos verão um aviso de 20 segundos antes.");
+            confirmar: "Reiniciar os computadores selecionados agora? Eles reiniciam na hora, sem contagem: o que o aluno não salvou será perdido.");
 
     void ComandoLogoff_Click(object sender, RoutedEventArgs e)
         => Comando(AcaoComando.Logoff, "Encerrar a sessão (logoff)",
@@ -453,8 +507,33 @@ public partial class MainWindow : Window
     void ComandoReativarSom_Click(object sender, RoutedEventArgs e)
         => Comando(AcaoComando.Silenciar, "Reativar o som", "0");
 
+    /// <summary>Com PCs marcados na grade (ou botão direito num PC): manda o sinal de ligar direto. Sem seleção: abre a janela.</summary>
     void WakeOnLan_Click(object sender, RoutedEventArgs e)
-        => new JanelaWakeOnLan(_sala) { Owner = this }.ShowDialog();
+    {
+        if (!HaSelecao) { new JanelaWakeOnLan(_sala) { Owner = this }.ShowDialog(); return; }
+        var marcados = _tiles.Where(t => t.Selecionado).ToList();
+        var semMac = new List<string>();
+        int enviados = 0, jaLigados = 0;
+        foreach (var t in marcados)
+        {
+            if (t.Conexao.Estado == EstadoConexao.Online && t.Conexao.DesligamentoAtual == Desligamento.Nenhum) { jaLigados++; continue; }
+            if (t.Conexao.Dados.Mac is not { } mac || !WakeOnLan.EhValido(mac)) { semMac.Add(t.Nome); continue; }
+            try
+            {
+                // Também direto no último IP do aluno, caso a rede bloqueie o broadcast.
+                System.Net.IPAddress.TryParse(t.Conexao.Dados.Endereco, out var ip);
+                WakeOnLan.Enviar(mac, ip);
+                enviados++;
+            }
+            catch (Exception ex) when (ex is System.Net.Sockets.SocketException or ArgumentException) { semMac.Add(t.Nome); }
+        }
+        Sessao.Registrar("Ligar (Wake-on-LAN)", string.Join(", ", marcados.Select(t => t.Nome)));
+        var partes = new List<string>();
+        if (enviados > 0) partes.Add($"sinal de ligar enviado a {enviados} computador{(enviados == 1 ? "" : "es")} (pode levar alguns segundos)");
+        if (jaLigados > 0) partes.Add($"{jaLigados} já {(jaLigados == 1 ? "está ligado" : "estão ligados")}");
+        if (semMac.Count > 0) partes.Add($"sem endereço de rede ainda (precisa ter ficado online uma vez): {string.Join(", ", semMac)}");
+        MostrarAviso("Ligar: " + string.Join("; ", partes) + ".");
+    }
 
     void BloquearInternet_Click(object sender, RoutedEventArgs e)
         => Comando(AcaoComando.BloquearInternet, "Bloquear TODA a internet",
@@ -463,8 +542,10 @@ public partial class MainWindow : Window
     void BloquearSites_Click(object sender, RoutedEventArgs e)
     {
         var sites = Sites.Carregar();
-        if (sites.Count == 0) { MessageBox.Show(this, "Cadastre os sites em \"Sites bloqueados...\" primeiro.", "Bloquear sites", MessageBoxButton.OK, MessageBoxImage.Information); return; }
-        Comando(AcaoComando.BloquearInternet, $"Bloquear {sites.Count} site(s)", string.Join(",", sites));
+        // Cada site do catálogo vai com todos os endereços dele (YouTube: youtube.com, youtu.be, googlevideo.com...).
+        var enderecos = CatalogoSites.Expandir(sites);
+        if (enderecos.Count == 0) { MessageBox.Show(this, "Cadastre os sites em \"Sites bloqueados...\" primeiro.", "Bloquear sites", MessageBoxButton.OK, MessageBoxImage.Information); return; }
+        Comando(AcaoComando.BloquearInternet, $"Bloquear {sites.Count} site(s)", string.Join(",", enderecos));
     }
 
     void LiberarInternet_Click(object sender, RoutedEventArgs e)
@@ -521,7 +602,7 @@ public partial class MainWindow : Window
             if (t.Conexao.Modo == ModoVideo.Miniatura)
                 t.AtualizarImagem();
             t.AtualizarEstado();
-            if (t.Conexao.Estado == EstadoConexao.Online) online++;
+            if (t.Conexao.EstadoVisivel == EstadoConexao.Online) online++;
             // Guarda o MAC assim que chega (para Wake-on-LAN), a não ser que a conexão tenha caído em outro PC que pegou este IP.
             if (t.Conexao.Mac is { } mac && t.Conexao.NomeDoAgente is { } conectado && !_sala.EhOutroPc(t.Conexao.Dados, conectado))
                 _sala.DefinirMac(t.Conexao.Dados, mac);
@@ -603,8 +684,9 @@ public partial class MainWindow : Window
     void Fundo_MouseDown(object sender, MouseButtonEventArgs e)
     {
         // Botão esquerdo numa área vazia (fora dos computadores): começa a seleção por arrasto.
-        // Sem arrastar, vira um clique simples que limpa a seleção (ao soltar).
-        if (AcharTile(e.OriginalSource as DependencyObject) != null) return;
+        // Sem arrastar, é um clique simples que limpa a seleção, como no Explorador do Windows.
+        // (Ligado com handledEventsToo: a área de rolagem segura o clique antes e ele não chegava aqui.)
+        if (AcharTile(e.OriginalSource as DependencyObject) != null || NaBarraDeRolagem(e.OriginalSource as DependencyObject)) return;
 
         _aditivoArrasto = (Keyboard.Modifiers & ModifierKeys.Control) != 0;
         _selecaoBase.Clear();
@@ -737,6 +819,14 @@ public partial class MainWindow : Window
     void Atalhos_Click(object sender, RoutedEventArgs e)
         => new JanelaAtalhos(_atalhos) { Owner = this }.ShowDialog();
 
+    /// <summary>O clique foi na barra de rolagem da grade (ela não pode limpar a seleção nem começar o arrasto).</summary>
+    static bool NaBarraDeRolagem(DependencyObject? d)
+    {
+        for (; d != null; d = d is Visual or System.Windows.Media.Media3D.Visual3D ? VisualTreeHelper.GetParent(d) : LogicalTreeHelper.GetParent(d))
+            if (d is System.Windows.Controls.Primitives.ScrollBar) return true;
+        return false;
+    }
+
     static TileVm? AcharTile(DependencyObject? d)
     {
         while (d != null)
@@ -844,25 +934,24 @@ public partial class MainWindow : Window
                 "Aplicar papel de parede", MessageBoxButton.OK, MessageBoxImage.Information);
             return;
         }
-        var alvos = _tiles.Where(t => (!HaSelecao || t.Selecionado) && t.Conexao.Estado == EstadoConexao.Online)
+        var alvos = _tiles.Where(t => (!HaSelecao || t.Selecionado) && t.Conexao.Estado != EstadoConexao.Offline)
                           .Select(t => t.Conexao).ToList();
         if (alvos.Count == 0) { MostrarAviso("Nenhum computador online para aplicar o papel de parede."); return; }
 
         MostrarAviso($"Aplicando papel de parede em {alvos.Count}...");
-        int falhas = 0;
+        var falharam = new System.Collections.Concurrent.ConcurrentBag<string>();
         await Task.WhenAll(alvos.Select(async c =>
         {
             try
             {
-                c.ReenviarConfigLimpeza(); // garante que o agente tem o papel atual antes de aplicar
+                // A configuração (com o papel atual) vai junto a cada conexão; aqui garante a versão nova antes de aplicar.
+                if (c.Estado == EstadoConexao.Online) c.ReenviarConfigLimpeza();
                 var (ok, _) = await c.EnviarComandoAsync(AcaoComando.DefinirPapel, "", CancellationToken.None);
-                if (!ok) Interlocked.Increment(ref falhas);
+                if (!ok) falharam.Add(c.Dados.Nome);
             }
-            catch { Interlocked.Increment(ref falhas); }
+            catch { falharam.Add(c.Dados.Nome); }
         }));
-        MostrarAviso(falhas == 0
-            ? $"Papel de parede aplicado em {alvos.Count} computador{(alvos.Count == 1 ? "" : "es")} ✓"
-            : $"Papel de parede: {alvos.Count - falhas} ok, {falhas} com erro.");
+        MostrarAviso(RegrasDeComando.ResumoDoEnvio("Papel de parede", alvos.Count, falharam));
     }
 
     void Window_Closed(object? sender, EventArgs e)

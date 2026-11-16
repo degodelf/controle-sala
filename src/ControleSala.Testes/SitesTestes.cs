@@ -89,4 +89,75 @@ public class SitesTestes
         }
         finally { File.Delete(arq); }
     }
+
+    [Theory]
+    [InlineData("*.bet", "bet")]
+    [InlineData("*.BET.br", "bet.br")]
+    [InlineData(" *.casino ", "casino")]
+    public void Terminacoes_validas(string token, string esperado) => Assert.Equal(esperado, Sites.NormalizarTerminacao(token));
+
+    [Theory]
+    [InlineData("bet")]
+    [InlineData("*.")]
+    [InlineData("*..bet")]
+    [InlineData("*.bet.")]
+    [InlineData("*.b_t")]
+    [InlineData("*.bet'; Remove-Item")]
+    public void Terminacoes_invalidas(string token) => Assert.Null(Sites.NormalizarTerminacao(token));
+
+    [Fact]
+    public void Separar_tudo_distingue_sites_de_terminacoes()
+    {
+        var (dominios, terminacoes) = Sites.SepararTudo("youtube.com, *.bet.br,*.bet\nwww.tiktok.com  lixo *.bet");
+        Assert.Equal(["youtube.com", "tiktok.com"], dominios);
+        Assert.Equal(["bet.br", "bet"], terminacoes);
+    }
+
+    [Fact]
+    public void Separar_antigo_ignora_terminacoes_como_um_agente_velho()
+    {
+        Assert.Equal(["youtube.com"], Sites.Separar("youtube.com,*.bet"));
+    }
+
+    [Fact]
+    public void Regra_de_dns_pega_o_site_e_os_subdominios_sem_repetir_quem_ja_esta_coberto()
+    {
+        var nomes = Sites.NomesDaRegraDns(["youtube.com", "m.youtube.com", "music.youtube.com", "youtu.be", "stake.bet", "x.bet.br"],
+            ["bet", "bet.br"]);
+        Assert.Contains("youtube.com", nomes);
+        Assert.Contains(".youtube.com", nomes);   // m., music., qualquer subdomínio
+        Assert.Contains("youtu.be", nomes);
+        Assert.Contains(".youtu.be", nomes);
+        Assert.Contains(".bet", nomes);
+        Assert.Contains(".bet.br", nomes);
+        Assert.DoesNotContain("m.youtube.com", nomes);  // já coberto por .youtube.com
+        Assert.DoesNotContain("stake.bet", nomes);      // já coberto por .bet
+        Assert.DoesNotContain("x.bet.br", nomes);
+    }
+
+    [Fact]
+    public void Terminacao_dentro_de_outra_nao_repete()
+    {
+        // "bet.br" não fica embaixo de ".bet" (é .br), então as duas entram.
+        Assert.Equal([".bet", ".bet.br"], Sites.NomesDaRegraDns([], ["bet", "bet.br"]));
+        Assert.Equal([".br"], Sites.NomesDaRegraDns([], ["br", "bet.br"]));
+    }
+
+    [Fact]
+    public void Comando_da_regra_de_dns_troca_so_a_regra_do_controlesala()
+    {
+        string cmd = Sites.ComandoRegraDns(["youtube.com", ".youtube.com"]);
+        Assert.Contains($"$_.Comment -eq '{Sites.ComentarioRegraDns}'", cmd);
+        Assert.Contains("Add-DnsClientNrptRule -Namespace @('youtube.com','.youtube.com')", cmd);
+        Assert.Contains("-NameServers '127.0.0.1'", cmd);
+        Assert.Contains("Clear-DnsClientCache", cmd);
+
+        string liberar = Sites.ComandoRegraDns([]);
+        Assert.Contains("Remove-DnsClientNrptRule", liberar);
+        Assert.DoesNotContain("Add-DnsClientNrptRule", liberar);
+    }
+
+    [Fact]
+    public void Comando_da_regra_de_dns_recusa_nome_que_escaparia_das_aspas() =>
+        Assert.Throws<ArgumentException>(() => Sites.ComandoRegraDns(["x.com'; Remove-Item C:\\ -Recurse; '"]));
 }

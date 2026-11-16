@@ -9,8 +9,8 @@
         <TextBlock Text="Nome (como aparece na grade)"/>
         <TextBox x:Name="CampoNome" MaxLength="40" Margin="0,4,0,12" Padding="6,4"/>
 
-        <TextBlock Text="Endereço IP ou nome do computador"/>
-        <TextBox x:Name="CampoEndereco" MaxLength="255" Margin="0,4,0,12" Padding="6,4"/>
+        <TextBlock Text="Endereço IP (ex.: 192.168.0.15)"/>
+        <TextBox x:Name="CampoEndereco" MaxLength="45" Margin="0,4,0,12" Padding="6,4"/>
 
         <TextBlock Text="Porta"/>
         <TextBox x:Name="CampoPorta" MaxLength="5" Width="90" HorizontalAlignment="Left" Margin="0,4,0,8" Padding="6,4"/>

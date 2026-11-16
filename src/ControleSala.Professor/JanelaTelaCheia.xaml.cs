@@ -32,14 +32,23 @@ public partial class JanelaTelaCheia : Window
         conexao.Modo = ModoVideo.Completo;
         _controlando = true; // ao abrir a tela já se controla o computador (sem botão "Controlar")
         Loaded += (_, _) => { Activate(); Keyboard.Focus(this); }; // garante que mouse e teclado cheguem a esta janela
+        _conexao.TextoCopiado += AoCopiarNoAluno;
+        Activated += (_, _) => MandarTextoCopiadoAoAluno(); // voltou de outro programa: o que copiou lá já pode ser colado no aluno
+        // Tecla Windows vai para o aluno enquanto esta janela está em foco (e não abre o Iniciar deste PC).
+        // O envio sai do gancho de teclado (que precisa responder rápido) e vai para a fila desta janela, na mesma ordem.
+        _teclaWindows = new TeclaWindowsRemota((vk, apertada) =>
+            Dispatcher.BeginInvoke(() => _conexao.EnviarEntrada(Protocolo.MontarEntradaTecla(vk, apertada, estendida: true))));
+        Activated += (_, _) => _teclaWindows.Ativa = true;
+        Deactivated += (_, _) => { _teclaWindows.Ativa = false; _teclaWindows.SoltarTudo(); };
         CompositionTarget.Rendering += AoRenderizar;
     }
 
     void AoRenderizar(object? sender, EventArgs e)
     {
         bool desenhou = _conexao.PegarQuadroNovo(_usarQuadro);
-        if (_conexao.Estado != EstadoConexao.Online)
-            TextoMensagem.Text = _conexao.Estado == EstadoConexao.Conectando ? "Conectando..." : $"Offline — {_conexao.Detalhe}";
+        var estado = _conexao.EstadoVisivel;
+        if (estado != EstadoConexao.Online)
+            TextoMensagem.Text = estado == EstadoConexao.Conectando ? "Conectando..." : $"Offline — {_conexao.Detalhe}";
         else if (desenhou)
             TextoMensagem.Text = "";
 
@@ -77,6 +86,7 @@ public partial class JanelaTelaCheia : Window
     // ---------- Controle remoto (mouse e teclado) ----------
 
     bool _controlando;
+    readonly TeclaWindowsRemota _teclaWindows;
     long _ultimoMove;
     ushort _ultimoNx, _ultimoNy;
     static readonly long IntervaloMove = Stopwatch.Frequency / 120; // no máximo ~120 envios de movimento por segundo
@@ -164,9 +174,41 @@ public partial class JanelaTelaCheia : Window
         _ => null,
     };
 
+    // ---------- Copiar e colar entre o aluno e o professor (só texto) ----------
+
+    string? _ultimoDoAluno, _ultimoEnviado;
+    DispatcherTimer? _relogioDica;
+
+    /// <summary>O aluno copiou (Ctrl+C) com a tela aberta aqui: o texto já fica pronto para colar no PC do professor.</summary>
+    void AoCopiarNoAluno(string texto) => Dispatcher.BeginInvoke(() =>
+    {
+        _ultimoDoAluno = texto;
+        if (!AreaDeTransferencia.Definir(texto)) return;
+        MostrarDica("Texto copiado do aluno ✓ — já pode colar (Ctrl+V) no seu computador.");
+    });
+
+    /// <summary>O que o professor copiou no PC dele vai para o aluno (antes do Ctrl+V lá, ou ao voltar para esta janela).</summary>
+    void MandarTextoCopiadoAoAluno()
+    {
+        if (AreaDeTransferencia.LerTexto() is not { } texto || texto == _ultimoDoAluno || texto == _ultimoEnviado) return;
+        if (_conexao.EnviarTextoCopiado(texto)) _ultimoEnviado = texto;
+    }
+
+    void MostrarDica(string texto)
+    {
+        TextoDica.Text = texto;
+        _relogioDica?.Stop();
+        _relogioDica = new DispatcherTimer { Interval = TimeSpan.FromSeconds(5) };
+        _relogioDica.Tick += (_, _) => { _relogioDica?.Stop(); TextoDica.Text = DicaPadrao; };
+        _relogioDica.Start();
+    }
+
+    const string DicaPadrao = "Você está controlando este computador. Copiar e colar (Ctrl+C / Ctrl+V) funciona entre os dois PCs. Esc fecha.";
+
     void Window_PreviewKeyDown(object sender, KeyEventArgs e)
     {
         if (e.Key == Key.Escape) { Close(); return; } // Esc fecha a janela (e encerra o controle)
+        if (e.Key == Key.V && (Keyboard.Modifiers & ModifierKeys.Control) != 0) MandarTextoCopiadoAoAluno(); // chega antes do Ctrl+V
         EnviarTecla(e, pressionado: true);
         e.Handled = true;
     }
@@ -188,10 +230,13 @@ public partial class JanelaTelaCheia : Window
     /// <summary>Teclas "estendidas" (setas, navegação, teclas da direita), que precisam da marca correta no Windows.</summary>
     static bool EhEstendida(Key k) => k is Key.Left or Key.Right or Key.Up or Key.Down
         or Key.Home or Key.End or Key.PageUp or Key.PageDown or Key.Insert or Key.Delete
-        or Key.NumLock or Key.PrintScreen or Key.Apps or Key.RightCtrl or Key.RightAlt or Key.Divide;
+        or Key.NumLock or Key.PrintScreen or Key.Apps or Key.RightCtrl or Key.RightAlt or Key.Divide or Key.LWin or Key.RWin;
 
     void Window_Closed(object? sender, EventArgs e)
     {
+        _conexao.TextoCopiado -= AoCopiarNoAluno;
+        _teclaWindows.Dispose();
+        _relogioDica?.Stop();
         CompositionTarget.Rendering -= AoRenderizar;
         _relogioTrava?.Stop();
         if (BotaoTravar.IsChecked == true) _conexao.EnviarEntrada(Protocolo.MontarEntradaTravar(false)); // destrava ao fechar

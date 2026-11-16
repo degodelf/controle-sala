@@ -42,7 +42,6 @@ sealed class Bandeja : IDisposable
 
     void Atualizar(string[] professores)
     {
-        IndicadorControle.DefinirVisao(_servidor.VendoEmTelaGrande);
         bool visto = professores.Length > 0;
         _icone.Icon = visto ? _iconeVisto : _iconeLivre;
         _icone.Text = Limitar(visto ? $"{_nomeSala} — tela sendo vista por {string.Join(", ", professores)}" : _nomeSala);

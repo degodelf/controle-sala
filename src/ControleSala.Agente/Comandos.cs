@@ -211,15 +211,15 @@ static class Comandos
     const string RegraFirewall = "ControleSala Bloqueio Internet";
 
     // Arquivo hosts (pode ser trocado em teste pela variável CONTROLESALA_HOSTS).
-    static string CaminhoHosts => Environment.GetEnvironmentVariable("CONTROLESALA_HOSTS")
+    internal static string CaminhoHosts => Environment.GetEnvironmentVariable("CONTROLESALA_HOSTS")
         ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "drivers", "etc", "hosts");
 
-    /// <param name="argumento">Vazio = bloqueia TODA a internet (firewall). Com sites = bloqueia só esses sites (hosts).</param>
+    /// <param name="argumento">Vazio = bloqueia TODA a internet (firewall). Com sites = bloqueia só esses sites (hosts + regra de DNS).</param>
     static (bool, string) BloquearInternet(string argumento)
     {
-        var sites = Sites.Separar(argumento);
-        if (sites.Count > 0)
-            return BloquearSites(sites);
+        var (dominios, terminacoes) = Sites.SepararTudo(argumento);
+        if (dominios.Count > 0 || terminacoes.Count > 0)
+            return BloquearSites(dominios, terminacoes);
 
         // Bloqueia toda a internet, mas mantém a rede local (para o professor continuar alcançando o agente).
         // remoteip = tudo, menos as faixas privadas (10/8, 172.16/12, 192.168/16). No IPv6, 2000::/3 é a internet: sobram os endereços locais.
@@ -231,26 +231,66 @@ static class Comandos
                       : (false, $"Não foi possível bloquear a internet (código {r}). Precisa do serviço (administrador).");
     }
 
-    static (bool, string) BloquearSites(List<string> sites)
+    static (bool, string) BloquearSites(List<string> dominios, List<string> terminacoes)
     {
         try
         {
+            // 1) hosts: o site e o www (terminações como ".bet" não cabem no hosts).
             string hosts = CaminhoHosts;
             string atual = File.Exists(hosts) ? File.ReadAllText(hosts) : "";
-            File.WriteAllText(hosts, Sites.MontarHosts(atual, sites));
-            LimparCacheDns();
-            return (true, $"{sites.Count} site(s) bloqueado(s).");
+            File.WriteAllText(hosts, Sites.MontarHosts(atual, dominios));
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             return (false, $"Não foi possível bloquear os sites: {ex.Message} (precisa do serviço).");
         }
+        // 2) regra de DNS do Windows: todos os subdomínios e as terminações. Se o Windows recusar, o hosts continua valendo.
+        string? erroDns = AplicarRegraDns(Sites.NomesDaRegraDns(dominios, terminacoes));
+        LimparCacheDns();
+        int total = dominios.Count + terminacoes.Count;
+        return erroDns == null
+            ? (true, $"{total} endereço(s) bloqueado(s), com todos os subdomínios.")
+            : (true, $"{total} endereço(s) bloqueado(s) (só o endereço e o www: {erroDns}).");
+    }
+
+    /// <summary>
+    /// Troca a regra de DNS (NRPT) do ControleSala pelos nomes dados; lista vazia só tira a regra. Null = deu certo.
+    /// No teste com hosts falso (CONTROLESALA_HOSTS), não mexe no DNS do PC.
+    /// </summary>
+    internal static string? AplicarRegraDns(IReadOnlyCollection<string> nomes, string comentario = Sites.ComentarioRegraDns)
+    {
+        if (Environment.GetEnvironmentVariable("CONTROLESALA_HOSTS") != null) return "modo de teste";
+        try
+        {
+            string script = Sites.ComandoRegraDns(nomes, comentario);
+            string codificado = Convert.ToBase64String(System.Text.Encoding.Unicode.GetBytes(script));
+            var inicio = new ProcessStartInfo(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System),
+                "WindowsPowerShell", "v1.0", "powershell.exe"))
+            {
+                UseShellExecute = false, CreateNoWindow = true, RedirectStandardError = true, RedirectStandardOutput = true,
+            };
+            foreach (var a in new[] { "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-EncodedCommand", codificado })
+                inicio.ArgumentList.Add(a);
+            using var p = Process.Start(inicio);
+            if (p == null) return "o PowerShell não abriu";
+            var saida = p.StandardOutput.ReadToEndAsync();
+            var erro = p.StandardError.ReadToEndAsync();
+            if (!p.WaitForExit(30000)) { try { p.Kill(); } catch (Exception) { } return "o Windows demorou demais"; }
+            if (p.ExitCode == 0) return null;
+            string texto = erro.Result.Trim();
+            return texto.Length == 0 ? $"código {p.ExitCode}" : texto.Split('\n')[0].Trim();
+        }
+        catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or IOException or InvalidOperationException or ArgumentException)
+        {
+            return ex.Message;
+        }
     }
 
     internal static (bool, string) LiberarInternet()
     {
-        // Libera os dois: tira a regra de firewall e a seção de sites do hosts.
+        // Libera tudo: tira a regra de firewall, a regra de DNS dos sites e a seção de sites do hosts.
         Netsh($"advfirewall firewall delete rule name=\"{RegraFirewall}\"");
+        AplicarRegraDns([]);
         try
         {
             string hosts = CaminhoHosts;
@@ -281,7 +321,7 @@ static class Comandos
         catch (Exception) { return -1; }
     }
 
-    static void LimparCacheDns()
+    internal static void LimparCacheDns()
     {
         try
         {
@@ -303,18 +343,20 @@ static class Comandos
 
     const int SegundosAviso = 20;
 
+    /// <summary>Argumentos do shutdown.exe: na hora (/t 0) e fechando o que estiver aberto (/f), para nada segurar o desligamento.</summary>
+    internal static string ArgumentosDesligar(bool reiniciar) => $"{(reiniciar ? "/r" : "/s")} /f /t 0";
+
     static (bool, string) DesligarOuReiniciar(bool reiniciar)
     {
-        // O shutdown.exe já mostra ao aluno o aviso do Windows com a contagem regressiva.
+        // Na hora, sem contagem: o professor já confirmou no programa dele.
         string acao = reiniciar ? "reiniciar" : "desligar";
-        var inicio = new ProcessStartInfo("shutdown.exe",
-            $"{(reiniciar ? "/r" : "/s")} /t {SegundosAviso} /c \"O computador vai {acao} a pedido do professor.\"")
+        var inicio = new ProcessStartInfo("shutdown.exe", ArgumentosDesligar(reiniciar))
         { UseShellExecute = false, CreateNoWindow = true };
         using var p = Process.Start(inicio);
         p?.WaitForExit(5000);
         if (p is { ExitCode: not 0 })
             return (false, $"O Windows recusou {acao} (código {p.ExitCode}).");
-        return (true, $"O computador vai {acao} em {SegundosAviso} segundos.");
+        return (true, reiniciar ? "Reiniciando agora." : "Desligando agora.");
     }
 
     static (bool, string) Logoff()

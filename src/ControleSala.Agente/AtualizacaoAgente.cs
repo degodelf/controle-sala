@@ -13,6 +13,21 @@ static class AtualizacaoAgente
 {
     public const string NomeArquivo = "ControleSala-Setup.exe";
     static int _instalando;
+    /// <summary>Instalador que não troca o agente nesse tempo travou: é encerrado e a trava solta (dá para mandar de novo).</summary>
+    static readonly TimeSpan LimiteDoInstalador = TimeSpan.FromMinutes(15);
+
+    /// <summary>Uma atualização já foi aceita e está instalando: um envio novo é recusado logo no começo (sem baixar nada).</summary>
+    public static bool EmAndamento => Volatile.Read(ref _instalando) == 1 || InstaladorRodando();
+
+    /// <summary>Um instalador do ControleSala ainda rodando (por exemplo, de antes de o agente ser reaberto).</summary>
+    static bool InstaladorRodando()
+    {
+        try { return Process.GetProcessesByName(Path.GetFileNameWithoutExtension(NomeArquivo)).Length > 0; }
+        catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception) { return false; }
+    }
+
+    /// <summary>Log do instalador (Inno Setup), para o diagnóstico.</summary>
+    public static string CaminhoLog => Path.Combine(Pasta, "atualizacao.log");
 
     static bool EhSystem { get { try { return WindowsIdentity.GetCurrent().IsSystem; } catch { return false; } } }
 
@@ -23,7 +38,8 @@ static class AtualizacaoAgente
 
     public static RecebedorArquivos NovoRecebedor()
     {
-        LimparRestos();
+        // Nunca apaga o instalador que está para rodar (foi o que fez a atualização falhar com "arquivo não encontrado").
+        if (!EmAndamento) LimparRestos();
         return new RecebedorArquivos(Pasta, conferirTipo: false);
     }
 
@@ -58,21 +74,37 @@ static class AtualizacaoAgente
             return (false, "Já há uma atualização sendo instalada neste computador.");
 
         aviso($"Atualização para a versão {versao} enviada por {professor ?? "professor"}: instalando.");
-        string log = Path.Combine(Pasta, "atualizacao.log");
+        string log = CaminhoLog;
         // Espera a resposta chegar ao professor antes: o instalador encerra este agente logo no começo.
         _ = Task.Run(async () =>
         {
             await Task.Delay(TimeSpan.FromSeconds(2));
+            Process? instalador = null;
             try
             {
-                Process.Start(new ProcessStartInfo(caminho, $"/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /LOG=\"{log}\"")
-                    { UseShellExecute = false, CreateNoWindow = true });
+                instalador = Process.Start(new ProcessStartInfo(caminho, $"/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /LOG=\"{log}\"")
+                    { UseShellExecute = false, CreateNoWindow = true, WorkingDirectory = Pasta });
             }
             catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or IOException)
             {
                 aviso($"Não foi possível iniciar o instalador: {ex.Message}");
                 Interlocked.Exchange(ref _instalando, 0);
+                return;
             }
+            if (instalador == null) { Interlocked.Exchange(ref _instalando, 0); return; }
+            // Se der certo, o instalador encerra este agente antes de terminar e esta parte nunca continua.
+            // Se este agente ainda está aqui quando ele termina (ou trava), a instalação não aconteceu: solta a trava.
+            using (instalador)
+            {
+                if (await Task.Run(() => instalador.WaitForExit(LimiteDoInstalador)))
+                    aviso($"O instalador terminou sem trocar o agente (código {instalador.ExitCode}). Detalhes em atualizacao.log.");
+                else
+                {
+                    try { instalador.Kill(entireProcessTree: true); } catch (Exception) { /* já terminou */ }
+                    aviso($"O instalador ficou parado {LimiteDoInstalador.TotalMinutes:0} minutos e foi encerrado. Detalhes em atualizacao.log.");
+                }
+            }
+            Interlocked.Exchange(ref _instalando, 0);
         });
         return (true, $"Instalando a versão {versao}. O computador volta para a grade em cerca de 1 minuto.");
     }

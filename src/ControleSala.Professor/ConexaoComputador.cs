@@ -21,8 +21,9 @@ sealed unsafe partial class ConexaoComputador : IDisposable
 {
     public delegate void UsarQuadro(IntPtr bgra, int largura, int altura, int stride, long momentoRecebido, int usAgente);
 
-    static readonly TimeSpan EsperaEntreTentativas = TimeSpan.FromSeconds(3);
     static readonly TimeSpan EsperaQuandoOffline = TimeSpan.FromSeconds(5);
+    /// <summary>Depois de uma queda, tenta de novo quase na hora (o agente pode estar só reiniciando).</summary>
+    static readonly TimeSpan EsperaAposQueda = TimeSpan.FromMilliseconds(300);
     const int TentativasAntesDeOffline = 4; // só declara "Offline" (e espaça as tentativas) após algumas falhas seguidas
 
     readonly byte[]? _chave;
@@ -37,6 +38,7 @@ sealed unsafe partial class ConexaoComputador : IDisposable
     volatile EstadoConexao _estado = EstadoConexao.Conectando;
     volatile string _detalhe = "";
     volatile int _falhas; // tentativas seguidas sem sucesso: controla o recuo e evita ficar piscando "Conectando"
+    volatile bool _pedidoReconectar; // a queda foi pedida (F5, endereço novo): não entra no diário como problema
     int _modo = (int)ModoVideo.Miniatura;
     volatile object? _ola; // Ola em caixa: a referência é lida/gravada de uma vez só entre threads
 
@@ -100,6 +102,19 @@ sealed unsafe partial class ConexaoComputador : IDisposable
     /// <summary>Envia um evento de controle remoto (mouse/teclado) para o agente. Sem conexão, é ignorado.</summary>
     public void EnviarEntrada(byte[] mensagem) => Enviar(mensagem);
 
+    volatile TaskCompletionSource<string>? _diagnostico; // ver PedirDiagnosticoAsync
+
+    /// <summary>O aluno copiou um texto (Ctrl+C) com a tela dele aberta aqui. Chega na thread de rede.</summary>
+    public event Action<string>? TextoCopiado;
+
+    /// <summary>Coloca o texto na área de transferência do aluno (só vale com a tela dele aberta). False se não deu para mandar.</summary>
+    public bool EnviarTextoCopiado(string texto)
+    {
+        if (Protocolo.MontarAreaDeTransferencia(texto) is not { } msg || _fluxo == null) return false;
+        Enviar(msg);
+        return true;
+    }
+
     /// <param name="chave">Chave da sala; sem ela, só se conecta a agentes de teste neste mesmo PC.</param>
     public ConexaoComputador(ComputadorSala dados, byte[]? chave)
     {
@@ -113,7 +128,8 @@ sealed unsafe partial class ConexaoComputador : IDisposable
     /// <summary>Derruba a conexão atual (se houver) e tenta de novo agora, sem esperar os 3 s.</summary>
     public void Reconectar()
     {
-        _falhas = 0; // volta a tentar já e a mostrar "Conectando" (foi um pedido do professor, ex.: F5)
+        _falhas = 0; // volta a tentar já (foi um pedido do professor, ex.: F5)
+        _pedidoReconectar = true;
         EsquecerAgente();
         _tentarJa.Set();
         try { _tcp?.Dispose(); } catch (ObjectDisposedException) { }
@@ -146,20 +162,28 @@ sealed unsafe partial class ConexaoComputador : IDisposable
                     tcp.ConnectAsync(Dados.Endereco, Dados.Porta, limite.Token).AsTask().GetAwaiter().GetResult();
                 }
                 _tcp = tcp;
+                ConexaoViva.Ligar(tcp.Client); // PC que some sem fechar (cabo, energia) derruba a conexão em ~20 s
                 tcp.ReceiveTimeout = 5000; // aperto de mão: quem não responde em 5 s é dado como sem resposta
                 bool local = tcp.Client.RemoteEndPoint is IPEndPoint ep && IPAddress.IsLoopback(ep.Address);
                 var fluxo = Handshake.Professor(tcp.GetStream(), _chave, aceitaSemChave: local);
                 tcp.ReceiveTimeout = 0;
                 _fluxo = fluxo;
                 EsquecerAgente();
+                lock (_trava) _novo = false; // não mostra um quadro que sobrou da conexão anterior
                 Volatile.Write(ref _onlineDesde, Environment.TickCount64);
+                Interlocked.Increment(ref _geracao);
+                long caiuEm = Interlocked.Exchange(ref _caiuEm, 0);
                 _estado = EstadoConexao.Online;
                 _detalhe = "";
+                _pedidoReconectar = false;
                 conectou = true;
+                if (caiuEm != 0)
+                    RegistroConexoes.Anotar(Dados, $"voltou em {(Environment.TickCount64 - caiuEm) / 1000.0:0.0} s");
                 if (Sessao.Atual is { } professor)
                     Enviar(Protocolo.MontarIdentificacao(professor.Nome)); // o aluno vê quem está olhando
                 EnviarConfigLimpeza(); // manda a configuração/imagens de limpeza para este PC
                 Enviar(Protocolo.MontarDefinirModo(Modo)); // sem isso o agente não manda vídeo
+                ReaplicarEstadoDesejado(); // tela/internet bloqueadas continuam assim se o agente reiniciou
                 Receber(fluxo);
                 _detalhe = "conexão encerrada pelo agente";
             }
@@ -184,6 +208,7 @@ sealed unsafe partial class ConexaoComputador : IDisposable
                 // Conectou e caiu: zera (reconecta rápido, ainda como "Conectando"). Nunca conectou: conta a falha.
                 _falhas = conectou ? 0 : Math.Min(_falhas + 1, 100);
                 _estado = _falhas <= TentativasAntesDeOffline ? EstadoConexao.Conectando : EstadoConexao.Offline;
+                AnotarQueda(conectou);
                 _tcp = null;
                 _fluxo = null;
                 tcp.Dispose();
@@ -194,10 +219,32 @@ sealed unsafe partial class ConexaoComputador : IDisposable
                     canal.Writer.TryWrite(new RespostaComando(0, false, "a conexão com o computador caiu"));
             }
 
-            // Reconecta rápido (3 s) enquanto pode ser um blip; só espaça para 10 s quando o PC está mesmo offline.
+            // Caiu uma conexão que estava aberta: tenta de novo quase na hora. Não conseguiu: 1, 2, 3 s; offline mesmo: 5 s.
             // Um pedido do professor (Reconectar/F5) ou fechar o programa interrompe a espera.
-            var espera = _falhas <= TentativasAntesDeOffline ? EsperaEntreTentativas : EsperaQuandoOffline;
+            var espera = conectou ? EsperaAposQueda
+                : _falhas <= TentativasAntesDeOffline ? TimeSpan.FromSeconds(Math.Clamp(_falhas, 1, 3))
+                : EsperaQuandoOffline;
             WaitHandle.WaitAny([_cancelar.Token.WaitHandle, _tentarJa.WaitHandle], espera);
+        }
+    }
+
+    /// <summary>Anota no diário as quedas de verdade (não as pedidas pelo professor nem o fechamento do programa).</summary>
+    void AnotarQueda(bool conectou)
+    {
+        if (_cancelar.IsCancellationRequested) return;
+        if (conectou)
+        {
+            bool pedido = _pedidoReconectar;
+            _pedidoReconectar = false;
+            if (!pedido) Volatile.Write(ref _caiuEm, Environment.TickCount64); // carência: não pisca na grade
+            var online = TimeSpan.FromMilliseconds(Environment.TickCount64 - Volatile.Read(ref _onlineDesde));
+            string motivo = pedido ? "reconexão pedida pelo professor"
+                : DesligamentoAtual != Desligamento.Nenhum ? "desligado/reiniciado pelo professor" : _detalhe;
+            RegistroConexoes.Anotar(Dados, $"caiu depois de {RegistroConexoes.Duracao(online)} online — {motivo}");
+        }
+        else if (_falhas == TentativasAntesDeOffline + 1)
+        {
+            RegistroConexoes.Anotar(Dados, $"offline — {_detalhe}");
         }
     }
 
@@ -235,6 +282,12 @@ sealed unsafe partial class ConexaoComputador : IDisposable
                     break;
                 case TipoMensagem.NomeEscolhido:
                     NomeEscolhido = NomeDoPc.Validar(Protocolo.LerNomeEscolhido(buffer.AsSpan(0, msg.Tamanho)));
+                    break;
+                case TipoMensagem.Diagnostico:
+                    _diagnostico?.TrySetResult(Protocolo.LerDiagnostico(buffer.AsSpan(0, msg.Tamanho)));
+                    break;
+                case TipoMensagem.AreaDeTransferencia:
+                    TextoCopiado?.Invoke(Protocolo.LerAreaDeTransferencia(buffer.AsSpan(0, msg.Tamanho)));
                     break;
                 case TipoMensagem.ConfigLimpeza:
                     Interlocked.Exchange(ref _configDoAgente, Protocolo.LerConfigLimpeza(buffer.AsSpan(0, msg.Tamanho)));

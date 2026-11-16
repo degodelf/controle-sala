@@ -12,7 +12,7 @@ public partial class JanelaPapelDeParede : Window
     const string FiltroImagens = "Imagens|*.png;*.jpg;*.jpeg;*.bmp|Todos os arquivos|*.*";
 
     readonly ConfigPapelDeParede _config = ConfigPapelDeParede.Carregar();
-    BitmapSource? _fundo, _logo;
+    BitmapSource? _fundo;
     bool _carregando = true;
 
     public JanelaPapelDeParede()
@@ -20,14 +20,10 @@ public partial class JanelaPapelDeParede : Window
         InitializeComponent();
         CarregarImagens();
 
-        ListaPosicao.SelectedIndex = (int)_config.Posicao;
-        DeslizeTamanho.Value = _config.TamanhoPercent;
-        TextoTamanho.Text = $"{_config.TamanhoPercent}%";
         int r = Array.FindIndex(Resolucoes, x => x.Largura == _config.Largura && x.Altura == _config.Altura);
         ListaResolucao.SelectedIndex = Math.Max(r, 0);
         CaixaCredito.IsChecked = _config.MostrarCredito;
         CampoFundo.Text = _config.Fundo ?? "";
-        CampoLogo.Text = _config.Logo ?? "";
 
         _carregando = false;
         Atualizar();
@@ -37,7 +33,6 @@ public partial class JanelaPapelDeParede : Window
     {
         TextoAviso.Text = "";
         _fundo = Abrir(_config.Fundo, "o fundo");
-        _logo = Abrir(_config.Logo, "o logo");
     }
 
     BitmapSource? Abrir(string? caminho, string nome)
@@ -64,29 +59,10 @@ public partial class JanelaPapelDeParede : Window
         Atualizar();
     }
 
-    void EscolherLogo_Click(object sender, RoutedEventArgs e)
-    {
-        var dialogo = new OpenFileDialog { Title = "Logotipo da escola", Filter = FiltroImagens };
-        if (dialogo.ShowDialog(this) != true) return;
-        _config.Logo = dialogo.FileName;
-        CampoLogo.Text = dialogo.FileName;
-        CarregarImagens();
-        Atualizar();
-    }
-
     void Opcao_Alterada(object sender, RoutedEventArgs e) => Atualizar();
-
-    void Tamanho_Alterado(object sender, RoutedPropertyChangedEventArgs<double> e)
-    {
-        if (TextoTamanho == null) return; // evento disparado durante o InitializeComponent
-        TextoTamanho.Text = $"{(int)e.NewValue}%";
-        Atualizar();
-    }
 
     void LerControles()
     {
-        _config.Posicao = (PosicaoLogo)Math.Max(ListaPosicao.SelectedIndex, 0);
-        _config.TamanhoPercent = (int)DeslizeTamanho.Value;
         var (largura, altura) = Resolucoes[Math.Max(ListaResolucao.SelectedIndex, 0)];
         _config.Largura = largura;
         _config.Altura = altura;
@@ -97,7 +73,7 @@ public partial class JanelaPapelDeParede : Window
     {
         if (_carregando) return;
         LerControles();
-        Previa.Source = PapelDeParede.Compor(_config, _fundo, _logo);
+        Previa.Source = PapelDeParede.Compor(_config, _fundo);
     }
 
     void SalvarImagem_Click(object sender, RoutedEventArgs e)
@@ -112,7 +88,7 @@ public partial class JanelaPapelDeParede : Window
         try
         {
             LerControles();
-            PapelDeParede.SalvarPng(PapelDeParede.Compor(_config, _fundo, _logo), dialogo.FileName);
+            PapelDeParede.SalvarPng(PapelDeParede.Compor(_config, _fundo), dialogo.FileName);
             TextoAviso.Text = $"Imagem salva em {dialogo.FileName}";
         }
         catch (Exception ex)
@@ -127,8 +103,8 @@ public partial class JanelaPapelDeParede : Window
         {
             LerControles();
             _config.Salvar();
-            // Salva também o papel de parede composto (fundo + logo), que é enviado aos alunos na limpeza.
-            PapelDeParede.SalvarPng(PapelDeParede.Compor(_config, _fundo, _logo), Sessao.CaminhoPapelComposto);
+            // Salva também o papel de parede pronto, que é enviado aos alunos (na hora ou na limpeza).
+            PapelDeParede.SalvarPng(PapelDeParede.Compor(_config, _fundo), Sessao.CaminhoPapelComposto);
             Sessao.AtualizarLimpeza();
         }
         catch (Exception)

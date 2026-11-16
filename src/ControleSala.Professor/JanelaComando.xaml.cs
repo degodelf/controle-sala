@@ -25,9 +25,10 @@ public partial class JanelaComando : Window
 
         public ConexaoComputador Conexao { get; } = conexao;
         public string Nome => Conexao.Dados.Nome;
-        public bool Online => Conexao.Estado == EstadoConexao.Online;
+        /// <summary>Online ou reconectando (queda de poucos segundos): o envio espera ele voltar. Só o offline fica de fora.</summary>
+        public bool Online => Conexao.Estado != EstadoConexao.Offline;
         public bool PodeMarcar => Online && !_enviando;
-        public Brush CorEstado => Conexao.Estado switch { EstadoConexao.Online => Verde, EstadoConexao.Conectando => Ambar, _ => Vermelho };
+        public Brush CorEstado => Conexao.EstadoVisivel switch { EstadoConexao.Online => Verde, EstadoConexao.Conectando => Ambar, _ => Vermelho };
         public bool Marcado { get => _marcado; set { _marcado = value; Mudou(); } }
         public string Status { get => _status; set { _status = value; Mudou(); } }
         public Brush CorStatus { get => _corStatus; set { _corStatus = value; Mudou(); } }
@@ -70,7 +71,7 @@ public partial class JanelaComando : Window
         _acao = acao;
         _prepararArgumento = prepararArgumento;
         _usaLista = opcoes != null;
-        _alvos = [.. computadores.Select(c => new ItemAlvo(c, c.Estado == EstadoConexao.Online && (preMarcar?.Invoke(c) ?? true)))];
+        _alvos = [.. computadores.Select(c => new ItemAlvo(c, c.Estado != EstadoConexao.Offline && (preMarcar?.Invoke(c) ?? true)))];
         Title = titulo;
         TextoTitulo.Text = titulo;
         ListaComputadores.ItemsSource = _alvos;
