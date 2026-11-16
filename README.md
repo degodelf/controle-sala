@@ -209,12 +209,6 @@ dele** (o YouTube também bloqueia youtu.be, googlevideo.com...). O bloqueio é 
 regra de DNS do Windows (NRPT) que pega também todos os subdomínios. **Liberar a internet** desfaz tudo. Precisa do
 agente como serviço.
 
-**Filtro permanente (técnico, não aparece no programa):** o agente instalado deixa sempre bloqueados casas de apostas (do
-Brasil e do exterior: tudo em `.bet.br`, `.bet`, `.casino`, `.poker`, `.bingo` e as casas mais conhecidas) e sites adultos
-(`.xxx`, `.porn`, `.sex`, `.adult` e os mais conhecidos). Usa uma seção própria no hosts e uma regra de DNS própria
-("ControleSala filtro"), separadas das do professor: "Liberar a internet" não mexe nelas, só a desinstalação. A lista
-fica em `src/ControleSala.Comum/FiltroPermanente.cs`.
-
 **Comandos e quedas de conexão:** um PC que está reconectando (queda de poucos segundos) também recebe o comando: o
 professor espera ele voltar. Se a conexão cair no meio, bloquear/liberar vão de novo sozinhos. Tela e internet bloqueadas
 continuam bloqueadas se o PC reconectar ou o agente reiniciar. A barra de status diz em quais PCs um comando não chegou.
