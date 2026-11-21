@@ -38,11 +38,19 @@ sealed class TileVm : INotifyPropertyChanged
     public string Nome => Conexao.Dados.Nome;
     public string Endereco => $"{Conexao.Dados.Endereco}:{Conexao.Dados.Porta}";
 
+    /// <summary>Dica ao parar o mouse no PC: nome, endereço IP e versão do ControleSala dele (quando já conectou).</summary>
+    public string Dica => Conexao.VersaoAgente is { } versao
+        ? $"{Nome} — IP {Conexao.Dados.Endereco} — versão {versao}"
+        : $"{Nome} — IP {Conexao.Dados.Endereco}";
+
+    string? _ultimaVersao;
+
     /// <summary>Avisa a grade que o nome ou o endereço do computador mudou, sem recriar a conexão.</summary>
     public void AtualizarDados()
     {
         Mudou(nameof(Nome));
         Mudou(nameof(Endereco));
+        Mudou(nameof(Dica));
     }
 
     public TileVm(ConexaoComputador conexao) => Conexao = conexao;
@@ -74,6 +82,25 @@ sealed class TileVm : INotifyPropertyChanged
     public Brush CorEstado { get => _corEstado; private set { _corEstado = value; Mudou(); } }
     public Brush CorBorda { get => _corBorda; private set { _corBorda = value; Mudou(); } }
     public double Opacidade { get => _opacidade; private set { if (_opacidade == value) return; _opacidade = value; Mudou(); } }
+
+    string _textoJogos = "";
+    bool _jogosLiberados;
+
+    /// <summary>Selo no canto da imagem: "🎮 Liberado" ou "🎮 12 min" quando os jogos estão liberados neste PC.</summary>
+    public string TextoJogos { get => _textoJogos; private set { if (_textoJogos == value) return; _textoJogos = value; Mudou(); } }
+    public bool JogosLiberados { get => _jogosLiberados; private set { if (_jogosLiberados == value) return; _jogosLiberados = value; Mudou(); } }
+
+    /// <summary>Atualiza o selo dos jogos (chamado a cada quadro da tela; só muda a tela quando o texto muda).</summary>
+    public void AtualizarJogos()
+    {
+        if (Conexao.VersaoAgente != _ultimaVersao) { _ultimaVersao = Conexao.VersaoAgente; Mudou(nameof(Dica)); }
+        var jogos = Conexao.Jogos;
+        bool liberados = Conexao.EstadoVisivel == EstadoConexao.Online && Conexao.DesligamentoAtual == Desligamento.Nenhum
+            && jogos?.Situacao == SituacaoJogos.Liberados;
+        JogosLiberados = liberados;
+        if (!liberados) return;
+        TextoJogos = EstadoJogos.TextoDoSelo(jogos!.AteUtc, DateTime.UtcNow);
+    }
 
     /// <summary>Atualiza cor, texto e transparência quando a situação da conexão muda (chamado a cada quadro da tela).</summary>
     public void AtualizarEstado()
@@ -148,6 +175,9 @@ sealed class TileVm : INotifyPropertyChanged
         CorBorda = BordaNormal;
         Opacidade = 1;
         Mensagem = "";
+        // Selo dos jogos em dois PCs, para conferir o visual.
+        JogosLiberados = numero is 1 or 3;
+        TextoJogos = numero == 3 ? "🎮 12 min" : "🎮 Liberado";
     }
 
     static WriteableBitmap TelaDeExemplo(int numero)

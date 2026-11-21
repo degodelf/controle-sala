@@ -64,6 +64,8 @@
     <StreamGeometry x:Key="IconeSom">M4,9.5 L7,9.5 L11,6 L11,18 L7,14.5 L4,14.5 Z M15,9.5 L20,14.5 M20,9.5 L15,14.5</StreamGeometry>
 
     <!-- Limpeza: vassoura. -->
+    <StreamGeometry x:Key="IconeJogos">M7,7 L17,7 A5,5 0 0 1 22,12 L22,14.5 A3,3 0 0 1 16.8,16.6 L15,14.5 L9,14.5 L7.2,16.6 A3,3 0 0 1 2,14.5 L2,12 A5,5 0 0 1 7,7 Z M7.5,9.5 L7.5,13 M5.75,11.25 L9.25,11.25 M15.5,10.5 L15.6,10.5 M17.8,12.4 L17.9,12.4</StreamGeometry>
+
     <StreamGeometry x:Key="IconeLimpeza">M14,4 L20,10 M15.5,8.5 L8,16 L5,19 M6,13 L11,18 M4,20 L6,19 L11,18 L13,11</StreamGeometry>
 
     <!-- Internet: globo ligado a uma linha de rede, com o ponto de conexão no meio. -->

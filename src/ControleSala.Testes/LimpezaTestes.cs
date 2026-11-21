@@ -164,6 +164,91 @@ public sealed class LimpezaArquivosTestes : IDisposable
     }
 
     [Fact]
+    public void Excecao_vale_sem_a_extensao_que_o_windows_esconde()
+    {
+        string atalho = Criar("Desktop", "Trabalhos.lnk");
+        string prova = Criar("Desktop", "prova.docx");
+        string outro = Criar("Desktop", "outro.docx");
+        LimpezaArquivos.EsvaziarPasta(Path.Combine(_raiz, "Desktop"), ["Trabalhos", "prova", " "]);
+        Assert.True(File.Exists(atalho));
+        Assert.True(File.Exists(prova));
+        Assert.False(File.Exists(outro));
+    }
+
+    string Arquivo(string conteudo, System.Text.Encoding codificacao, params string[] partes)
+    {
+        string p = Criar(partes);
+        File.WriteAllBytes(p, [0x4C, 0, 0, 0, .. codificacao.GetBytes(conteudo), 0, 0]);
+        return p;
+    }
+
+    [Fact]
+    public void Atalho_para_pasta_de_rede_fica_e_os_outros_saem()
+    {
+        string rede = Arquivo(@"\\SERVIDOR\Trabalhos", System.Text.Encoding.Unicode, "Desktop", "Trabalhos.lnk");
+        string redeAnsi = Arquivo(@"\\10.100.37.5\compartilhada\8A", System.Text.Encoding.Latin1, "Desktop", "Turma 8A.lnk");
+        string urlRede = Arquivo("[InternetShortcut]\r\nURL=file://servidor/trabalhos/", System.Text.Encoding.ASCII, "Desktop", "Trab.url");
+        string local = Arquivo(@"C:\Windows\System32\notepad.exe", System.Text.Encoding.Unicode, "Desktop", "Bloco.lnk");
+        string site = Arquivo("[InternetShortcut]\r\nURL=https://jogo.com/", System.Text.Encoding.ASCII, "Desktop", "Jogo.url");
+        string longo = Arquivo(@"\\?\C:\Users\aluno\jogo.exe", System.Text.Encoding.Unicode, "Desktop", "Longo.lnk");
+
+        LimpezaArquivos.EsvaziarPasta(Path.Combine(_raiz, "Desktop"), []);
+
+        Assert.True(File.Exists(rede));
+        Assert.True(File.Exists(redeAnsi));
+        Assert.True(File.Exists(urlRede));
+        Assert.False(File.Exists(local));
+        Assert.False(File.Exists(site));
+        Assert.False(File.Exists(longo));
+    }
+
+    [Fact]
+    public void Atalho_de_verdade_para_a_rede_e_reconhecido()
+    {
+        string lnk = Path.Combine(_raiz, "Desktop", "Trabalhos.lnk");
+        Directory.CreateDirectory(Path.GetDirectoryName(lnk)!);
+        string script = $"$a=(New-Object -ComObject WScript.Shell).CreateShortcut('{lnk}'); $a.TargetPath='\\\\servidor-escola\\Trabalhos'; $a.Save()";
+        using var ps = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("powershell.exe",
+            ["-NoProfile", "-NonInteractive", "-Command", script]) { CreateNoWindow = true, UseShellExecute = false })!;
+        ps.WaitForExit(30000);
+        Assert.True(File.Exists(lnk), "o Windows não criou o atalho de teste");
+        Assert.True(LimpezaArquivos.AtalhoDeRede(lnk));
+    }
+
+    [Fact]
+    public void Pasta_compartilhada_na_rede_nunca_e_apagada()
+    {
+        string desktop = Path.Combine(_raiz, "Desktop");
+        string trabalho = Criar("Desktop", "Trabalhos", "prova do joão.docx");
+        string dentro = Criar("Desktop", "Turmas", "8A", "redação.docx");
+        string lixo = Criar("Desktop", "jogo.exe");
+        var compartilhadas = new[] { Path.Combine(desktop, "Trabalhos"), Path.Combine(desktop, "Turmas", "8A") };
+
+        LimpezaArquivos.EsvaziarPasta(desktop, [], compartilhadas);
+
+        Assert.True(File.Exists(trabalho));
+        Assert.True(File.Exists(dentro));       // a pasta "Turmas" tem uma compartilhada dentro: fica inteira
+        Assert.False(File.Exists(lixo));
+
+        Criar("Desktop", "outro.txt");
+        Assert.Equal(0, LimpezaArquivos.EsvaziarPasta(desktop, [], [desktop + "\\"])); // a própria Área de Trabalho compartilhada
+        Assert.True(File.Exists(Path.Combine(desktop, "outro.txt")));
+    }
+
+    [Fact]
+    public void Le_o_caminho_dos_compartilhamentos_do_registro()
+    {
+        var pastas = LimpezaArquivos.PastasCompartilhadas(
+        [
+            ["CSCFlags=0", "MaxUses=4294967295", @"Path=C:\Users\aluno\Desktop\Trabalhos", "Permissions=0", "ShareName=Trabalhos", "Type=0"],
+            ["Path=C:\\", "ShareName=Disco"],
+            ["ShareName=SemCaminho"],
+        ]);
+        Assert.Equal([@"C:\Users\aluno\Desktop\Trabalhos"], pastas);
+        Assert.NotNull(LimpezaArquivos.PastasCompartilhadas()); // lê o registro deste PC sem quebrar
+    }
+
+    [Fact]
     public void Esvaziar_pasta_inexistente_nao_quebra() =>
         Assert.Equal(0, LimpezaArquivos.EsvaziarPasta(Path.Combine(_raiz, "NaoExiste"), []));
 

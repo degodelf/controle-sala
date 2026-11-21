@@ -24,6 +24,7 @@ public partial class MainWindow : Window
         MostrarProfessor();
         MostrarSala();
         AtualizarAgendaLimpeza();
+        AtualizarOpcoesJogos();
         Grade.ItemsSource = _tiles;
         ReconstruirGrade();
         CompositionTarget.Rendering += AoRenderizar;
@@ -554,6 +555,75 @@ public partial class MainWindow : Window
     void GerenciarSites_Click(object sender, RoutedEventArgs e)
         => new JanelaSites { Owner = this }.ShowDialog();
 
+    // ---------- jogos ----------
+
+    void BloquearJogos_Click(object sender, RoutedEventArgs e)
+    {
+        bool navegador = ConfigJogos.Carregar().FecharNavegador;
+        Comando(AcaoComando.BloquearJogos, "Bloquear jogos", ArgumentosJogos.Bloquear(navegador),
+            confirmar: navegador ? "Bloquear os jogos e FECHAR O NAVEGADOR nos computadores selecionados? As abas abertas dos alunos fecham junto." : null);
+    }
+
+    void LiberarJogos_Click(object sender, RoutedEventArgs e)
+        => Comando(AcaoComando.LiberarJogos, "Liberar jogos");
+
+    /// <summary>"Liberar por 10/15/30 minutos": o número está no Tag do item. O PC do aluno volta a bloquear sozinho.</summary>
+    void LiberarJogosPorTempo_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not FrameworkElement { Tag: string texto } || !int.TryParse(texto, out int minutos)) return;
+        Comando(AcaoComando.LiberarJogos, $"Liberar jogos por {minutos} min", ArgumentosJogos.Liberar(minutos));
+    }
+
+    void OpcaoFecharNavegador_Click(object sender, RoutedEventArgs e)
+    {
+        var c = ConfigJogos.Carregar();
+        c.FecharNavegador = (sender as System.Windows.Controls.MenuItem)?.IsChecked ?? !c.FecharNavegador;
+        c.Salvar();
+        AtualizarOpcoesJogos();
+        MostrarAviso(c.FecharNavegador ? "Ao bloquear os jogos, o navegador dos alunos também fecha." : "Ao bloquear os jogos, o navegador fica aberto.");
+    }
+
+    void OpcaoBloquearAoLigar_Click(object sender, RoutedEventArgs e)
+    {
+        var c = ConfigJogos.Carregar();
+        c.BloquearAoLigar = (sender as System.Windows.Controls.MenuItem)?.IsChecked ?? !c.BloquearAoLigar;
+        c.Salvar();
+        AtualizarOpcoesJogos();
+        foreach (var t in _tiles.Where(t => t.Conexao.Estado == EstadoConexao.Online)) t.Conexao.EnviarConfigJogos();
+        MostrarAviso(c.BloquearAoLigar
+            ? "Os computadores vão ligar com os jogos bloqueados (os desligados recebem a opção quando conectarem)."
+            : "Os computadores não bloqueiam mais os jogos sozinhos ao ligar.");
+    }
+
+    /// <summary>As opções aparecem em dois menus (barra e Comandos): os dois mostram a mesma marcação.</summary>
+    void AtualizarOpcoesJogos()
+    {
+        var c = ConfigJogos.Carregar();
+        foreach (var item in new[] { OpcaoNavegadorBarra, OpcaoNavegadorMenu }) item.IsChecked = c.FecharNavegador;
+        foreach (var item in new[] { OpcaoAoLigarBarra, OpcaoAoLigarMenu }) item.IsChecked = c.BloquearAoLigar;
+    }
+
+    void SobreJogos_Click(object sender, RoutedEventArgs e)
+    {
+        string exemplos = "Friv, Poki, Click Jogos, Jogos 360, CrazyGames, Coolmath, Miniclip, Y8, 1001 Jogos, itch.io, " +
+                          "jogos .io (Krunker, Slither, Agar, Shell Shockers...), Gartic, Roblox, Fortnite/Epic, Steam, Free Fire, " +
+                          "Riot, Battle.net, EA, Ubisoft e jogos pela nuvem (now.gg, Xbox Cloud, GeForce Now)";
+        MessageBox.Show(this,
+            $"O que \"Bloquear jogos\" bloqueia ({CatalogoJogos.Sites.Count} sites, com todos os subdomínios):\n{exemplos}.\n\n" +
+            "Com os jogos bloqueados, também:\n" +
+            "• sites novos com cara de jogo (cópias do Friv, \"unblocked games\") são bloqueados pelo nome;\n" +
+            "• os jogos instalados (Roblox, Steam, Epic, Fortnite, Minecraft, emuladores de celular...) fecham e não abrem;\n" +
+            "• o jogo online que estava aberto cai em alguns segundos.\n\n" +
+            "Ficam liberados os educativos: Escola Games, Wordwall, Kahoot, Scratch, Code.org, GeoGebra, Khan Academy, " +
+            "Minecraft Education, Duolingo e outros.\n\n" +
+            "Jogo de navegador que já carregou inteiro pode continuar até o aluno fechar a aba. Para cortar na hora, marque " +
+            "\"Fechar o navegador ao bloquear\".\n\n" +
+            "\"Liberar por 10/15/30 minutos\": o computador do aluno volta a bloquear sozinho, mesmo com este programa fechado.\n" +
+            "\"Bloquear ao ligar os computadores\": os jogos começam bloqueados sempre que alguém entra no Windows.\n" +
+            "O bloqueio continua depois de reiniciar, até você liberar.",
+            "Jogos", MessageBoxButton.OK, MessageBoxImage.Information);
+    }
+
     void Limpeza_Click(object sender, RoutedEventArgs e)
     {
         var janela = new JanelaLimpeza { Owner = this };
@@ -602,6 +672,7 @@ public partial class MainWindow : Window
             if (t.Conexao.Modo == ModoVideo.Miniatura)
                 t.AtualizarImagem();
             t.AtualizarEstado();
+            t.AtualizarJogos();
             if (t.Conexao.EstadoVisivel == EstadoConexao.Online) online++;
             // Guarda o MAC assim que chega (para Wake-on-LAN), a não ser que a conexão tenha caído em outro PC que pegou este IP.
             if (t.Conexao.Mac is { } mac && t.Conexao.NomeDoAgente is { } conectado && !_sala.EhOutroPc(t.Conexao.Dados, conectado))

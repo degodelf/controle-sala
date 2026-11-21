@@ -70,6 +70,10 @@ sealed unsafe partial class ConexaoComputador : IDisposable
     public volatile string? Mac;
     /// <summary>Versão do agente ("0.3.0"); null até chegar (agentes até a 0.2.0 não informam).</summary>
     public volatile string? VersaoAgente;
+
+    /// <summary>Como estão os jogos neste PC (null = agente antigo, que não conta). <c>Ate</c> é o horário deste PC.</summary>
+    public sealed record JogosNoPc(SituacaoJogos Situacao, DateTime? AteUtc);
+    public volatile JogosNoPc? Jogos;
     /// <summary>Esta conexão já está aberta há tempo de sobra para o agente ter dito a versão dele?</summary>
     public bool TeveTempoDeInformarVersao => Environment.TickCount64 - Volatile.Read(ref _onlineDesde) > 15_000;
     /// <summary>Nome escolhido na instalação daquele PC; null até chegar (ou se ninguém escolheu).</summary>
@@ -182,6 +186,7 @@ sealed unsafe partial class ConexaoComputador : IDisposable
                 if (Sessao.Atual is { } professor)
                     Enviar(Protocolo.MontarIdentificacao(professor.Nome)); // o aluno vê quem está olhando
                 EnviarConfigLimpeza(); // manda a configuração/imagens de limpeza para este PC
+                EnviarConfigJogos();   // "bloquear os jogos ao ligar o PC", se o professor escolheu
                 Enviar(Protocolo.MontarDefinirModo(Modo)); // sem isso o agente não manda vídeo
                 ReaplicarEstadoDesejado(); // tela/internet bloqueadas continuam assim se o agente reiniciou
                 Receber(fluxo);
@@ -270,6 +275,10 @@ sealed unsafe partial class ConexaoComputador : IDisposable
                     break;
                 case TipoMensagem.EnderecoMac:
                     Mac = WakeOnLan.Normalizar(Protocolo.LerEnderecoMac(buffer.AsSpan(0, msg.Tamanho)));
+                    break;
+                case TipoMensagem.EstadoJogos:
+                    if (Protocolo.LerEstadoJogos(buffer.AsSpan(0, msg.Tamanho)) is { } jogos)
+                        Jogos = new(jogos.Situacao, jogos.SegundosRestantes is { } s ? DateTime.UtcNow.AddSeconds(s) : null);
                     break;
                 case TipoMensagem.VersaoAgente:
                     VersaoAgente = Protocolo.LerVersaoAgente(buffer.AsSpan(0, msg.Tamanho));
@@ -373,6 +382,16 @@ sealed unsafe partial class ConexaoComputador : IDisposable
     public void ReenviarIdentificacao()
     {
         if (Sessao.Atual is { } professor) Enviar(Protocolo.MontarIdentificacao(professor.Nome));
+    }
+
+    /// <summary>
+    /// Manda a opção "bloquear os jogos ao ligar o PC". Só se este professor já mexeu nas opções dos jogos: quem nunca
+    /// usou o botão Jogos não desliga a opção que outro professor ligou.
+    /// </summary>
+    public void EnviarConfigJogos()
+    {
+        if (ConfigJogos.Existe())
+            Enviar(Protocolo.MontarConfigJogos(ArgumentosJogos.Config(ConfigJogos.Carregar().BloquearAoLigar)));
     }
 
     /// <summary>Reenvia agora a configuração de limpeza (após o professor alterá-la).</summary>

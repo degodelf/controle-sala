@@ -6,7 +6,8 @@ namespace ControleSala.Comum;
 /// <summary>
 /// Bloqueio que fica sempre ligado no PC do aluno, sem aparecer no programa e sem aviso: casas de apostas (do Brasil e do
 /// exterior) e sites adultos (+18). É aplicado pelo agente ao ligar, separado dos sites que o professor bloqueia na aula,
-/// então "Liberar a internet" não mexe nele. Só sai desinstalando o ControleSala.
+/// então "Liberar a internet" não mexe nele. Só sai desinstalando o ControleSala. O que não está na lista o agente pega pelo
+/// nome do site (<see cref="FiltroPorNome"/>).
 /// As terminações inteiras pegam qualquer site com elas (.bet, .bet.br, .casino, .xxx, .porn...).
 /// </summary>
 public static class FiltroPermanente
@@ -21,6 +22,9 @@ public static class FiltroPermanente
         "*.bet.br", "*.bet", "*.casino", "*.poker", "*.bingo",
         // exterior (sem autorização no Brasil, mas muito acessadas aqui)
         "888.com", "888casino.com", "888sport.com", "888poker.com", "888games.com", "888bets.com",
+        "888.es", "888casino.es", "888sport.es", "888poker.es", "888.it", "888casino.it", "888sport.it", "888poker.it",
+        // plataformas de "tigrinho" (trocam de endereço; as novas o agente pega pelo nome, ver FiltroPorNome)
+        "888game.es", "888game-pp.com", "888game-cassino.br.com", "888game.com", "888game.com.br",
         "bet365.com", "1xbet.com", "1win.com", "22bet.com", "melbet.com", "mostbet.com", "betwinner.com", "4rabet.com",
         "linebet.com", "megapari.com", "betandyou.com", "parimatch.com", "stake.com", "stake.us", "rollbit.com", "roobet.com",
         "bc.game", "sportsbet.io", "vbet.com", "betway.com", "bwin.com", "unibet.com", "williamhill.com", "ladbrokes.com",
@@ -62,6 +66,10 @@ public static class FiltroPermanente
         new(@"SOFTWARE\Policies\BraveSoftware\Brave", "BuiltInDnsClientEnabled", 0),
         new(@"SOFTWARE\Policies\Mozilla\Firefox\DNSOverHTTPS", "Enabled", 0),
         new(@"SOFTWARE\Policies\Mozilla\Firefox\DNSOverHTTPS", "Locked", 1),
+        // Sem QUIC (HTTP/3, que vai por UDP), a conexão com um site recém-bloqueado pode ser derrubada na hora.
+        new(@"SOFTWARE\Policies\Google\Chrome", "QuicAllowed", 0),
+        new(@"SOFTWARE\Policies\Microsoft\Edge", "QuicAllowed", 0),
+        new(@"SOFTWARE\Policies\BraveSoftware\Brave", "QuicAllowed", 0),
     ];
 
     /// <summary>Tudo o que fica bloqueado (sites com todos os subdomínios, e terminações \"*.x\").</summary>

@@ -18,6 +18,7 @@ public static class RegrasDeComando
         AcaoComando.BloquearTela or AcaoComando.DesbloquearTela => "tela",
         AcaoComando.BloquearInternet or AcaoComando.LiberarInternet => "internet",
         AcaoComando.Silenciar => "som",
+        // Jogos não entram: o próprio PC do aluno guarda se estão bloqueados (e reaplicar fecharia o navegador de novo).
         _ => null,
     };
 
@@ -28,7 +29,8 @@ public static class RegrasDeComando
 
     /// <summary>Comando que pode ser repetido sem efeito dobrado (se a conexão cair antes da resposta, vai de novo).</summary>
     public static bool PodeRepetir(AcaoComando acao) => acao is AcaoComando.BloquearTela or AcaoComando.DesbloquearTela
-        or AcaoComando.BloquearInternet or AcaoComando.LiberarInternet or AcaoComando.Silenciar or AcaoComando.DefinirPapel;
+        or AcaoComando.BloquearInternet or AcaoComando.LiberarInternet or AcaoComando.Silenciar or AcaoComando.DefinirPapel
+        or AcaoComando.BloquearJogos or AcaoComando.LiberarJogos;
 
     /// <summary>
     /// Atualização automática dos alunos: quanto esperar para mandar o instalador de novo a um PC depois de

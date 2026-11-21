@@ -179,12 +179,14 @@ static partial class Programa
             InterfaceAgente.NaInterface(() => bandeja = new Bandeja(sala, servidor));
             agendador = AgendadorLimpeza.Iniciar(); // limpeza agendada: avisa o aluno e limpa, aqui na sessão
             FiltroAgente.Iniciar(); // apostas e +18 sempre bloqueados (só no agente instalado, que roda como SYSTEM)
+            JogosAgente.Iniciar(servidor); // botão Jogos do professor: retoma o bloqueio guardado
         }
 
         // Copiar e colar com o professor, enquanto ele estiver com esta tela aberta.
         using var areaDeTransferencia = new AreaDeTransferenciaAluno(servidor);
         servidor.TextoCopiadoRecebido += areaDeTransferencia.Colocar;
 
+        if (opcoes.Sessao) TelaLigada.Manter(); // nesta thread, que fica viva até o agente fechar
         Executar(servidor, opcoes); // bloqueia nesta thread até Ctrl+C / parada do serviço
 
         agendador?.Dispose();
@@ -360,6 +362,7 @@ static partial class Programa
         var (ok, msg) = Comandos.LiberarInternet();
         Console.WriteLine(msg);
         FiltroAgente.Remover();
+        JogosAgente.Remover();
         ConfigLimpezaAgente.RemoverAgendamento();
         Console.WriteLine("Limpeza agendada removida.");
         return ok ? 0 : 1;

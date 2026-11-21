@@ -131,12 +131,18 @@ public sealed class RegistroAtividades
         AcaoComando.DefinirPapel => "Aplicar papel de parede",
         AcaoComando.IniciarAplicativo => "Iniciar aplicativo ou comando",
         AcaoComando.AbrirArquivoRecebido => "Abrir arquivo enviado",
+        AcaoComando.BloquearJogos => "Bloquear jogos",
+        AcaoComando.LiberarJogos => "Liberar jogos",
         _ => acao.ToString(),
     };
 
     /// <summary>O registro diz o que foi feito, não o conteúdo: texto de mensagem e outros argumentos ficam de fora.</summary>
-    public static string DetalheDoComando(AcaoComando acao, string argumento) =>
-        acao is AcaoComando.AbrirLink or AcaoComando.AbrirPrograma or AcaoComando.FecharPrograma or AcaoComando.IniciarAplicativo
-            or AcaoComando.AbrirArquivoRecebido
-            ? argumento : "";
+    public static string DetalheDoComando(AcaoComando acao, string argumento) => acao switch
+    {
+        AcaoComando.AbrirLink or AcaoComando.AbrirPrograma or AcaoComando.FecharPrograma or AcaoComando.IniciarAplicativo
+            or AcaoComando.AbrirArquivoRecebido => argumento,
+        AcaoComando.LiberarJogos when ArgumentosJogos.Ler(argumento).Minutos is > 0 and var m => $"por {m} min",
+        AcaoComando.BloquearJogos when ArgumentosJogos.Ler(argumento).FecharNavegador => "e fechou o navegador",
+        _ => "",
+    };
 }

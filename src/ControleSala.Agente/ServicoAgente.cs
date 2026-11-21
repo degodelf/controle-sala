@@ -332,6 +332,34 @@ static partial class LancadorNaSessao
     /// <summary>Sessão do console (a de quem está na frente do PC); uint.MaxValue se não houver.</summary>
     public static uint SessaoAtiva() => WTSGetActiveConsoleSessionId();
 
+    [LibraryImport("wtsapi32.dll", EntryPoint = "WTSQuerySessionInformationW", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool WTSQuerySessionInformation(nint servidor, uint sessao, int classe, out nint buffer, out uint bytes);
+
+    [LibraryImport("wtsapi32.dll")] private static partial void WTSFreeMemory(nint memoria);
+
+    const int WtsSessionInfo = 24, TamanhoWtsInfo = 216, PosicaoLogonTime = 200; // WTSINFOW: LogonTime depois de 3 LARGE_INTEGER
+
+    /// <summary>
+    /// Quando quem está na frente do PC entrou no Windows (UTC); null na tela de login. Muda a cada entrada, inclusive quando
+    /// o PC liga com a "inicialização rápida" do Windows (que não reinicia o sistema de verdade).
+    /// </summary>
+    public static DateTime? HorarioDoLogon()
+    {
+        uint sessao = WTSGetActiveConsoleSessionId();
+        if (sessao == uint.MaxValue || !WTSQuerySessionInformation(0, sessao, WtsSessionInfo, out nint buffer, out uint bytes)) return null;
+        try
+        {
+            if (bytes < TamanhoWtsInfo) return null;
+            long logon = Marshal.ReadInt64(buffer, PosicaoLogonTime);
+            return logon > 0 ? DateTime.FromFileTimeUtc(logon) : null;
+        }
+        finally
+        {
+            WTSFreeMemory(buffer);
+        }
+    }
+
     /// <summary>Encerra a sessão de quem está usando o PC (logoff). Precisa do serviço (SYSTEM).</summary>
     public static bool Logoff()
     {

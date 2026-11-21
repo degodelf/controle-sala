@@ -209,6 +209,17 @@ dele** (o YouTube também bloqueia youtu.be, googlevideo.com...). O bloqueio é 
 regra de DNS do Windows (NRPT) que pega também todos os subdomínios. **Liberar a internet** desfaz tudo. Precisa do
 agente como serviço.
 
+**Jogos (botão Jogos ▾, a partir da 0.8.4):** **Bloquear jogos** bloqueia uma lista pronta (sites de joguinhos como Friv,
+Poki e Click Jogos, jogos .io, Roblox, Steam, Epic/Fortnite, Free Fire e jogos pela nuvem como now.gg e Xbox Cloud), fecha os
+jogos instalados e não deixa abrir de novo, e derruba o jogo online que estava aberto em alguns segundos. Com os jogos
+bloqueados, sites novos com cara de jogo (cópias do Friv, "unblocked games") são bloqueados pelo nome. Os educativos ficam
+liberados (Escola Games, Wordwall, Kahoot, Scratch, Code.org, GeoGebra, Khan Academy, Minecraft Education...). Fica separado
+da lista de sites: **Liberar jogos** não tira os sites bloqueados, e **Liberar a internet** não libera os jogos. Dá para
+**liberar por 10, 15 ou 30 minutos** (o PC do aluno volta a bloquear sozinho, mesmo com o programa do professor fechado),
+**fechar o navegador ao bloquear** (para o jogo de navegador que já carregou) e **bloquear ao ligar os computadores** (os
+jogos começam bloqueados sempre que alguém entra no Windows). O quadrinho do PC mostra "🎮 Liberado" ou "🎮 12 min". O
+bloqueio continua depois de reiniciar, até o professor liberar.
+
 **Comandos e quedas de conexão:** um PC que está reconectando (queda de poucos segundos) também recebe o comando: o
 professor espera ele voltar. Se a conexão cair no meio, bloquear/liberar vão de novo sozinhos. Tela e internet bloqueadas
 continuam bloqueadas se o PC reconectar ou o agente reiniciar. A barra de status diz em quais PCs um comando não chegou.

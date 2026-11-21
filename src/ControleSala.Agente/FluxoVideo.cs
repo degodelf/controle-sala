@@ -106,7 +106,8 @@ sealed class Estatisticas
     public long Bytes, TicksCopia, TicksCodificacao;
     long _inicio = Stopwatch.GetTimestamp();
 
-    public bool Pronta(long agora) => agora - _inicio >= Stopwatch.Frequency * 2;
+    // Uma linha por minuto (média do minuto): a cada 2 s, o agente.log enchia e o diagnóstico só mostrava os últimos minutos.
+    public bool Pronta(long agora) => agora - _inicio >= Stopwatch.Frequency * 60;
 
     public string Resumo(long agora)
     {

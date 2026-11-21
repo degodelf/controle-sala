@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:local="clr-namespace:ControleSala.Professor"
         Title="ControleSala — Professor"
-        Width="1180" Height="720" WindowStartupLocation="CenterScreen"
+        Width="1240" Height="720" WindowStartupLocation="CenterScreen"
         Background="{DynamicResource PincelFundo}" Closed="Window_Closed" KeyDown="Window_KeyDown">
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BoolVis"/>
@@ -72,6 +72,19 @@
                 <MenuItem Header="Bloquear sites da lista..." Click="BloquearSites_Click"/>
                 <MenuItem Header="Liberar a internet..." Click="LiberarInternet_Click"/>
                 <MenuItem Header="Sites bloqueados (lista)..." Click="GerenciarSites_Click"/>
+                <Separator/>
+                <MenuItem Header="Bloquear jogos..." Click="BloquearJogos_Click">
+                    <MenuItem.Icon><Path Style="{StaticResource Icone}" Data="{StaticResource IconeJogos}"/></MenuItem.Icon>
+                </MenuItem>
+                <MenuItem Header="Liberar jogos..." Click="LiberarJogos_Click"/>
+                <MenuItem Header="Liberar jogos por um tempo">
+                    <MenuItem Header="10 minutos..." Tag="10" Click="LiberarJogosPorTempo_Click"/>
+                    <MenuItem Header="15 minutos..." Tag="15" Click="LiberarJogosPorTempo_Click"/>
+                    <MenuItem Header="30 minutos..." Tag="30" Click="LiberarJogosPorTempo_Click"/>
+                </MenuItem>
+                <MenuItem x:Name="OpcaoNavegadorMenu" Header="Fechar o navegador ao bloquear os jogos" IsCheckable="True" Click="OpcaoFecharNavegador_Click"/>
+                <MenuItem x:Name="OpcaoAoLigarMenu" Header="Bloquear os jogos ao ligar os computadores" IsCheckable="True" Click="OpcaoBloquearAoLigar_Click"/>
+                <MenuItem Header="O que os jogos bloqueiam..." Click="SobreJogos_Click"/>
                 <Separator/>
                 <MenuItem Header="Ligar os computadores (Wake-on-LAN)..." Click="WakeOnLan_Click">
                     <MenuItem.Icon><Path Style="{StaticResource Icone}" Data="{StaticResource IconeEnergia}"/></MenuItem.Icon>
@@ -184,6 +197,26 @@
                         <StackPanel>
                             <Path Style="{StaticResource Icone}" Data="{StaticResource IconeInternet}" HorizontalAlignment="Center"/>
                             <TextBlock Text="Internet ▾" FontSize="11" Margin="0,3,0,0" HorizontalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+                    <Button Style="{StaticResource BotaoFerramenta}" Click="MenuDaBarra_Click" ToolTip="Bloquear ou liberar os jogos">
+                        <Button.ContextMenu>
+                            <ContextMenu>
+                                <MenuItem Header="Bloquear jogos..." Click="BloquearJogos_Click"/>
+                                <MenuItem Header="Liberar jogos..." Click="LiberarJogos_Click"/>
+                                <MenuItem Header="Liberar por 10 minutos..." Tag="10" Click="LiberarJogosPorTempo_Click"/>
+                                <MenuItem Header="Liberar por 15 minutos..." Tag="15" Click="LiberarJogosPorTempo_Click"/>
+                                <MenuItem Header="Liberar por 30 minutos..." Tag="30" Click="LiberarJogosPorTempo_Click"/>
+                                <Separator/>
+                                <MenuItem x:Name="OpcaoNavegadorBarra" Header="Fechar o navegador ao bloquear" IsCheckable="True" Click="OpcaoFecharNavegador_Click"/>
+                                <MenuItem x:Name="OpcaoAoLigarBarra" Header="Bloquear ao ligar os computadores" IsCheckable="True" Click="OpcaoBloquearAoLigar_Click"/>
+                                <Separator/>
+                                <MenuItem Header="O que é bloqueado..." Click="SobreJogos_Click"/>
+                            </ContextMenu>
+                        </Button.ContextMenu>
+                        <StackPanel>
+                            <Path Style="{StaticResource Icone}" Data="{StaticResource IconeJogos}" HorizontalAlignment="Center"/>
+                            <TextBlock Text="Jogos ▾" FontSize="11" Margin="0,3,0,0" HorizontalAlignment="Center"/>
                         </StackPanel>
                     </Button>
                     <Button Style="{StaticResource BotaoFerramenta}" Click="MenuDaBarra_Click" ToolTip="Silenciar ou reativar o som">
@@ -314,6 +347,10 @@
                                         <MenuItem Header="Bloquear TODA a internet..." Click="BloquearInternet_Click"/>
                                         <MenuItem Header="Liberar a internet..." Click="LiberarInternet_Click"/>
                                         <Separator/>
+                                        <MenuItem Header="Bloquear jogos" Click="BloquearJogos_Click"/>
+                                        <MenuItem Header="Liberar jogos" Click="LiberarJogos_Click"/>
+                                        <MenuItem Header="Liberar jogos por 15 minutos" Tag="15" Click="LiberarJogosPorTempo_Click"/>
+                                        <Separator/>
                                         <MenuItem Header="Ligar" Click="WakeOnLan_Click"/>
                                         <MenuItem Header="Desligar..." Click="ComandoDesligar_Click"/>
                                         <MenuItem Header="Reiniciar..." Click="ComandoReiniciar_Click"/>
@@ -323,7 +360,7 @@
                                 </Grid.ContextMenu>
                                 <Border Background="{DynamicResource PincelSuperficie}" CornerRadius="6"
                                         BorderBrush="{Binding CorBorda}" BorderThickness="2" Cursor="Hand"
-                                        ToolTip="{Binding Endereco}">
+                                        ToolTip="{Binding Dica}" ToolTipService.InitialShowDelay="1000">
                                     <StackPanel>
                                         <Grid Height="{Binding AlturaImagem}" Background="Black">
                                             <Image Source="{Binding Imagem}" Stretch="Uniform" Opacity="{Binding Opacidade}"
@@ -331,6 +368,12 @@
                                             <TextBlock Text="{Binding Mensagem}" Foreground="#CCCCCC" Margin="10"
                                                        HorizontalAlignment="Center" VerticalAlignment="Center"
                                                        TextWrapping="Wrap" TextAlignment="Center"/>
+                                            <!-- Jogos liberados neste PC (some quando estão bloqueados). -->
+                                            <Border HorizontalAlignment="Right" VerticalAlignment="Top" Margin="7" Padding="7,2,8,3"
+                                                    CornerRadius="9" Background="#E02E7D32" IsHitTestVisible="False"
+                                                    Visibility="{Binding JogosLiberados, Converter={StaticResource BoolVis}}">
+                                                <TextBlock Text="{Binding TextoJogos}" Foreground="White" FontSize="11" FontWeight="SemiBold"/>
+                                            </Border>
                                         </Grid>
                                         <DockPanel Background="{DynamicResource PincelSuperficie2}">
                                             <Ellipse DockPanel.Dock="Left" Width="10" Height="10" Fill="{Binding CorEstado}" Margin="9,0,7,0"/>

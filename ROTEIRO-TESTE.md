@@ -72,6 +72,9 @@ e escreva o que der errado no fim (seção **Problemas**), para corrigirmos depo
 32. [ ] **Silenciar o som** → o som do aluno fica mudo? **Reativar** → volta?
 33. [ ] **Bloquear sites da lista** (cadastre um site em "Sites bloqueados...") → no aluno, o site não abre e o resto funciona? **Liberar a internet** → volta?
 34. [ ] **Bloquear TODA a internet** → o aluno perde a internet mas o professor continua vendo a tela? **Liberar** → volta?
+35. [ ] **Jogos ▾ → Bloquear jogos** com um jogo online aberto no aluno (ex.: um .io) → o jogo cai em até 1 minuto e o Friv/Poki não abrem mais? O Roblox instalado fecha sozinho? O Wordwall e o Scratch continuam abrindo?
+36. [ ] **Liberar jogos por 10 minutos** num PC → aparece "🎮 10 min" no quadrinho e o jogo abre? Depois dos 10 minutos volta a bloquear sozinho?
+37. [ ] **Bloquear ao ligar os computadores** marcado → reinicie um PC: ao entrar no Windows, os jogos já estão bloqueados?
 
 ## Parte 8 — Limpeza (com arquivo de teste!)
 

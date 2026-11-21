@@ -66,6 +66,10 @@ public enum TipoMensagem : byte
     PedirDiagnostico = 41,
     /// <summary>Agente → professor: [string UTF-8] o diagnóstico pedido. Não tem nada do aluno: só horários, endereços e eventos.</summary>
     Diagnostico = 42,
+    /// <summary>Agente → professor: [string] como estão os jogos neste PC (<see cref="EstadoJogos"/>), ao conectar e quando muda.</summary>
+    EstadoJogos = 43,
+    /// <summary>Professor → agente: [string] opções dos jogos (<see cref="ArgumentosJogos.Config"/>), ao conectar e quando mudam.</summary>
+    ConfigJogos = 44,
 }
 
 public enum ArquivoConfigTipo : byte { PapelDeParede = 0, ImagemLimpeza = 1 }
@@ -99,6 +103,10 @@ public enum AcaoComando : byte
     DefinirPapel = 15,
     IniciarAplicativo = 16,
     AbrirArquivoRecebido = 17,
+    /// <summary>Bloqueia os jogos (<see cref="CatalogoJogos"/>). Argumento: <see cref="ArgumentosJogos.Bloquear"/>.</summary>
+    BloquearJogos = 18,
+    /// <summary>Libera os jogos, de vez ou por um tempo. Argumento: <see cref="ArgumentosJogos.Liberar"/>.</summary>
+    LiberarJogos = 19,
 }
 
 public readonly record struct Comando(uint Id, AcaoComando Acao, string Argumento);
@@ -318,6 +326,15 @@ public static class Protocolo
     public static byte[] MontarDiagnostico(string texto) => Montar(TipoMensagem.Diagnostico, Encoding.UTF8.GetBytes(texto));
 
     public static string LerDiagnostico(ReadOnlySpan<byte> corpo) => Encoding.UTF8.GetString(corpo);
+
+    public static byte[] MontarEstadoJogos(EstadoJogos estado) =>
+        Montar(TipoMensagem.EstadoJogos, Encoding.UTF8.GetBytes(estado.Serializar()));
+
+    public static EstadoJogos? LerEstadoJogos(ReadOnlySpan<byte> corpo) => EstadoJogos.Ler(Encoding.UTF8.GetString(corpo));
+
+    public static byte[] MontarConfigJogos(string config) => Montar(TipoMensagem.ConfigJogos, Encoding.UTF8.GetBytes(config));
+
+    public static string LerConfigJogos(ReadOnlySpan<byte> corpo) => Encoding.UTF8.GetString(corpo);
 
     public static byte[] MontarResultadoDefender(string json) =>
         Montar(TipoMensagem.ResultadoDefender, Encoding.UTF8.GetBytes(json));

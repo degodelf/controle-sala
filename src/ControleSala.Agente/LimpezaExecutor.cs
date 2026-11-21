@@ -51,7 +51,8 @@ static partial class LimpezaExecutor
 
             // A conta vem antes: depois de assumir a conta do aluno, o agente não pode mais perguntar isso ao Windows.
             string? conta = c.Lixeira ? ContaDaSessao() : null;
-            var (itens, bytes) = NaContaDoAluno(() => ApagarArquivos(c, perfil, conta));
+            var compartilhadas = LimpezaArquivos.PastasCompartilhadas(); // pasta compartilhada na rede nunca é apagada
+            var (itens, bytes) = NaContaDoAluno(() => ApagarArquivos(c, perfil, conta, compartilhadas));
 
             if (c.RestaurarPapelDeParede && File.Exists(CaminhoPapel) && RestaurarPapel(CaminhoPapel) is { Ok: false } papel)
                 Programa.Log($"Papel de parede não aplicado: {papel.Erro}");
@@ -78,14 +79,14 @@ static partial class LimpezaExecutor
     /// </summary>
     static T NaContaDoAluno<T>(Func<T> acao) => EhSystem ? LancadorNaSessao.NaContaDaSessao(acao) : acao();
 
-    static (int Itens, long Bytes) ApagarArquivos(LimpezaConfig c, string perfil, string? conta)
+    static (int Itens, long Bytes) ApagarArquivos(LimpezaConfig c, string perfil, string? conta, IReadOnlyCollection<string> compartilhadas)
     {
         int itens = 0;
         long bytes = 0;
         foreach (var pasta in LimpezaArquivos.PastasParaEsvaziar(perfil, c))
         {
             long antes = LimpezaArquivos.Tamanho(pasta); // medido antes e depois: exceções e arquivos em uso não contam
-            itens += LimpezaArquivos.EsvaziarPasta(pasta, c.Excecoes);
+            itens += LimpezaArquivos.EsvaziarPasta(pasta, c.Excecoes, compartilhadas);
             bytes += Math.Max(0, antes - LimpezaArquivos.Tamanho(pasta));
         }
 
@@ -114,7 +115,7 @@ static partial class LimpezaExecutor
         try { InterfaceAgente.Iniciar(); return true; } catch (Exception) { return false; }
     }
 
-    static void FecharNavegadores()
+    internal static void FecharNavegadores()
     {
         foreach (var nome in new[] { "chrome", "msedge", "firefox", "iexplore", "opera", "brave" })
             foreach (var p in Process.GetProcessesByName(nome))

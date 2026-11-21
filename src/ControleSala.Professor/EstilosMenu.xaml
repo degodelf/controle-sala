@@ -32,10 +32,18 @@
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
                             <ContentPresenter Grid.Column="0" x:Name="ic" ContentSource="Icon" VerticalAlignment="Center" Margin="6,0,2,0"/>
+                            <!-- Sinal de marcado (✓) nas opções que ligam e desligam. -->
+                            <Path Grid.Column="0" x:Name="marca" Data="M1.5,7.5 L5.5,11.5 L12.5,3" Width="14" Height="14"
+                                  Stroke="{TemplateBinding Foreground}" StrokeThickness="2" StrokeStartLineCap="Round"
+                                  StrokeEndLineCap="Round" StrokeLineJoin="Round" Margin="8,0,2,0" VerticalAlignment="Center"
+                                  Visibility="Collapsed"/>
                             <ContentPresenter Grid.Column="1" ContentSource="Header" RecognizesAccessKey="True"
                                               Margin="{TemplateBinding Padding}" VerticalAlignment="Center"/>
                             <TextBlock Grid.Column="2" Text="{TemplateBinding InputGestureText}" Margin="20,0,8,0"
                                        Foreground="{DynamicResource PincelTextoFraco}" VerticalAlignment="Center"/>
+                            <!-- Seta dos itens que abrem outro menu. -->
+                            <TextBlock Grid.Column="2" x:Name="seta" Text="›" FontSize="15" Margin="16,0,10,1"
+                                       Foreground="{TemplateBinding Foreground}" VerticalAlignment="Center" Visibility="Collapsed"/>
                             <Popup x:Name="PART_Popup" Placement="Bottom" IsOpen="{TemplateBinding IsSubmenuOpen}"
                                    AllowsTransparency="True" Focusable="False" PopupAnimation="Fade">
                                 <Border Style="{StaticResource FundoSubmenu}" MinWidth="160" Margin="0,2,0,0">
@@ -48,6 +56,14 @@
                     <ControlTemplate.Triggers>
                         <Trigger Property="Role" Value="TopLevelHeader">
                             <Setter TargetName="ic" Property="Visibility" Value="Collapsed"/>
+                        </Trigger>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="marca" Property="Visibility" Value="Visible"/>
+                        </Trigger>
+                        <!-- Menu dentro de menu: abre ao lado, com a seta. -->
+                        <Trigger Property="Role" Value="SubmenuHeader">
+                            <Setter TargetName="seta" Property="Visibility" Value="Visible"/>
+                            <Setter TargetName="PART_Popup" Property="Placement" Value="Right"/>
                         </Trigger>
                         <Trigger Property="IsHighlighted" Value="True">
                             <Setter TargetName="b" Property="Background" Value="{DynamicResource PincelRealce}"/>

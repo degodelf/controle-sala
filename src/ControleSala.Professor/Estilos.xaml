@@ -124,6 +124,16 @@
         <Setter Property="TextOptions.TextFormattingMode" Value="Ideal"/>
     </Style>
 
+    <!-- Dicas (ao parar o mouse): com as cores do tema. Sem isto, no tema escuro o texto saía branco no fundo branco. -->
+    <Style TargetType="ToolTip">
+        <Setter Property="Background" Value="{DynamicResource PincelSuperficie2}"/>
+        <Setter Property="Foreground" Value="{DynamicResource PincelTexto}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource PincelBorda}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="Padding" Value="9,5"/>
+        <Setter Property="FontSize" Value="12"/>
+    </Style>
+
     <Style x:Key="Rotulo" TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
         <Setter Property="Foreground" Value="{DynamicResource PincelTextoFraco}"/>
         <Setter Property="Margin" Value="0,0,0,4"/>

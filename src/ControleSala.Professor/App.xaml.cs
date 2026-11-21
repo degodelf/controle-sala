@@ -285,6 +285,28 @@ public partial class App : Application
         return w;
     }
 
+    /// <summary>
+    /// Só para a captura: os itens de um menu aberto (fora de um Menu, os itens se desenham como itens de submenu),
+    /// com uma opção marcada, uma desmarcada e um item que abre outro menu.
+    /// </summary>
+    static Window JanelaDeMenuParaTeste()
+    {
+        var itens = new System.Windows.Controls.StackPanel { Margin = new Thickness(16) };
+        System.Windows.Controls.Grid.SetIsSharedSizeScope(itens, true);
+        itens.Children.Add(new System.Windows.Controls.MenuItem { Header = "Bloquear jogos..." });
+        var porTempo = new System.Windows.Controls.MenuItem { Header = "Liberar jogos por um tempo" };
+        porTempo.Items.Add(new System.Windows.Controls.MenuItem { Header = "10 minutos..." });
+        itens.Children.Add(porTempo);
+        itens.Children.Add(new System.Windows.Controls.MenuItem { Header = "Fechar o navegador ao bloquear", IsCheckable = true, IsChecked = true });
+        itens.Children.Add(new System.Windows.Controls.MenuItem { Header = "Bloquear ao ligar os computadores", IsCheckable = true, IsChecked = false });
+        return new Window
+        {
+            SizeToContent = SizeToContent.WidthAndHeight,
+            Background = (Brush)Current.FindResource("PincelSuperficie"),
+            Content = itens,
+        };
+    }
+
     static MainWindow MostrarSalaDeExemplo(MainWindow w)
     {
         w.Loaded += (_, _) => w.MostrarExemploParaTeste();
@@ -311,6 +333,7 @@ public partial class App : Application
         {
             "principal" => MostrarBannerDeTeste(new MainWindow()),
             "exemplo" or "clique-vazio" => MostrarSalaDeExemplo(new MainWindow()),
+            "menu" => JanelaDeMenuParaTeste(),
             "papel" => new JanelaPapelDeParede(),
             "entrar" => new JanelaEntrar(repositorio),
             "primeiro" => new JanelaNovoProfessor(new RepositorioPerfis(Path.GetTempFileName() + ".json"), ModoPerfil.PrimeiroAcesso),

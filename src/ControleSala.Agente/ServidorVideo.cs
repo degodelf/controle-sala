@@ -43,6 +43,8 @@ sealed class ServidorVideo : IDisposable
     public byte[]? DefenderMsg { get; set; }
     /// <summary>Mensagem com o resultado da última limpeza, enviada a quem conecta.</summary>
     public byte[]? LimpezaMsg { get; set; }
+    /// <summary>Monta, na hora de cada conexão, como estão os jogos (o tempo que falta muda a cada segundo).</summary>
+    public Func<byte[]?>? EstadoJogos { get; set; }
 
     public ManualResetEventSlim TemProfessores { get; } = new(false);
 
@@ -131,6 +133,8 @@ sealed class ServidorVideo : IDisposable
                 conexao.EnfileirarControle(DefenderMsg);
             if (LimpezaMsg != null)
                 conexao.EnfileirarControle(LimpezaMsg);
+            if (EstadoJogos?.Invoke() is { } jogos)
+                conexao.EnfileirarControle(jogos);
             if (ConfigLimpezaAgente.Guardada() is { } config)
                 conexao.EnfileirarControle(Protocolo.MontarConfigLimpeza(config));
             conexao.EnfileirarControle(Protocolo.MontarVersaoAgente(Versoes.Atual)); // o professor vê quem precisa atualizar (sempre a última)
@@ -487,6 +491,9 @@ sealed class ConexaoProfessor(TcpClient tcp, Stream fluxo, ServidorVideo servido
                         break;
                     case TipoMensagem.ConfigLimpeza:
                         ConfigLimpezaAgente.Receber(Protocolo.LerConfigLimpeza(buffer.AsSpan(0, msg.Tamanho)));
+                        break;
+                    case TipoMensagem.ConfigJogos:
+                        JogosAgente.ReceberConfig(Protocolo.LerConfigJogos(buffer.AsSpan(0, msg.Tamanho)));
                         break;
                     case TipoMensagem.ArquivoConfig:
                         if (Protocolo.LerArquivoConfig(buffer.AsSpan(0, msg.Tamanho)) is { } ac)

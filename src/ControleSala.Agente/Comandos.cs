@@ -42,6 +42,8 @@ static class Comandos
                 AcaoComando.DefinirPapel => LimpezaExecutor.AplicarPapelGuardado(),
                 AcaoComando.IniciarAplicativo => IniciarAplicativo(comando.Argumento),
                 AcaoComando.AbrirArquivoRecebido => AbrirArquivoRecebido(comando.Argumento),
+                AcaoComando.BloquearJogos => JogosAgente.ComandoBloquear(comando.Argumento),
+                AcaoComando.LiberarJogos => JogosAgente.ComandoLiberar(comando.Argumento),
                 _ => (false, "Este comando ainda não está disponível nesta versão."),
             };
         }
@@ -211,6 +213,25 @@ static class Comandos
     const string RegraFirewall = "ControleSala Bloqueio Internet";
 
     // Arquivo hosts (pode ser trocado em teste pela variável CONTROLESALA_HOSTS).
+    static readonly object _travaHosts = new();
+
+    /// <summary>
+    /// Lê, muda e grava o hosts de uma vez só. O professor (sites), o filtro permanente e os jogos mexem nele, cada um na sua
+    /// seção, às vezes ao mesmo tempo: sem a trava, um podia gravar por cima do que o outro acabou de pôr. True se mudou.
+    /// </summary>
+    internal static bool MudarHosts(Func<string, string> mudar)
+    {
+        lock (_travaHosts)
+        {
+            string hosts = CaminhoHosts;
+            string atual = File.Exists(hosts) ? File.ReadAllText(hosts) : "";
+            string novo = mudar(atual);
+            if (novo == atual) return false;
+            File.WriteAllText(hosts, novo);
+            return true;
+        }
+    }
+
     internal static string CaminhoHosts => Environment.GetEnvironmentVariable("CONTROLESALA_HOSTS")
         ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "drivers", "etc", "hosts");
 
@@ -236,9 +257,7 @@ static class Comandos
         try
         {
             // 1) hosts: o site e o www (terminações como ".bet" não cabem no hosts).
-            string hosts = CaminhoHosts;
-            string atual = File.Exists(hosts) ? File.ReadAllText(hosts) : "";
-            File.WriteAllText(hosts, Sites.MontarHosts(atual, dominios));
+            MudarHosts(atual => Sites.MontarHosts(atual, dominios));
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
@@ -293,13 +312,7 @@ static class Comandos
         AplicarRegraDns([]);
         try
         {
-            string hosts = CaminhoHosts;
-            if (File.Exists(hosts))
-            {
-                string atual = File.ReadAllText(hosts);
-                string limpo = Sites.RemoverSecao(atual);
-                if (limpo != atual) { File.WriteAllText(hosts, limpo); LimparCacheDns(); }
-            }
+            if (MudarHosts(atual => Sites.RemoverSecao(atual))) LimparCacheDns();
             return (true, "Internet e sites liberados.");
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
